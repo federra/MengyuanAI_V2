@@ -1,0 +1,25 @@
+[Unit]
+Description=Director central access service
+After=network.target
+
+[Service]
+Type=simple
+User=director-access
+Group=director-access
+WorkingDirectory=/opt/director-access/current
+EnvironmentFile=/etc/director-access/service.env
+ExecStart=/opt/director-access/node/bin/node src/server.ts
+Restart=on-failure
+RestartSec=3
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/director-access
+MemoryMax=512M
+TasksMax=64
+TimeoutStopSec=15
+
+[Install]
+WantedBy=multi-user.target

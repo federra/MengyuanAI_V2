@@ -15,6 +15,9 @@ import type { Media } from '@/lib/studio';
 declare global {
   interface Window {
     directorDesktop?: {
+      admin?: (action: string, input?: Record<string, unknown>) => Promise<{data?: unknown; error?: string}>;
+      auth?: (action:string,input?:unknown)=>Promise<unknown>;
+      onAuthState?: (callback:(state:import('@/lib/access').AccessState)=>void)=>()=>void;
       updates?: (
         action: 'get' | 'check' | 'install',
       ) => Promise<SoftwareUpdateState>;

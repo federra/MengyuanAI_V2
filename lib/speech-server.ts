@@ -1,3 +1,4 @@
+import { saveMediaRecord, stableMediaId } from './usage-server';
 import { db, files } from './server';
 import { readyConfig, modelRequest } from './model-server';
 import { getJob } from './generation-server';
@@ -90,13 +91,10 @@ export async function submitSpeech(
       bytes.set(chunk, offset);
       offset += chunk.length;
     }
-    const mediaId = crypto.randomUUID();
+    const mediaId = await stableMediaId('speech:' + id);
     const name = `台词配音-${id.slice(0, 8)}.${type === 'audio/mpeg' ? 'mp3' : 'wav'}`;
     await files().put(mediaId, bytes, { httpMetadata: { contentType: type } });
-    await db()
-      .prepare('INSERT INTO media(id,name,type,size) VALUES(?,?,?,?)')
-      .bind(mediaId, name, type, size)
-      .run();
+    await saveMediaRecord({ id: mediaId, name, type, size }, 'speech', id);
     job.media = { id: mediaId, name, type, url: `/api/media/${mediaId}` };
     job.status = 'succeeded';
   } catch (e) {

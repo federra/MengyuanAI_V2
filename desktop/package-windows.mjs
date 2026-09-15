@@ -6,20 +6,13 @@ import {createHash} from 'node:crypto';
 import {packager} from '@electron/packager';
 import {build,Platform,Arch} from 'electron-builder';
 import config from './build/windows-config.cjs';
+import {stageRuntime} from './build/stage-runtime.mjs';
 const here=path.dirname(fileURLToPath(import.meta.url)),root=path.dirname(here);
 const pkg=JSON.parse(await fs.readFile(path.join(here,'package.json'),'utf8'));
 const out=path.join(here,'release',`v${pkg.version}`,'windows-installer');
 const stage=path.join(out,'source');
 await fs.mkdir(out,{recursive:true});await fs.mkdir(stage); // never overwrite an earlier staging run
-const files=['main.cjs','preload.cjs','backend.mjs','software-update.cjs','chrome-developer-mode.cjs','chrome-pipe.cjs','close-window.cjs','directory-settings.cjs','doubao-chrome.cjs','doubao-manager.cjs','image-files.cjs','jianying-export.cjs','reload-doubao-extension.cjs','shutdown.cjs','video-files.cjs','icon.ico','使用说明.txt'];
-for(const file of files)await fs.copyFile(path.join(here,file),path.join(stage,file));
-await fs.cp(path.join(here,'jianying-templates'),path.join(stage,'jianying-templates'),{recursive:true});
-await fs.cp(path.join(root,'browser-extension'),path.join(stage,'doubao-extension'),{recursive:true});
-for(const part of ['server','client'])await fs.cp(path.join(root,'dist',part),path.join(stage,'runtime',part),{recursive:true});
-await fs.mkdir(path.join(stage,'runtime/migrations'));
-for(const file of await fs.readdir(path.join(root,'drizzle')))if(file.endsWith('.sql'))await fs.copyFile(path.join(root,'drizzle',file),path.join(stage,'runtime/migrations',file));
-await fs.copyFile(path.join(here,'worker.mjs'),path.join(stage,'runtime/server/desktop-entry.mjs'));
-await fs.rm(path.join(stage,'runtime/client/doubao-extension.zip'),{force:true});
+await stageRuntime(here,root,stage);
 const appPkg={...pkg};delete appPkg.devDependencies;delete appPkg.scripts;
 await fs.writeFile(path.join(stage,'package.json'),JSON.stringify(appPkg,null,2));
 // Install only Windows production dependencies; never copy the developer's node_modules or profile.

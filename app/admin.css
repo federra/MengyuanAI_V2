@@ -1,0 +1,518 @@
+.admin-console {
+  --ad-bg: #f5f7fb;
+  --ad-panel: #fff;
+  --ad-fg: #17253d;
+  --ad-muted: #66758a;
+  --ad-line: #e4eaf3;
+  --ad-blue: #2465ed;
+  --ad-soft: #eaf1ff;
+  --ad-link: #2465ed;
+  --ad-green: #187950;
+  --ad-green-bg: #eaf7f0;
+  --ad-red: #c23c47;
+  --ad-red-bg: #fff0f1;
+  --ad-amber: #946118;
+  --ad-amber-bg: #fff6e6;
+  color: var(--ad-fg);
+  background: var(--ad-bg);
+  padding: 30px;
+  max-width: 1600px;
+  width: 100%;
+  margin: 0 auto;
+  font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  font-size: 14px;
+  min-width: 0;
+}
+.dark .admin-console {
+  --ad-bg: #111923;
+  --ad-panel: #182231;
+  --ad-fg: #e2e8f2;
+  --ad-muted: #b4c0d2;
+  --ad-line: #35445b;
+  --ad-blue: #356dd5;
+  --ad-soft: #1d2a3c;
+  --ad-link: #91b7ff;
+  --ad-green: #83d5ad;
+  --ad-green-bg: #19372e;
+  --ad-red: #f29aa1;
+  --ad-red-bg: #3c252e;
+  --ad-amber: #e5bf80;
+  --ad-amber-bg: #3a3022;
+}
+.admin-console * {
+  box-sizing: border-box;
+}
+.admin-console h1 {
+  font-size: 26px;
+  letter-spacing: -0.6px;
+  font-weight: 700;
+  margin: 4px 0 8px;
+}
+.admin-console h2 {
+  font-size: 17px;
+  font-weight: 650;
+  margin: 0;
+}
+.admin-console h3 {
+  font-size: 15px;
+  font-weight: 650;
+  margin: 0;
+}
+.admin-console small,
+.admin-console .subtitle {
+  color: var(--ad-muted);
+  font-size: 12px;
+}
+.admin-console .subtitle {
+  margin: 0;
+  line-height: 1.8;
+}
+.admin-console button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  border: 1px solid var(--ad-line);
+  border-radius: 6px;
+  padding: 8px 12px;
+  background: var(--ad-panel);
+  color: var(--ad-fg);
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.admin-console button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.admin-console button:hover:not(:disabled) {
+  background: var(--ad-soft);
+}
+.admin-console button:focus-visible,
+.admin-console input:focus-visible,
+.admin-console select:focus-visible,
+.admin-console textarea:focus-visible {
+  outline: 2px solid var(--ad-link);
+  outline-offset: 2px;
+}
+.admin-console button.primary {
+  background: var(--ad-blue);
+  color: #fff;
+  border-color: var(--ad-blue);
+}
+.admin-console button.danger-primary {
+  background: var(--ad-red);
+  color: var(--ad-panel);
+}
+.admin-console .heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 26px;
+  gap: 20px;
+}
+.admin-console .eyebrow {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--ad-muted);
+}
+.admin-console .tabs {
+  display: flex;
+  gap: 28px;
+  border-bottom: 1px solid var(--ad-line);
+  margin-bottom: 24px;
+}
+.admin-console .tabs button {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  padding: 0 2px 14px;
+  background: transparent;
+  color: var(--ad-muted);
+}
+.admin-console .tabs button.active {
+  border-bottom-color: var(--ad-blue);
+  color: var(--ad-link);
+}
+.admin-console .toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.admin-console .filters,
+.admin-console .segmented {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.admin-console .segmented .selected {
+  background: var(--ad-soft);
+  color: var(--ad-link);
+  border-color: var(--ad-link);
+}
+.admin-console .stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.admin-console .stat {
+  border: 1px solid var(--ad-line);
+  border-radius: 10px;
+  background: var(--ad-panel);
+  padding: 20px 18px;
+  min-width: 0;
+}
+.admin-console .stat > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--ad-muted);
+  font-size: 12px;
+}
+.admin-console .stat strong {
+  display: block;
+  font-size: 29px;
+  line-height: 1.2;
+  margin: 16px 0 8px;
+  font-weight: 650;
+}
+.admin-console .stat small {
+  font-size: 11px;
+}
+.admin-console .split {
+  display: grid;
+  grid-template-columns: 1.7fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+.admin-console .panel {
+  border: 1px solid var(--ad-line);
+  border-radius: 10px;
+  background: var(--ad-panel);
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+  box-shadow: none;
+  min-width: 0;
+}
+.admin-console .panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--ad-line);
+  gap: 12px;
+}
+.admin-console .summary {
+  padding: 10px 20px;
+}
+.admin-console .summary > div {
+  display: flex;
+  justify-content: space-between;
+  padding: 11px 0;
+  color: var(--ad-muted);
+  font-size: 12px;
+}
+.admin-console .summary strong {
+  color: var(--ad-fg);
+}
+.admin-console .chart {
+  display: flex;
+  align-items: end;
+  justify-content: space-around;
+  padding: 20px 24px;
+  height: 193px;
+  gap: 12px;
+}
+.admin-console .chart > div {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--ad-muted);
+}
+.admin-console .chart i {
+  width: 65%;
+  max-width: 42px;
+  background: var(--ad-blue);
+  border-radius: 4px 4px 0 0;
+}
+.admin-console .notice {
+  background: var(--ad-soft);
+  color: var(--ad-muted);
+  padding: 13px 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.7;
+  margin: 0 0 20px;
+}
+.admin-console .badge {
+  display: inline-block;
+  padding: 4px 8px;
+  font-size: 11px;
+  border-radius: 5px;
+  color: var(--ad-link);
+  background: var(--ad-soft);
+  font-weight: 400;
+  white-space: nowrap;
+}
+.admin-console .badge.active {
+  background: var(--ad-green-bg);
+  color: var(--ad-green);
+}
+.admin-console .badge.expired {
+  background: var(--ad-amber-bg);
+  color: var(--ad-amber);
+}
+.admin-console .badge.banned {
+  background: var(--ad-red-bg);
+  color: var(--ad-red);
+}
+.admin-console .table-wrap {
+  overflow-x: auto;
+}
+.admin-console table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.admin-console th {
+  text-align: left;
+  background: var(--ad-bg);
+  padding: 13px 18px;
+  color: var(--ad-muted);
+  font-weight: 500;
+}
+.admin-console td {
+  padding: 15px 18px;
+  border-top: 1px solid var(--ad-line);
+}
+.admin-console td strong {
+  display: block;
+  font-size: 13px;
+}
+.admin-console td small {
+  display: block;
+  font-size: 11px;
+  margin-top: 5px;
+}
+.admin-console .table-actions {
+  display: flex;
+  gap: 2px;
+}
+.admin-console .table-actions button,
+.admin-console .link {
+  border: 0;
+  background: none;
+  padding: 4px 6px;
+  color: var(--ad-link);
+}
+.admin-console .table-actions .danger {
+  color: var(--ad-red);
+}
+.admin-console .empty {
+  text-align: center;
+  padding: 32px;
+  color: var(--ad-muted);
+  font-size: 12px;
+}
+.admin-console .pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  border-top: 1px solid var(--ad-line);
+  color: var(--ad-muted);
+  font-size: 12px;
+  gap: 12px;
+}
+.admin-console .pagination > div {
+  display: flex;
+  gap: 8px;
+}
+.admin-console input,
+.admin-console select,
+.admin-console textarea {
+  border: 1px solid var(--ad-line);
+  border-radius: 6px;
+  background: var(--ad-panel);
+  color: var(--ad-fg);
+  padding: 9px 10px;
+  font: inherit;
+  font-size: 12px;
+  min-width: 0;
+}
+.admin-console input::placeholder,
+.admin-console textarea::placeholder {
+  color: var(--ad-muted);
+}
+.admin-console .error {
+  color: var(--ad-red);
+  background: var(--ad-red-bg);
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  font-size: 12px;
+}
+.admin-console .log-content {
+  white-space: normal;
+  min-width: 220px;
+  max-width: 400px;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+}
+.admin-console .admin-dialog {
+  background: var(--ad-panel);
+  color: var(--ad-fg);
+  border: 1px solid var(--ad-line);
+  border-radius: 14px;
+  width: 520px;
+  max-width: calc(100vw - 32px);
+  max-height: 88vh;
+  padding: 0;
+  margin: auto;
+  box-shadow: 0 24px 80px #0004;
+}
+.admin-console .admin-dialog.wide {
+  width: 1000px;
+}
+.admin-console .admin-dialog::backdrop {
+  background: #0c172566;
+}
+.admin-console .dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--ad-line);
+}
+.admin-console .dialog-head button {
+  border: 0;
+  padding: 4px;
+}
+.admin-console .dialog-body {
+  display: block;
+  border: 0;
+  padding: 20px 24px 24px;
+  margin: 0;
+  min-width: 0;
+}
+.admin-console label {
+  display: block;
+  font-size: 12px;
+  color: var(--ad-muted);
+}
+.admin-console .dialog-body > label {
+  margin: 16px 0;
+}
+.admin-console .dialog-body > label > input,
+.admin-console .dialog-body > label > textarea {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+}
+.admin-console textarea {
+  min-height: 75px;
+  resize: vertical;
+}
+.admin-console .key-row {
+  display: flex;
+  gap: 6px;
+  margin: 8px 0;
+}
+.admin-console .key-row input {
+  flex: 1;
+  width: 0;
+}
+.admin-console .shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.admin-console .shortcuts button {
+  padding: 5px 8px;
+  font-size: 11px;
+}
+.admin-console .dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--ad-line);
+}
+.admin-console .dialog-body h3 {
+  margin: 16px 0;
+}
+.admin-console .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+@media (min-width: 1500px) {
+  .admin-console {
+    padding: 34px 40px;
+  }
+}
+@media (max-width: 1100px) {
+  .admin-console .stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .admin-console .split {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 760px) {
+  .admin-console {
+    padding: 20px 16px;
+  }
+  .admin-console .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .admin-console .heading {
+    align-items: flex-start;
+  }
+  .admin-console .tabs {
+    gap: 20px;
+  }
+}
+
+.admin-console output {
+  display: block;
+}
+
+/* Keep inherited workbench forms from changing the approved admin layout. */
+.workspace .admin-console .filters {
+  display: flex;
+  flex-wrap: wrap;
+  flex: 1;
+  width: auto;
+  gap: 8px;
+}
+.workspace .admin-console .filters input[type='date'] {
+  width: 150px;
+  flex: 0 0 150px;
+}
+.workspace .admin-console .filters input:not([type='date']) {
+  width: 190px;
+}
+.workspace .admin-console .notice {
+  border: 0;
+  color: var(--ad-muted);
+  background: var(--ad-soft);
+}
+.admin-console .admin-dialog.wide {
+  width: 830px;
+}

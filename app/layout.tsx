@@ -1,6 +1,7 @@
 import {themeBootstrap} from '@/lib/theme-preference';
 import type { Metadata } from 'next';
 import './globals.css';
+import './access.css';
 import './business.css';
 import './creative.css';
 import './storyboard-sheet.css';

@@ -31,8 +31,8 @@ function allowedMedia(value, officialAiRemoved = false) {
   return href;
 }
 class DoubaoManager {
-  constructor({ root, backend, notify = () => {}, launch = openChrome, fetchMedia = fetch, log = async()=>{} }) {
-    this.log = log;
+  constructor({ root, backend, notify = () => {}, launch = openChrome, fetchMedia = fetch, authorize = async()=>{}, log = async()=>{} }) {
+    this.log = log; this.authorize=authorize;
     this.root = root; this.backend = backend; this.notify = notify; this.launch = launch; this.fetchMedia = fetchMedia;
     this.state = { version: 2, accounts: [], participatingAccountIds: [], jobs: [], settings: { ...DEFAULTS }, paused: false };
     this.writes = Promise.resolve(); this.downloading = new Set(); this.incoming = Promise.resolve(); this.loginTickets = new Map();
@@ -101,6 +101,7 @@ class DoubaoManager {
     setImmediate(()=>{void this.command('wakeQueue').catch(()=>{}).finally(()=>{this.wakePending=false;});});
   }
   async runCommand(action, data = {}) {
+    await this.authorize();
     if (action === 'snapshot') return this.snapshot();
     if (action === 'previewJob') {
       const job = this.state.jobs.find(j => j.id === data.id);
@@ -343,13 +344,13 @@ class DoubaoManager {
     }
   }
   async claim(a) {
-    a.lastSeen = Date.now(); this.dispatch();
+    a.lastSeen = Date.now(); const allowed=await this.authorize().then(()=>true).catch(()=>false);if(allowed)this.dispatch();
     const owned = this.state.jobs.filter(j => j.accountId === a.id && holdsAccount(j));
     const current = owned.find(blocksSubmission);
     // Snapshot before saving: only expose completion after its media receipt is durable.
     const jobStates = this.state.jobs.filter(j => j.accountId === a.id).map(j => ({id:j.id, requestId:j.requestId, status:j.status, terminal:!!j.terminalAt, returned:j.status==='succeeded' && !!j.media?.id}));
     await this.save();
-    return { jobStates, waitingJobs: owned.filter(recoverable).map(j=>({...j, slotReleased:slotReleased(j)})), extensionVersion:EXTENSION_VERSION, extensionUpdateRequired:this.needsExtensionUpdate(a), accountName: a.name, serial: a.serial, nickname: a.nickname || '', loginCheck: a.loginCheck?.status === 'pending' ? a.loginCheck : null, waiting: this.state.jobs.some(j=>j.status==='queued'&&j.accountIds.includes(a.id)), enabled: a.enabled && this.state.participatingAccountIds.includes(a.id), paused: this.state.paused, runtimeState: a.runtimeState || 'unknown', settings: this.state.settings, job: current ? { ...current, bundle: JSON.parse(await fs.readFile(path.join(this.root, `${current.id}.bundle.json`), 'utf8')) } : null };
+    return { jobStates, waitingJobs: owned.filter(recoverable).map(j=>({...j, slotReleased:slotReleased(j)})), extensionVersion:EXTENSION_VERSION, extensionUpdateRequired:this.needsExtensionUpdate(a), accountName: a.name, serial: a.serial, nickname: a.nickname || '', loginCheck: a.loginCheck?.status === 'pending' ? a.loginCheck : null, waiting: this.state.jobs.some(j=>j.status==='queued'&&j.accountIds.includes(a.id)), enabled: a.enabled && this.state.participatingAccountIds.includes(a.id), paused: this.state.paused || !allowed, runtimeState: a.runtimeState || 'unknown', settings: this.state.settings, job: current && (allowed || current.status==='submitted') ? { ...current, bundle: JSON.parse(await fs.readFile(path.join(this.root, `${current.id}.bundle.json`), 'utf8')) } : null };
   }
   terminal(a,j) { j.terminalAt = Date.now(); a.runtimeState = 'unknown'; a.runtimeAt = 0; a.idleSamples = 0; }
   record(j, message) { const log = j.history ||= []; if (log.at(-1)?.message !== message) log.push({at: new Date().toISOString(), message: clean(message, 400)}); j.history = log.slice(-80); }
@@ -421,6 +422,7 @@ class DoubaoManager {
       return {ok:true,released:false};
     }
     if(data.type==='submissionIntent'){
+      await this.authorize();
       if(j.status!=='prepared'||this.state.paused||!a.enabled||!this.state.participatingAccountIds.includes(a.id)||j.submissionAttemptedAt)throw Error('任务不可提交或已尝试提交，请核对任务状态');
       j.submissionAttemptedAt=Date.now();await this.save();return {ok:true};
     }
@@ -429,6 +431,7 @@ class DoubaoManager {
       j.error=clean(data.error||'提交前页面变化，本次没有发送生成请求',400);this.record(j,j.error);this.notify(j);await this.save();return {ok:true};
     }
     if(data.type==='confirmationIntent'){
+      await this.authorize();
       if(j.status!=='submitted'||j.videoId||j.confirmationAttemptedAt||this.state.paused||!a.enabled)throw Error('当前任务不可重复确认生成');
       j.confirmationAttemptedAt=Date.now();this.record(j,'豆包要求确认，继续当前视频任务');await this.save();return {ok:true};
     }
@@ -497,7 +500,8 @@ class DoubaoManager {
       const blob = await response.blob();
       if (!blob.size) throw Error('返回的视频为空');
       const backend = this.backend(); const form = new FormData(); form.set('file', new File([blob], `${j.title}.${type === 'video/webm' ? 'webm' : 'mp4'}`, { type }));
-      const imported = await fetch(backend.origin + '/api/media', { method: 'POST', headers: { Origin: backend.origin, Cookie: `director_session=${backend.token}` }, body: form, signal:this.downloadAbort.signal });
+      form.set('operation_id','doubao:'+j.id);
+      const imported = await fetch(backend.origin + '/api/media', { method: 'POST', headers: { Origin: backend.origin, Cookie: `director_session=${backend.token}`, ...(backend.internalToken?{'x-director-finish':backend.internalToken}:{}) }, body: form, signal:this.downloadAbort.signal });
       const media = await imported.json(); if (!imported.ok) throw Error(media.error || '回传工作台失败');
       if (!media?.id) throw Error('工作台未返回视频保存凭据，请核对后重新获取原任务结果');
       this.record(j, '原始视频已下载并回传工作台'); j.media = media; j.status = 'succeeded'; j.completedAt = new Date().toISOString(); j.error = ''; this.notify(j);

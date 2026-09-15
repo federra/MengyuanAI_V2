@@ -1,4 +1,7 @@
 'use client';
+import { AdminConsole } from '@/components/admin-console';
+import {AccessGate,AccessProfile} from '@/components/access-gate';
+import type {AccessState} from '@/lib/access';
 import {ThemeToggle} from '@/components/theme-toggle';
 import { readApiResponse, progressType } from '@/lib/api-response';
 import {
@@ -60,6 +63,7 @@ import {
   Blocks,
   Wallet,
   Users,
+  ShieldCheck,
   Plus,
   Check,
   Save,
@@ -231,7 +235,8 @@ async function api<T>(url: string, options?: RequestInit): Promise<T> {
   headers.set('Accept', progressType);
   return readApiResponse<T>(await fetch(url, { ...options, headers }));
 }
-export default function Home() {
+export default function Home(){return <AccessGate>{state=><Workbench accessState={state}/>}</AccessGate>;}
+function Workbench({accessState}:{accessState:AccessState}) {
   const [project, setProject] = useState<Project>(() => exampleProject());
   const [projects, setProjects] = useState<Project[]>([]);
   const [step, setStep] = useState<Stage>('分镜');
@@ -390,14 +395,26 @@ export default function Home() {
     current.current = project;
     isDirty.current = dirty;
   }, [project, dirty]);
+  useEffect(()=>{
+    if(loading)return;
+    const snapshot={project,dirty};
+    const timer=setTimeout(()=>{void window.directorDesktop?.auth?.('recovery-write',snapshot);},300);
+    return()=>{clearTimeout(timer);void window.directorDesktop?.auth?.('recovery-write',snapshot);};
+  },[project,dirty,loading]);
+  useEffect(()=>{
+    const guard=(event:Event)=>{if(lock.current||batchesActive.current)(event as CustomEvent<{blocked:boolean}>).detail.blocked=true;};
+    window.addEventListener('director-before-logout',guard);return()=>window.removeEventListener('director-before-logout',guard);
+  },[]);
   useEffect(() => {
     api<Project[]>('/api/projects')
-      .then((data: Project[]) => {
+      .then(async (data: Project[]) => {
         setProjects(data);
         if (data.length) {
           setProject(data[0]);
           setSelected(data[0].shots[0]?.id || '');
         } else setDirty(true);
+        const recovery=await window.directorDesktop?.auth?.('recovery-read') as {project?:Project;dirty?:boolean}|null;
+        if(recovery?.dirty&&recovery.project&&window.confirm('发现该账号上次未保存的项目，是否恢复为待保存草稿？')){setProject(recovery.project);setSelected(recovery.project.shots[0]?.id||'');setDirty(true);}
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -942,6 +959,7 @@ export default function Home() {
                 <Settings2 /><span>系统设置</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
+            {accessState.user?.role === 'super_admin' && <SidebarMenuItem><SidebarMenuButton disabled={!!busy} isActive={menu === '管理员后台'} onClick={(event)=>{setMenu('管理员后台');event.currentTarget.scrollIntoView({block:'nearest'});}}><ShieldCheck /><span>管理员后台</span></SidebarMenuButton></SidebarMenuItem>}
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter>
@@ -950,12 +968,7 @@ export default function Home() {
             <b>让每一个想法成片</b>
             <p>创意有起点，创作无边界。</p>
           </div>
-          <div className="profile">
-            <span>导</span>
-            <div>
-              我的工作空间<small>核心工作流 · 模型接入版</small>
-            </div>
-          </div>
+          <AccessProfile state={accessState}/>
         </SidebarFooter>
       </Sidebar>
       <main
@@ -1076,7 +1089,7 @@ export default function Home() {
           hidden
           onChange={(e) => fileChanged(e.target.files?.[0])}
         />
-        <fieldset
+        {menu === '管理员后台' && accessState.user?.role === 'super_admin' ? <AdminConsole/> : <fieldset
           disabled={!!busy || loading}
           className={`studio-fieldset ${businessMode ? 'business-fieldset' : ''}`}
         >
@@ -2108,7 +2121,7 @@ export default function Home() {
               />
             )}
           </div>
-        </fieldset>
+        </fieldset>}
       </main>
       <ImageBatchStatus
         batches={imageBatches.batches}

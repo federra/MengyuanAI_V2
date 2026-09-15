@@ -7,6 +7,9 @@ const {openChrome} = require('./doubao-chrome.cjs');
 const {DoubaoManager} = require('./doubao-manager.cjs');
 const {attachCloseGuard} = require('./close-window.cjs');
 const {createShutdown} = require('./shutdown.cjs');
+const {adminCommand} = require('./admin-bridge.cjs');
+const {AccessSession} = require('./access-session.cjs');
+const {AccountWorkspace} = require('./account-workspace.cjs');
 const {SoftwareUpdate, UPDATE_BASE} = require('./software-update.cjs');
 const {fork} = require('node:child_process');
 const fs = require('node:fs/promises');
@@ -17,10 +20,26 @@ const smoke = process.argv.includes('--smoke-test');
 const smokeDir = process.env.DIRECTOR_SMOKE_DIR;
 if (smoke && smokeDir) app.setPath('userData',path.resolve(smokeDir));
 let window, backend, origin, token, doubaoManager, shuttingDown = false;
-let dataDir = path.join(app.getPath('userData'),'workspace');
-const directories = new DirectorySettings(app.getPath('userData'),process.env.LOCALAPPDATA || path.join(app.getPath('home'),'AppData','Local'));
-let exportingDraft = false;
+const userRoot=app.getPath('userData');
+let accountRoot=path.join(userRoot,'login-shell'), boundUserId='', workspaceReady=false, internalToken='';
+const owners=new AccountWorkspace(userRoot);
+let dataDir=path.join(accountRoot,'workspace');
+let directories = new DirectorySettings(accountRoot,process.env.LOCALAPPDATA || path.join(app.getPath('home'),'AppData','Local'));
+let exportingDraft = false, activeRequests=0;
+let recoveryWrites=Promise.resolve();
+let usageSequence=0;
+const usageCommands=new Map();
+function usageCommand(action,data){
+  return new Promise((resolve,reject)=>{
+    if(!backend?.connected)return reject(Error('统计记录服务尚未就绪'));
+    const id=++usageSequence;const timeout=setTimeout(()=>{usageCommands.delete(id);reject(Error('统计记录写入超时'));},15000);
+    usageCommands.set(id,{resolve,reject,timeout});backend.send({type:'usage-command',id,action,...data});
+  });
+}
 let softwareUpdate, pendingUpdateInstall = false, updateInstallHandoff = false;
+const auth=new AccessSession({onState:()=>{if(backend?.connected)backend.send({type:'access-state',authorized:authState().authorized});if(window&&!window.isDestroyed()){window.webContents.send('director:auth-state',authState());menu();}}});
+function authState(){const state=auth.snapshot();return {...state,authorized:state.authorized&&workspaceReady,boundUserId,workspaceReady};}
+async function authorized(){const user=await auth.authorize();if(!workspaceReady||user.id!==boundUserId)throw Error('UNAUTHENTICATED');return user;}
 const logPath = path.join(app.getPath('userData'),'desktop.log');
 async function log(message) {
   await fs.mkdir(app.getPath('userData'),{recursive:true});
@@ -40,7 +59,7 @@ function recoverUpdateInstall(error) {
 }
 async function encryptionKey() {
   if (!safeStorage.isEncryptionAvailable()) throw Error('Windows密钥保护不可用，无法安全保存模型配置。');
-  const filename = path.join(app.getPath('userData'),'model-key.bin');
+  const filename = path.join(accountRoot,'model-key.bin');
   try { return safeStorage.decryptString(await fs.readFile(filename)); }
   catch(error) {
     if (error.code !== 'ENOENT') throw Error('无法读取本机加密密钥，请保留数据目录并检查Windows账户是否变更。');
@@ -50,17 +69,19 @@ async function encryptionKey() {
   }
 }
 async function startBackend() {
+  await fs.mkdir(accountRoot,{recursive:true});
   token = crypto.randomBytes(32).toString('hex');
   const key = await encryptionKey();
   backend = fork(path.join(__dirname,'backend.mjs'),[],{
     execPath:process.execPath, env:{...process.env,ELECTRON_RUN_AS_NODE:'1'},
     stdio:['ignore','pipe','pipe','ipc'], windowsHide:true,
   });
+  const child=backend;
   backend.stdout.on('data',()=>{});
   backend.stderr.on('data',()=>log('Local worker emitted a diagnostic; see startup error if loading fails.'));
   backend.on('exit',(code)=>{
     log(`Local backend exited (${code}).`);
-    if (!shuttingDown && origin && !smoke) {
+    if (!shuttingDown && child===backend && origin && !smoke) {
       dialog.showErrorBox('本地服务已停止','请重新启动桌面版。已经保存的项目仍在本地数据目录中。');
       app.quit();
     }
@@ -69,14 +90,52 @@ async function startBackend() {
     const timeout = setTimeout(()=>reject(Error('本地服务启动超时，请查看“帮助 → 打开日志”。')),60000);
     backend.once('error',error=>{clearTimeout(timeout);reject(error);});
     backend.once('exit',()=>{clearTimeout(timeout);reject(Error('本地服务未能启动。'));});
-    backend.on('message',message=>{
+    backend.on('message',async message=>{
+      if(message.type==='usage-command-result'){
+        const pending=usageCommands.get(message.id);if(pending){clearTimeout(pending.timeout);usageCommands.delete(message.id);if(message.error)pending.reject(Error('统计记录写入失败'));else pending.resolve();}return;
+      }
+      if(message.type==='usage-upload'){
+        try{const user=await auth.authorize();if(child!==backend||user.id!==boundUserId||message.ownerId!==boundUserId)throw Error('UNAUTHENTICATED');const data=await auth.call('/usage/events',{events:message.events});if(child.connected)child.send({type:'usage-upload-result',id:message.id,data});}
+        catch{if(child.connected)child.send({type:'usage-upload-result',id:message.id,error:'UPLOAD_UNAVAILABLE'});}return;
+      }
+      if(message.type==='activity-finished'){activeRequests=Math.max(0,activeRequests-1);return;}
+      if(message.type==='authorize'){
+        let state;try{const user=await authorized();state={authorized:true,user};activeRequests++;}catch(error){state={authorized:false,code:error.message};}
+        if(child.connected)child.send({type:'authorization',id:message.id,state});
+        return;
+      }
       if (message.type === 'error') {clearTimeout(timeout);reject(Error(message.message));}
       if (message.type === 'ready') {clearTimeout(timeout);resolve(message.url);}
     });
-    backend.send({type:'start',dataDir,encryptionKey:key,token});
+    backend.send({type:'start',dataDir,encryptionKey:key,token,ownerId:boundUserId,ownerRole:auth.snapshot().user?.role,internalToken});
   });
 }
+async function activateWorkspace(){
+  const user=await auth.authorize();
+  let claim=false;
+  const existing=await fs.access(path.join(owners.path(user.id),'owner.json')).then(()=>true).catch(()=>false);
+  if(!existing&&await owners.hasLegacy()){
+    const choice=await dialog.showMessageBox(window,{type:'question',title:'本机已有旧工作区',message:`是否将旧项目和模型、豆包资料归入账号 ${user.account}？`,detail:'认领会复制到该账号的独立目录，原目录保留。请先关闭旧版工作台和旧豆包浏览器，再认领属于你的数据；选择新建则使用空工作区。',buttons:['新建空工作区','认领旧工作区','取消登录'],defaultId:0,cancelId:2});
+    if(choice.response===2){await auth.logout();throw Error('LOGIN_CANCELLED');}claim=choice.response===1;
+  }
+  const prepared=await owners.prepare(user.id,claim);
+  const previous=backend;backend=null;
+  if(previous?.connected){const stopped=new Promise(resolve=>previous.once('exit',resolve));previous.send({type:'stop'});await stopped;}
+  accountRoot=prepared;boundUserId=user.id;
+  directories=new DirectorySettings(accountRoot,process.env.LOCALAPPDATA || path.join(app.getPath('home'),'AppData','Local'));
+  await directories.load();await directories.applyPending();dataDir=directories.value.workspaceDir;
+  internalToken=crypto.randomBytes(32).toString('hex');
+  origin=await startBackend();
+  await fs.cp(path.join(__dirname,'doubao-extension'),path.join(accountRoot,'doubao-extension'),{recursive:true});
+  doubaoManager=await new DoubaoManager({root:path.join(accountRoot,'doubao-data'),backend:()=>({origin,token,internalToken}),authorize:()=>authorized(),log,notify:job=>{
+    if(auth.snapshot().authorized&&Notification.isSupported())new Notification({title:job.status==='succeeded'?'豆包视频已完成':'豆包任务需要处理',body:'请返回工作台查看任务。'}).show();
+  }}).start();
+  workspaceReady=true;menu();
+  await window.webContents.session.cookies.set({url:origin,name:'director_session',value:token,httpOnly:true,sameSite:'strict',path:'/'});
+  await window.loadURL(origin);
+}
 async function importProject() {
+  try{await authorized();}catch{return;}
   const result = await dialog.showOpenDialog(window,{title:'导入项目JSON（文字与设定）',filters:[{name:'项目JSON',extensions:['json']}],properties:['openFile']});
   if (result.canceled) return;
   try {
@@ -95,7 +154,7 @@ async function importProject() {
       }
     }
     for (const asset of project.assets) asset.inLibrary=false;
-    const response = await fetch(origin+'/api/projects',{method:'POST',headers:{'Content-Type':'application/json',Origin:origin,Cookie:`director_session=${token}`},body:JSON.stringify(project)});
+    const response = await fetch(origin+'/api/projects',{method:'POST',headers:{'Content-Type':'application/json','x-director-import':'1',Origin:origin,Cookie:`director_session=${token}`},body:JSON.stringify(project)});
     const body = await response.json();
     if (!response.ok) throw Error(body.error || '项目导入失败');
     window.webContents.reload();
@@ -103,11 +162,12 @@ async function importProject() {
   } catch(error) { dialog.showErrorBox('导入失败',error.message); }
 }
 function menu() {
+  if(!authState().authorized){Menu.setApplicationMenu(Menu.buildFromTemplate([{label:'登录',submenu:[{role:'quit',label:'退出软件'}]},{label:'编辑',submenu:[{role:'cut',label:'剪切'},{role:'copy',label:'复制'},{role:'paste',label:'粘贴'}]}]));return;}
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     {label:'工作台',submenu:[
       {label:'导入项目JSON（文字与设定）',click:importProject},
-      {label:'打开本地数据目录',click:()=>shell.openPath(dataDir)},
-      {label:'系统设置 · 文件位置',click:()=>window?.webContents.send('director:open-settings')},
+      {label:'打开本地数据目录',click:()=>{void authorized().then(()=>shell.openPath(dataDir)).catch(()=>{});}},
+      {label:'系统设置 · 文件位置',click:()=>{void authorized().then(()=>window?.webContents.send('director:open-settings')).catch(()=>{});}},
       {type:'separator'}, {role:'quit',label:'退出'},
     ]},
     {label:'编辑',submenu:[{role:'undo',label:'撤销'},{role:'redo',label:'重做'},{type:'separator'},{role:'cut',label:'剪切'},{role:'copy',label:'复制'},{role:'paste',label:'粘贴'},{role:'selectAll',label:'全选'}]},
@@ -124,6 +184,35 @@ else {
   app.on('second-instance',()=>{if(window){if(window.isMinimized())window.restore();window.show();window.focus();}});
   app.whenReady().then(async()=>{
     const trusted=(event)=>{if(!window || event.sender!==window.webContents || event.senderFrame!==window.webContents.mainFrame || !origin || new URL(event.senderFrame.url).origin!==origin)throw Error('请从本地工作台操作豆包插件');};
+    ipcMain.handle('director:admin',async(event,action,input)=>{try{trusted(event);return {data:await adminCommand(auth,authorized,action,input)};}catch(error){return {error:error.message};}});
+    ipcMain.handle('director:auth',async(event,action,input)=>{
+      trusted(event);
+      try {
+        if(action==='state'){if(auth.token)await auth.authorize().catch(()=>{});const state=authState();return {...state,completedResults:state.authorized?(await fs.readdir(path.join(dataDir,'completed-results')).catch(()=>[])).length:0};}
+        if(action==='login'){
+          await auth.login(input?.account,input?.key,boundUserId||undefined);
+          if(!workspaceReady)await activateWorkspace();
+          return authState();
+        }
+        if(action==='logout'){
+          if(activeRequests||exportingDraft||doubaoManager?.state.jobs.some(j=>['prepared','submitted','downloading'].includes(j.status)))throw Error('TASKS_ACTIVE');
+          await auth.logout();return authState();
+        }
+        if(action==='restart'){
+          if(activeRequests||exportingDraft||doubaoManager?.state.jobs.some(j=>['prepared','submitted','downloading'].includes(j.status)))throw Error('TASKS_ACTIVE');
+          await auth.logout();app.relaunch();app.quit();return {authorized:false};
+        }
+        if(action==='recovery-write'){
+          if(!boundUserId||!workspaceReady)throw Error('UNAUTHENTICATED');
+          const body=JSON.stringify(input);if(body.length>8_000_000)throw Error('RECOVERY_TOO_LARGE');
+          const target=path.join(accountRoot,'recovery.json');
+          const write=recoveryWrites.then(async()=>{await fs.writeFile(target+'.tmp',body,{mode:0o600});await fs.rename(target+'.tmp',target);});recoveryWrites=write.catch(()=>{});await write;return {ok:true};
+        }
+        if(action==='open-results'){await authorized();await fs.mkdir(path.join(dataDir,'completed-results'),{recursive:true});await shell.openPath(path.join(dataDir,'completed-results'));return {ok:true};}
+        if(action==='recovery-read'){await authorized();await recoveryWrites;try{return JSON.parse(await fs.readFile(path.join(accountRoot,'recovery.json'),'utf8'));}catch(e){if(e.code==='ENOENT')return null;throw e;}}
+        throw Error('INVALID_ACTION');
+      }catch(error){return {...authState(),error:error.message};}
+    });
     ipcMain.handle('director:version',event=>{trusted(event);return app.getVersion();});
     const canInstall=process.platform==='win32' && app.isPackaged && !process.env.PORTABLE_EXECUTABLE_FILE && require('node:fs').existsSync(path.join(process.resourcesPath,'app-update.yml'));
     const nativeUpdater=canInstall ? new (require('electron-updater').NsisUpdater)({provider:'generic',url:UPDATE_BASE}) : undefined;
@@ -141,7 +230,7 @@ else {
     });
     softwareUpdate.on('state',state=>{if(window && !window.isDestroyed())window.webContents.send('director:update-state',state);});
     ipcMain.handle('director:updates',async(event,action)=>{
-      trusted(event);
+      trusted(event);await authorized();
       if(action==='get')return softwareUpdate.snapshot();
       if(action==='check')return softwareUpdate.check();
       if(action==='install')return softwareUpdate.downloadAndInstall();
@@ -149,7 +238,7 @@ else {
     });
 
     ipcMain.handle('director:directories',async(event,action,input)=>{
-      trusted(event);
+      trusted(event);await authorized();
       if(action==='get')return directories.value;
       if(action==='save')return directories.save(input);
       if(action==='choose'){
@@ -160,25 +249,27 @@ else {
       throw Error('不支持的设置操作');
     });
     ipcMain.handle('director:export-jianying',async(event,input)=>{
-      trusted(event);if(exportingDraft)throw Error('正在导出剪映草稿，请等待完成');
+      trusted(event);await authorized();if(exportingDraft)throw Error('正在导出剪映草稿，请等待完成');
       exportingDraft=true;
       try{const result=await exportJianying(input,{draftDir:directories.value.jianyingDraftDir,origin,token});await shell.openPath(result.path);return result;}
       finally{exportingDraft=false;}
     });
-    ipcMain.handle('director:open-doubao',async(event)=>{trusted(event);return openChrome();});
-    ipcMain.handle('director:doubao',async(event,action,data)=>{trusted(event);if(!doubaoManager)throw Error('豆包管理服务尚未启动');return doubaoManager.command(action,data);});
-    ipcMain.handle('director:open-doubao-extension',async(event)=>{trusted(event);const error=await shell.openPath(path.join(app.getPath('userData'),'doubao-extension'));if(error)throw Error(error);return {ok:true};});
+    ipcMain.handle('director:open-doubao',async(event)=>{trusted(event);await authorized();return openChrome();});
+    ipcMain.handle('director:doubao',async(event,action,data)=>{trusted(event);await authorized();if(!doubaoManager)throw Error('豆包管理服务尚未启动');return doubaoManager.command(action,data);});
+    ipcMain.handle('director:open-doubao-extension',async(event)=>{trusted(event);await authorized();const error=await shell.openPath(path.join(accountRoot,'doubao-extension'));if(error)throw Error(error);return {ok:true};});
     ipcMain.handle('director:reveal-image', async (event, input) => {
       if (!window || event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame || !origin || new URL(event.senderFrame.url).origin !== origin)
         throw Error('请从本地工作台打开图片目录');
-      const filename = await exportImage(input, {picturesDir: app.getPath('pictures'), origin, token});
+      await authorized();
+      const filename = await exportImage(input, {picturesDir: path.join(app.getPath('pictures'),boundUserId), origin, token});
       shell.showItemInFolder(filename);
       return {ok: true};
     });
     ipcMain.handle('director:reveal-video', async (event, input) => {
       if (!window || event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame || !origin || new URL(event.senderFrame.url).origin !== origin)
         throw Error('请从本地工作台打开视频目录');
-      const filename = await exportVideo(input, {videosDir: app.getPath('videos'), origin, token});
+      await authorized();
+      const {filename} = await exportVideo(input, {videosDir: path.join(app.getPath('videos'),boundUserId), origin, token, journal:{begin:(event,details)=>usageCommand('file-begin',{event,details}),complete:(eventId,created)=>usageCommand('file-complete',{eventId,created})}});
       shell.showItemInFolder(filename);
       return {ok: true};
     });
@@ -195,17 +286,13 @@ else {
     ses.setPermissionRequestHandler((webContents,permission,callback)=>callback(
       permission==='clipboard-sanitized-write' && !!origin && webContents.getURL().startsWith(origin+'/')
     ));
-    await window.loadURL('data:text/html;charset=utf-8,'+encodeURIComponent('<meta charset="utf-8"><title>启动中</title><body style="font:18px system-ui;background:#f4f7fd;color:#173568;display:grid;place-content:center;height:90vh"><h1>AI短片导演</h1><p>正在启动本地工作台与数据库…</p></body>'));
+    await window.loadURL('data:text/html;charset=utf-8,'+encodeURIComponent('<meta charset="utf-8"><title>启动中</title><body style="font:18px system-ui;background:#f4f7fd;color:#173568;display:grid;place-content:center;height:90vh"><h1>AI短片导演</h1><p>正在打开登录页面…</p></body>'));
     try {
       await directories.load();
       try{await directories.applyPending();}catch(error){await log('Workspace migration stopped: '+error.message);if(!smoke)await dialog.showMessageBox(window,{type:'warning',message:'项目目录迁移未完成，将继续使用原目录',detail:error.message});}
       dataDir=directories.value.workspaceDir;
       origin=await startBackend();
       if(shuttingDown || window.isDestroyed()) return;
-      await fs.cp(path.join(__dirname,'doubao-extension'),path.join(app.getPath('userData'),'doubao-extension'),{recursive:true});
-      doubaoManager = await new DoubaoManager({root:path.join(app.getPath('userData'),'doubao-data'),backend:()=>({origin,token}),log,notify:(job)=>{
-        if(Notification.isSupported())new Notification({title:job.status==='succeeded'?'豆包视频已完成':'豆包任务需要处理',body:`${job.title}：${job.status==='succeeded'?'已下载，可返回原分镜':job.error}`}).show();
-      }}).start();
       await ses.cookies.set({url:origin,name:'director_session',value:token,httpOnly:true,sameSite:'strict',path:'/'});
       menu();
       await window.loadURL(origin);

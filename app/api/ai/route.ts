@@ -1,4 +1,9 @@
-import { storyLengths, storyTokenBudget } from '@/lib/creative';
+import { recordUsage } from '@/lib/usage-server';
+import {
+  storyLengths,
+  storyTokenBudget,
+  parseStoryPlans,
+} from '@/lib/creative';
 import { textRequest, config } from '@/lib/model-server';
 import { json, sameOrigin } from '@/lib/server';
 import { withProgress } from '@/lib/api-response';
@@ -100,7 +105,7 @@ async function generate(req: Request) {
       choices?: { finish_reason: string; message: { content: string } }[];
     };
     const choice = result.choices?.[0];
-    if (!choice?.message.content || choice.finish_reason === 'length')
+    if (!choice?.message.content?.trim() || choice.finish_reason !== 'stop')
       return json(
         { error: '模型未返回完整结果，原内容未修改，请减少输入后重试。' },
         502,
@@ -125,6 +130,30 @@ async function generate(req: Request) {
           422,
         );
       }
+    }
+    if (['storyOptions', 'story', 'script'].includes(task)) {
+      let count = 1;
+      if (task === 'storyOptions') {
+        try {
+          count = parseStoryPlans(choice.message.content).length;
+        } catch (e) {
+          return json(
+            { error: e instanceof Error ? e.message : '故事方案不完整' },
+            422,
+          );
+        }
+      }
+      const metric = task === 'script' ? 'script' : 'story';
+      await recordUsage(
+        Array.from({ length: count }, (_, index) => ({
+          event_id: metric + ':' + requestId + ':' + index,
+          operation_id: requestId,
+          output_id: String(index),
+          metric,
+          quantity: 1,
+          source: 'ai',
+        })),
+      );
     }
     return json({ text: choice.message.content });
   } catch (e) {

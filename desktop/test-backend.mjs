@@ -10,6 +10,9 @@ let dataDir=path.join(dir,'test-results','backend-'+Date.now());
 const token=crypto.randomBytes(24).toString('hex');
 const encryptionKey=crypto.randomBytes(32).toString('hex');
 let child, url;
+let authorized=false;
+const ownerId=crypto.randomUUID();
+const internalToken=crypto.randomBytes(32).toString('hex');
 async function start() {
   child=fork(path.join(dir,'backend.mjs'),[],{stdio:['ignore','pipe','pipe','ipc'],windowsHide:true});
   child.stderr.on('data',b=>process.stderr.write(b));
@@ -17,10 +20,11 @@ async function start() {
     const timeout=setTimeout(()=>reject(Error('Backend timed out')),45000);
     child.once('exit',code=>{clearTimeout(timeout);reject(Error('Backend exited '+code));});
     child.on('message',message=>{
+      if(message.type==='authorize')child.send({type:'authorization',id:message.id,state:{authorized,user:{id:ownerId},code:'EXPIRED'}});
       if(message.type==='ready'){clearTimeout(timeout);resolve(message.url);}
       if(message.type==='error'){clearTimeout(timeout);reject(Error(message.message));}
     });
-    child.send({type:'start',dataDir,token,encryptionKey});
+    child.send({type:'start',dataDir,token,encryptionKey,ownerId,internalToken});
   });
 }
 async function stop() {if(child?.exitCode===null){const exited=once(child,'exit');child.send({type:'stop'});await exited;}}
@@ -36,6 +40,14 @@ try {
   assert.ok(scriptPath,'client JavaScript must be in HTML');
   const script=await request(scriptPath);assert.equal(script.status,200);
   assert.ok((await script.text()).length>100);
+  assert.equal((await request('/api/projects')).status,401);
+  assert.equal((await request('/api/projects',{headers:{'x-director-finish':internalToken}})).status,401);
+  assert.equal((await request('/api/generations',{method:'POST',headers:{'x-director-finish':internalToken,'Content-Type':'application/json'},body:JSON.stringify({action:'create',id:crypto.randomUUID()})})).status,401);
+  authorized=true;
+  const invalid=await request('/api/ai',{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/x-ndjson'},body:JSON.stringify({task:'invalid',content:''})});
+  const responseBody=await invalid.text();assert.ok(responseBody.includes('result'));
+  let completed=[];for(let i=0;i<30;i++){completed=await fs.readdir(path.join(dataDir,'completed-results')).catch(()=>[]);if(completed.length)break;await new Promise(r=>setTimeout(r,50));}
+  assert.equal(completed.length,1);assert.ok(JSON.parse(await fs.readFile(path.join(dataDir,'completed-results',completed[0]),'utf8')).body.includes('result'));
   const project={id:crypto.randomUUID(),title:'桌面持久化测试',brief:'测试',story:'',script:'',scenes:'',style:'电影质感',ratio:'16:9',shots:[],assets:[],revision:0,updatedAt:new Date().toISOString()};
   let r=await request('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(project)});
   assert.equal(r.status,200,await r.clone().text());
@@ -48,7 +60,9 @@ try {
   r=await request('/api/media',{method:'POST',body:image});
   assert.equal(r.status,200,await r.clone().text());
   const media=await r.json();
-  assert.ok([200,206].includes((await request(media.url)).status));
+  const mediaResponse=await request(media.url);assert.ok([200,206].includes(mediaResponse.status));assert.equal(mediaResponse.headers.get('cache-control'),'no-store');await mediaResponse.arrayBuffer();
+  authorized=false;assert.equal((await request(media.url,{headers:{Range:'bytes=0-2'}})).status,401);
+  authorized=true;
   assert.equal((await request('/api/models')).status,200);
   const initialModelCount=(await (await request('/api/models')).json()).length;
   const model={kind:'text',name:'本地配置测试',baseUrl:'https://example.com/v1',model:'test-model',protocol:'chat',thinking:'auto',enabled:false,apiKey:'test-only-not-a-real-provider-key'};

@@ -1,3 +1,4 @@
+import { saveMediaRecord, stableMediaId } from './usage-server';
 import { validateVoiceBindings, planVideoVoices } from './video-voice';
 import { db, files } from './server';
 import {
@@ -163,8 +164,19 @@ async function saveOutput(
   data: { url?: string; b64_json?: string },
   video: boolean,
   response?: Response,
+  operationId?: string,
 ) {
-  const id = crypto.randomUUID();
+  const id = operationId
+    ? await stableMediaId('generation:' + operationId)
+    : crypto.randomUUID();
+  const existing = await db()
+    .prepare('SELECT id,name,type FROM media WHERE id=?')
+    .bind(id)
+    .first<{ id: string; name: string; type: string }>();
+  if (existing) {
+    await response?.body?.cancel();
+    return { ...existing, url: `/api/media/${id}` };
+  }
   let body: ReadableStream<Uint8Array>;
   let expectedSize = 0;
   let type = video ? 'video/mp4' : 'image/png';
@@ -230,10 +242,11 @@ async function saveOutput(
     await files().put(id, bytes, { httpMetadata: { contentType: type } });
   }
   const name = `生成素材-${id.slice(0, 8)}.${type.split('/')[1]}`;
-  await db()
-    .prepare('INSERT INTO media(id,name,type,size) VALUES(?,?,?,?)')
-    .bind(id, name, type, size)
-    .run();
+  await saveMediaRecord(
+    { id, name, type, size },
+    'generation',
+    operationId || id,
+  );
   return { id, name, type, url: `/api/media/${id}` };
 }
 export async function getJob(id: string) {
@@ -415,7 +428,7 @@ export async function submitJob(
         return storeJob({
           ...j,
           status: 'succeeded',
-          media: await saveOutput({ url }, true),
+          media: await saveOutput({ url }, true, undefined, j.id),
         });
       }
       const r = minimax
@@ -468,7 +481,7 @@ export async function submitJob(
     return storeJob({
       ...j,
       status: 'succeeded',
-      media: await saveOutput(out.data[0], false),
+      media: await saveOutput(out.data[0], false, undefined, j.id),
     });
   } catch (e) {
     return storeJob({
@@ -502,7 +515,7 @@ async function refreshJobOnce(id: string) {
         ...j,
         status: 'succeeded',
         error: undefined,
-        media: await saveOutput({ url: row.remote_id }, false),
+        media: await saveOutput({ url: row.remote_id }, false, undefined, j.id),
       });
     } catch (e) {
       return storeJob({
@@ -520,7 +533,7 @@ async function refreshJobOnce(id: string) {
         ...j,
         status: 'succeeded',
         error: undefined,
-        media: await saveOutput({ url: row.remote_id }, true),
+        media: await saveOutput({ url: row.remote_id }, true, undefined, j.id),
       });
     } catch (e) {
       return storeJob({
@@ -570,8 +583,14 @@ async function refreshJobOnce(id: string) {
                 undefined,
                 true,
               ),
+              j.id,
             )
-          : await saveOutput({ url: out.content?.video_url }, true),
+          : await saveOutput(
+              { url: out.content?.video_url },
+              true,
+              undefined,
+              j.id,
+            ),
       });
     } catch (e) {
       return storeJob({

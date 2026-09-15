@@ -1,0 +1,171 @@
+.access-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(ellipse at 50% 0%, #e7efff 0%, #f4f7fd 65%);
+  padding: 32px;
+  color: #172b4d;
+}
+.access-theme {
+  position: absolute;
+  right: 28px;
+  top: 24px;
+}
+.access-card {
+  width: 420px;
+  max-width: 100%;
+  padding: 38px;
+  background: #fff;
+  border: 1px solid #e1e7f0;
+  border-radius: 18px;
+  box-shadow: 0 16px 55px #1939660b;
+}
+.access-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 34px;
+  font-size: 19px;
+  font-weight: 700;
+}
+.access-brand > svg {
+  width: 40px;
+  height: 40px;
+  padding: 8px;
+  border-radius: 11px;
+  background: #2463eb;
+  color: white;
+}
+.access-brand small {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: #7a8ca8;
+  margin-top: 3px;
+}
+.access-card h1 {
+  font-size: 25px;
+  font-weight: 700;
+  margin: 0 0 8px;
+}
+.access-card > p {
+  font-size: 13px;
+  color: #728198;
+}
+.access-card form {
+  margin-top: 26px;
+}
+.access-card label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin: 19px 0 8px;
+}
+.access-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #dce3ed;
+  border-radius: 8px;
+  padding: 0 12px;
+  color: #8291a8;
+  background: #fff;
+}
+.access-input:focus-within {
+  border-color: #2463eb;
+  box-shadow: 0 0 0 3px #2463eb12;
+}
+.access-input input {
+  width: 100%;
+  min-width: 0;
+  height: 44px;
+  outline: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 14px;
+}
+.access-input button,
+.access-profile button {
+  border: 0;
+  background: none;
+  padding: 5px;
+  cursor: pointer;
+  color: inherit;
+}
+.access-error {
+  font-size: 12px;
+  line-height: 1.5;
+  min-height: 36px;
+  padding-top: 12px;
+  color: #c43e42;
+}
+.access-submit {
+  width: 100%;
+  height: 44px;
+  border: 0;
+  border-radius: 8px;
+  background: #2463eb;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+.access-submit:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.access-help {
+  text-align: center;
+  margin-top: 22px;
+  font-size: 12px !important;
+}
+.access-restart {
+  display: block;
+  margin: 18px auto 0;
+  color: #2463eb;
+  font-size: 12px;
+  cursor: pointer;
+}
+.access-profile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  font-size: 13px;
+}
+.access-profile small {
+  display: block;
+  font-size: 11px;
+  color: #8390a5;
+  margin-top: 3px;
+}
+.dark .access-screen {
+  background: radial-gradient(ellipse at 50% 0%, #172a46 0%, #101824 70%);
+  color: #e0e7f2;
+}
+.dark .access-card {
+  background: #182230;
+  border-color: #2a3749;
+  box-shadow: 0 20px 60px #0002;
+}
+.dark .access-input {
+  background: #111b29;
+  border-color: #304055;
+  color: #cbd7e8;
+}
+.dark .access-error {
+  color: #f09598;
+}
+.access-error {
+  display: block;
+}
+:root.dark .access-input input {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+:root.dark .access-input input:focus {
+  border: 0;
+  box-shadow: none;
+}

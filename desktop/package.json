@@ -1,8 +1,8 @@
 {
   "name": "ai-director-desktop",
   "productName": "AI短片导演测试版",
-  "version": "0.1.69",
-  "description": "AI短片导演 Windows 本地桌面测试版",
+  "version": "0.1.70",
+  "description": "AI短片导演本地桌面版",
   "private": true,
   "type": "module",
   "main": "main.cjs",
@@ -12,7 +12,8 @@
     "package": "node package.mjs",
     "test": "node test-backend.mjs",
     "package:windows": "node package-windows.mjs",
-    "test:updates": "node test-software-update.mjs"
+    "test:updates": "node test-software-update.mjs",
+    "package:mac": "node package-mac.mjs"
   },
   "dependencies": {
     "electron-updater": "6.8.9",

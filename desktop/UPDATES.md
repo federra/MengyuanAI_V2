@@ -47,3 +47,7 @@ Windows 使用 electron-builder NSIS 安装版 + electron-updater。源码启动
 - Electron 运行 `desktop/test-software-update-ui.mjs`：临时数据库、模拟更新源与安装器，检查完整 UI 状态及深浅主题。测试不执行真正的 Windows 安装。
 
 相关实现：`software-update.cjs`（主进程状态与校验）、`main.cjs`（IPC/退出交接）、`preload.cjs`（受限接口）、`components/software-update.tsx`（界面）、`build/windows-config.cjs`（NSIS 配置）。
+
+## 0.1.70 发布记录（2026-09-15）
+
+用户明确要求在暂无Windows PC的条件下发布，作为本次先实机验收规则的例外。0.1.70安装包及两份更新清单已发布到上述固定渠道，大小176,204,097字节，SHA-512与清单一致，匿名HTTPS Range返回206；未签名，Windows安装与升级实机验收仍待完成。后续发布继续遵守上述默认顺序。
