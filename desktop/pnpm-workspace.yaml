@@ -1,5 +1,6 @@
 nodeLinker: hoisted
 allowBuilds:
   electron: true
+  electron-winstaller: false
   sharp: true
   workerd: true

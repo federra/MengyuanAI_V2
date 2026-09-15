@@ -9,16 +9,21 @@ import {
   DialogTitle,
   DialogDescription,
 } from './ui/dialog';
+import type { SoftwareUpdateState } from '@/lib/software-update';
 import type { Media } from '@/lib/studio';
 
 declare global {
   interface Window {
     directorDesktop?: {
+      updates?: (
+        action: 'get' | 'check' | 'install',
+      ) => Promise<SoftwareUpdateState>;
+      onUpdateState?: (
+        callback: (state: SoftwareUpdateState) => void,
+      ) => () => void;
       getVersion?: () => Promise<string>;
       directories?: (action: string, input?: unknown) => Promise<unknown>;
-      exportJianying?: (
-        input: unknown,
-      ) => Promise<{
+      exportJianying?: (input: unknown) => Promise<{
         ok: boolean;
         path: string;
         name: string;

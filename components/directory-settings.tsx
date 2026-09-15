@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { SoftwareUpdate } from './software-update';
 import { Button } from './ui/button';
 import {
   Dialog,
@@ -29,17 +30,16 @@ export function DirectorySettings({
   );
   useEffect(() => {
     if (!open) return;
-    setValue(null);
-    setMessage('');
     const api = window.directorDesktop?.directories;
-    if (!api) {
-      setMessage('文件位置设置请在桌面版中使用');
-      return;
-    }
     let active = true;
-    api('get')
+    Promise.resolve()
+      .then(() => {
+        if (!api) throw Error('文件位置设置请在桌面版中使用');
+        return api('get');
+      })
       .then((v) => {
         if (active) {
+          setMessage('');
           const s = v as Settings;
           setValue({
             ...s,
@@ -89,12 +89,10 @@ export function DirectorySettings({
   }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="system-settings-dialog sm:max-w-xl max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>系统设置 · 文件位置</DialogTitle>
-          <DialogDescription>
-            设置剪映草稿和本机项目的存放位置。
-          </DialogDescription>
+          <DialogTitle>系统设置</DialogTitle>
+          <DialogDescription>管理文件位置及桌面软件更新。</DialogDescription>
         </DialogHeader>
         {value && (
           <div className="grid gap-5">
@@ -127,10 +125,9 @@ export function DirectorySettings({
           </div>
         )}
         {message && (
-          <p role="status" className="break-all text-sm">
-            {message}
-          </p>
+          <output className="block break-all text-sm">{message}</output>
         )}
+        <SoftwareUpdate />
       </DialogContent>
     </Dialog>
   );

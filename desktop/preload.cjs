@@ -1,5 +1,7 @@
 const {contextBridge, ipcRenderer} = require('electron');
 contextBridge.exposeInMainWorld('directorDesktop', {
+  updates: action => ipcRenderer.invoke('director:updates', action),
+  onUpdateState: callback => {const listener=(_event,state)=>callback(state);ipcRenderer.on('director:update-state',listener);return ()=>ipcRenderer.removeListener('director:update-state',listener);},
   getVersion: () => ipcRenderer.invoke('director:version'),
   directories: (action,input) => ipcRenderer.invoke('director:directories',action,input),
   exportJianying: (input) => ipcRenderer.invoke('director:export-jianying',input),

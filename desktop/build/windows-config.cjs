@@ -1,0 +1,11 @@
+module.exports={
+  appId:'com.mengyuan.director.studio',
+  productName:'AI短片导演测试版',
+  electronVersion:'44.3.0',
+  asar:false,
+  npmRebuild:false,
+  toolsets:{nsis:'1.2.1'},
+  publish:[{provider:'generic',url:'https://121.199.40.214/updates/windows/'}],
+  win:{target:[{target:'nsis',arch:['x64']}],artifactName:'MengyuanAI-Setup-${version}-${arch}.${ext}',icon:'icon.ico'},
+  nsis:{oneClick:true,perMachine:false,runAfterFinish:true,deleteAppDataOnUninstall:false,include:'build/installer.nsh'},
+};

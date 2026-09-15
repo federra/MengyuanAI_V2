@@ -7,6 +7,7 @@ const {openChrome} = require('./doubao-chrome.cjs');
 const {DoubaoManager} = require('./doubao-manager.cjs');
 const {attachCloseGuard} = require('./close-window.cjs');
 const {createShutdown} = require('./shutdown.cjs');
+const {SoftwareUpdate, UPDATE_BASE} = require('./software-update.cjs');
 const {fork} = require('node:child_process');
 const fs = require('node:fs/promises');
 const path = require('node:path');
@@ -19,13 +20,24 @@ let window, backend, origin, token, doubaoManager, shuttingDown = false;
 let dataDir = path.join(app.getPath('userData'),'workspace');
 const directories = new DirectorySettings(app.getPath('userData'),process.env.LOCALAPPDATA || path.join(app.getPath('home'),'AppData','Local'));
 let exportingDraft = false;
+let softwareUpdate, pendingUpdateInstall = false, updateInstallHandoff = false;
 const logPath = path.join(app.getPath('userData'),'desktop.log');
 async function log(message) {
   await fs.mkdir(app.getPath('userData'),{recursive:true});
   // Diagnostic events only. API credentials are never logged.
   await fs.appendFile(logPath, `${new Date().toISOString()} ${message}\n`).catch(()=>{});
 }
-const shutdown = createShutdown({getBackend:()=>backend, stopHelper:()=>doubaoManager?.stop(), log, exit:code=>app.exit(code)});
+const shutdown = createShutdown({getBackend:()=>backend, stopHelper:()=>doubaoManager?.stop(), log, exit:code=>{
+  if(pendingUpdateInstall){
+    updateInstallHandoff=true;
+    try{softwareUpdate.installDownloaded();}catch(error){recoverUpdateInstall(error);}
+  } else app.exit(code);
+}});
+function recoverUpdateInstall(error) {
+  void log('Update installer could not start: '+error.message);
+  dialog.showErrorBox('更新安装未完成','将重新打开当前版本，请稍后重试。已保存项目会保留。');
+  app.relaunch();app.exit(1);
+}
 async function encryptionKey() {
   if (!safeStorage.isEncryptionAvailable()) throw Error('Windows密钥保护不可用，无法安全保存模型配置。');
   const filename = path.join(app.getPath('userData'),'model-key.bin');
@@ -113,6 +125,29 @@ else {
   app.whenReady().then(async()=>{
     const trusted=(event)=>{if(!window || event.sender!==window.webContents || event.senderFrame!==window.webContents.mainFrame || !origin || new URL(event.senderFrame.url).origin!==origin)throw Error('请从本地工作台操作豆包插件');};
     ipcMain.handle('director:version',event=>{trusted(event);return app.getVersion();});
+    const canInstall=process.platform==='win32' && app.isPackaged && !process.env.PORTABLE_EXECUTABLE_FILE && require('node:fs').existsSync(path.join(process.resourcesPath,'app-update.yml'));
+    const nativeUpdater=canInstall ? new (require('electron-updater').NsisUpdater)({provider:'generic',url:UPDATE_BASE}) : undefined;
+    softwareUpdate=new SoftwareUpdate({
+      version:app.getVersion(),canInstall,updater:nativeUpdater,
+      requestInstall:async()=>{
+        if(exportingDraft)throw Error('剪映草稿正在导出，请完成后再安装');
+        const active=!!doubaoManager?.state.jobs.some(j=>['queued','prepared','submitted','downloading'].includes(j.status));
+        if(active){
+          const answer=await dialog.showMessageBox(window,{type:'question',message:'豆包任务尚未结束，安装更新将暂时停止本机追踪。',detail:'建议等待任务完成后再安装。已保存的任务记录会保留。',buttons:['稍后安装','继续安装'],defaultId:0,cancelId:0});
+          if(answer.response!==1){softwareUpdate.cancelInstall();return;}
+        }
+        pendingUpdateInstall=true;app.quit();
+      },onInstallError:recoverUpdateInstall,
+    });
+    softwareUpdate.on('state',state=>{if(window && !window.isDestroyed())window.webContents.send('director:update-state',state);});
+    ipcMain.handle('director:updates',async(event,action)=>{
+      trusted(event);
+      if(action==='get')return softwareUpdate.snapshot();
+      if(action==='check')return softwareUpdate.check();
+      if(action==='install')return softwareUpdate.downloadAndInstall();
+      throw Error('未知的软件更新操作');
+    });
+
     ipcMain.handle('director:directories',async(event,action,input)=>{
       trusted(event);
       if(action==='get')return directories.value;
@@ -152,7 +187,7 @@ else {
       title:'AI短片导演 · 本地测试版',backgroundColor:'#f4f7fd',icon:path.join(__dirname,'icon.ico'),
       webPreferences:{backgroundThrottling:false,preload:path.join(__dirname,'preload.cjs'),nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true,partition:'persist:director-desktop'},
     });
-    attachCloseGuard(window, {dialog, log});
+    attachCloseGuard(window, {dialog, log,onCancelClose:()=>{if(pendingUpdateInstall){pendingUpdateInstall=false;softwareUpdate.cancelInstall();}}});
     window.webContents.setWindowOpenHandler(({url})=>{if(/^https?:\/\//.test(url))shell.openExternal(url);return {action:'deny'};});
     window.webContents.on('will-navigate',(event,url)=>{if(origin && new URL(url).origin!==origin)event.preventDefault();});
     window.webContents.on('page-title-updated',event=>event.preventDefault());
@@ -204,6 +239,7 @@ else {
   app.on('window-all-closed',()=>app.quit());
   app.on('before-quit',()=>{void log('Application quit requested; checking windows first.');});
   app.on('will-quit',event=>{
+    if(updateInstallHandoff)return;
     event.preventDefault(); shuttingDown=true;
     void shutdown();
   });

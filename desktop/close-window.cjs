@@ -1,4 +1,4 @@
-function attachCloseGuard(window, {dialog, log}) {
+function attachCloseGuard(window, {dialog, log, onCancelClose}) {
   window.on('close', () => { void log('Close requested.'); });
   window.webContents.on('will-prevent-unload', event => {
     void log('Page blocked unload: unsaved changes or active batch.');
@@ -11,6 +11,7 @@ function attachCloseGuard(window, {dialog, log}) {
     void log(choice === 1 ? 'User confirmed unload.' : 'User cancelled unload; services remain running.');
     // In Electron, preventing this event accepts the unload that the renderer blocked.
     if (choice === 1) event.preventDefault();
+    else onCancelClose?.();
   });
   window.on('closed', () => { void log('Main window closed.'); });
   window.webContents.on('unresponsive', () => { void log('Renderer unresponsive.'); });

@@ -407,7 +407,7 @@ export default function Home() {
   }, []);
   useEffect(() => {
     const f = (e: BeforeUnloadEvent) => {
-      if (isDirty.current || batchesActive.current) {
+      if (isDirty.current || batchesActive.current || lock.current) {
         e.preventDefault();
       }
     };
