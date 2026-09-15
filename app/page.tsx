@@ -66,7 +66,6 @@ import {
   Download,
   Image as ImageIcon,
   ChevronRight,
-  Bot,
   Upload,
   ArrowUp,
   ArrowDown,
@@ -700,15 +699,15 @@ export default function Home() {
     });
     if (fileInput.current) fileInput.current.value = '';
   }
-  async function generate(task: string, context?: string) {
+  async function generate(task: string, context?: string, source: Project = project) {
     const content =
       task === 'story' || task === 'storyOptions'
-        ? project.brief
+        ? source.brief
         : task === 'script'
-          ? project.story
+          ? source.story
           : task === 'prompt' && shot
             ? compilePrompt(project, shot)
-            : project.script;
+            : source.script;
     if (!content.trim()) {
       setError('请先填写上一步内容');
       return;
@@ -720,52 +719,61 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           task,
+          storyLength: source.storyLength || '500～1000字',
           storyCount:
             task === 'storyOptions'
-              ? project.storyVersionCount || 3
+              ? source.storyVersionCount || 3
               : undefined,
           content:
             context ||
             (task === 'script'
               ? JSON.stringify({
                   story: content,
-                  style: project.style,
-                  ratio: project.ratio,
+                  videoType: source.videoType,
+                  style: source.style,
+                  ratio: source.ratio,
                   scriptSkill:
-                    [...builtinSkills, ...(project.skills || [])].find(
+                    [...builtinSkills, ...(source.skills || [])].find(
                       (s) =>
-                        s.id === (project.scriptSkillId || 'script') &&
+                        s.id === (source.scriptSkillId || 'script') &&
                         ['剧本', '全项目'].includes(s.stage),
                     ) || builtinSkills.find((s) => s.id === 'script'),
                 })
               : task === 'shots'
                 ? JSON.stringify({
                     script: content,
-                    ratio: project.ratio,
-                    style: project.style,
+                    ratio: source.ratio,
+                    videoType: source.videoType,
+                    style: source.style,
                     shotSkill:
-                      [...builtinSkills, ...(project.skills || [])].find(
+                      [...builtinSkills, ...(source.skills || [])].find(
                         (s) =>
-                          s.id === (project.shotSkillId || 'shot') &&
+                          s.id === (source.shotSkillId || 'shot') &&
                           ['分镜', '全项目'].includes(s.stage),
                       ) || builtinSkills.find((s) => s.id === 'shot'),
-                    assets: project.assets.map((a) => ({
+                    assets: source.assets.map((a) => ({
                       kind: a.kind,
                       name: a.name,
                       description: a.description,
                     })),
                   })
-                : content),
+                : task === 'story' ? JSON.stringify({brief: content, videoType: source.videoType, style: source.style, ratio: source.ratio, storyLength: source.storyLength || '500～1000字', creativeSkill: [...builtinSkills, ...(source.skills || [])].find(s => s.id === (source.creativeSkillId || 'idea'))}) : content),
         }),
       });
       if (task === 'storyOptions') {
         const plans = parseStoryPlans(result.text);
-        if ((project.storyPlans?.length || 0) + plans.length > 12)
+        if ((source.storyPlans?.length || 0) + plans.length > 12)
           throw Error('故事方案超过12个，请先删除不再使用的候选');
-        edit({ storyPlans: [...(project.storyPlans || []), ...plans] });
+        edit({ storyPlans: [...(source.storyPlans || []), ...plans] });
         setNotice(
-          `已生成${plans.length}个故事方案${plans.length !== (project.storyVersionCount || 3) ? `（模型未按要求返回${project.storyVersionCount || 3}个，已保留完整方案）` : ''}，请选择并保存项目。`,
+          `已生成${plans.length}个故事方案${plans.length !== (source.storyVersionCount || 3) ? `（模型未按要求返回${source.storyVersionCount || 3}个，已保留完整方案）` : ''}，请选择并保存项目。`,
         );
+        return;
+      }
+      if (task === 'script' && !source.script.trim()) {
+        setProject(current => current.id === source.id && current.story === source.story && !current.script.trim() ? {...current, script: result.text} : current);
+        setDirty(true);
+        setNotice('剧本已生成，请审阅并保存项目。');
         return;
       }
       setAiText(result.text);

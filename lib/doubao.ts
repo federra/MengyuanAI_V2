@@ -8,10 +8,10 @@ type Defaults = { model?: string; ratio?: string; duration?: number; resolution?
 export function doubaoParameters(project: Project, shot: Project['shots'][number], defaults: Defaults = {}) {
   return {
     model: shot.doubaoModel || defaults.model || 'Seedance 2.0 Mini',
-    ratio: shot.doubaoRatio || defaults.ratio || project.ratio || '16:9',
+    ratio: shot.doubaoRatio || project.ratio || defaults.ratio || '16:9',
     duration: shot.duration > 0 ? shot.duration : defaults.duration || 10,
     resolution: defaults.resolution || '',
-    sources: { model: shot.doubaoModel ? '分镜' : '插件默认', ratio: shot.doubaoRatio ? '分镜' : defaults.ratio ? '插件默认' : project.ratio ? '项目画幅' : '插件默认', duration: shot.duration > 0 ? '分镜' : '插件默认' },
+    sources: { model: shot.doubaoModel ? '分镜' : '插件默认', ratio: shot.doubaoRatio ? '分镜' : project.ratio ? '项目画幅' : defaults.ratio ? '插件默认' : '插件默认', duration: shot.duration > 0 ? '分镜' : '插件默认' },
   };
 }
 export function doubaoTasks(project: Project, ids: string[], defaults: Defaults = {}) {
@@ -19,6 +19,7 @@ export function doubaoTasks(project: Project, ids: string[], defaults: Defaults 
     .filter((s) => ids.includes(s.id))
     .map((s) => {
       const parameters = doubaoParameters(project, s, defaults);
+      if (!doubaoRatios.includes(parameters.ratio)) throw Error(`豆包不支持项目画幅${parameters.ratio}，请在分镜的豆包画幅选项中选择受支持的比例后提交。`);
       const references = videoReferences(project, s);
       const input: GenerationInput = {
         projectId: project.id,

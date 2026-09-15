@@ -30,7 +30,14 @@ export function validateGeneration(x: GenerationInput) {
   )
     throw Error('请填写1至10000字提示词');
   if (
-    !['16:9', '9:16', '1:1', '4:3', '3:4', '21:9'].includes(x.ratio) ||
+    !(
+      typeof x.ratio === 'string' &&
+      /^\d{1,4}(?:\.\d{1,3})?:\d{1,4}(?:\.\d{1,3})?$/.test(x.ratio) &&
+      Number(x.ratio.split(':')[0]) > 0 &&
+      Number(x.ratio.split(':')[1]) > 0 &&
+      Number(x.ratio.split(':')[0]) / Number(x.ratio.split(':')[1]) >= 1 / 8 &&
+      Number(x.ratio.split(':')[0]) / Number(x.ratio.split(':')[1]) <= 8
+    ) ||
     !Number.isInteger(x.duration) ||
     x.duration < 2 ||
     x.duration > 15
@@ -257,19 +264,47 @@ async function storeJob(j: GenerationJob, remoteId?: string) {
   return j;
 }
 // Keep response structure and identifiers, never credentials, prompts or signed URLs.
-function recordResponse(j: GenerationJob, phase: string, response: Response, value: unknown) {
-  type ResponseShape = { id?: unknown; task_id?: unknown; status?: unknown; video_url?: unknown; content?: { video_url?: unknown }; data?: ResponseShape; choices?: { message?: { content?: unknown } }[] };
-  const raw: ResponseShape = value && typeof value === 'object' ? value as ResponseShape : {};
+function recordResponse(
+  j: GenerationJob,
+  phase: string,
+  response: Response,
+  value: unknown,
+) {
+  type ResponseShape = {
+    id?: unknown;
+    task_id?: unknown;
+    status?: unknown;
+    video_url?: unknown;
+    content?: { video_url?: unknown };
+    data?: ResponseShape;
+    choices?: { message?: { content?: unknown } }[];
+  };
+  const raw: ResponseShape =
+    value && typeof value === 'object' ? (value as ResponseShape) : {};
   const out = raw.data?.status ? raw.data : raw;
-  const safeId = (v: unknown) => typeof v === 'string' && /^[\w.-]{1,120}$/.test(v) ? v : '';
-  j.diagnostics = [...(j.diagnostics || []), {
-    at: new Date().toISOString(), phase, httpStatus: response.status,
-    requestId: safeId(response.headers.get('x-request-id') || response.headers.get('request-id')),
-    fields: Object.keys(raw).filter(k => /^[a-zA-Z_]{1,40}$/.test(k)).slice(0, 20),
-    providerStatus: safeId(out.status), providerTaskId: safeId(out.id || out.task_id),
-    contentType: Array.isArray(raw.choices?.[0]?.message?.content) ? 'array' : typeof raw.choices?.[0]?.message?.content,
-    hasVideoUrl: !!(out.video_url || out.content?.video_url),
-  }].slice(-8);
+  const safeId = (v: unknown) =>
+    typeof v === 'string' && /^[\w.-]{1,120}$/.test(v) ? v : '';
+  j.diagnostics = [
+    ...(j.diagnostics || []),
+    {
+      at: new Date().toISOString(),
+      phase,
+      httpStatus: response.status,
+      requestId: safeId(
+        response.headers.get('x-request-id') ||
+          response.headers.get('request-id'),
+      ),
+      fields: Object.keys(raw)
+        .filter((k) => /^[a-zA-Z_]{1,40}$/.test(k))
+        .slice(0, 20),
+      providerStatus: safeId(out.status),
+      providerTaskId: safeId(out.id || out.task_id),
+      contentType: Array.isArray(raw.choices?.[0]?.message?.content)
+        ? 'array'
+        : typeof raw.choices?.[0]?.message?.content,
+      hasVideoUrl: !!(out.video_url || out.content?.video_url),
+    },
+  ].slice(-8);
 }
 export async function submitJob(
   input: GenerationInput,
@@ -454,11 +489,12 @@ export function refreshJob(id: string) {
 async function refreshJobOnce(id: string) {
   const row = await getJob(id);
   const j = row.job;
-  if (j.status === 'succeeded' || j.status === 'failed')
-    return j;
+  if (j.status === 'succeeded' || j.status === 'failed') return j;
   if (!row.remote_id) {
     if (j.status === 'submitting') return j;
-    throw Error('这条任务没有可查询的供应商任务 ID 或视频链接，无法重试下载。请先在供应商后台核对该次提交记录；查询不会重新生成或重复扣费。');
+    throw Error(
+      '这条任务没有可查询的供应商任务 ID 或视频链接，无法重试下载。请先在供应商后台核对该次提交记录；查询不会重新生成或重复扣费。',
+    );
   }
   if (j.target !== 'video') {
     try {
@@ -644,7 +680,11 @@ export async function heimaVideoForm(
 }
 export function chatVideoUrl(content: unknown): string {
   if (Array.isArray(content))
-    content = content.map(part => part?.type === 'text' && typeof part.text === 'string' ? part.text : '').join('\n');
+    content = content
+      .map((part) =>
+        part?.type === 'text' && typeof part.text === 'string' ? part.text : '',
+      )
+      .join('\n');
   if (typeof content !== 'string')
     throw Error('服务未返回视频链接，请核对响应格式');
   const src = content.match(

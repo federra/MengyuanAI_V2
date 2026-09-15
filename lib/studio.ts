@@ -86,6 +86,7 @@ export type Project = {
   creativeSkillId?: string;
   storySkillId?: string;
   storyVersionCount?: number;
+  storyLength?: string;
   storyPlans?: {
     id: string;
     title: string;
@@ -141,6 +142,7 @@ export function newProject(title = '未命名短片'): Project {
     scenes: '',
     style: '电影质感',
     ratio: '16:9',
+    storyLength: '500～1000字',
     shots: [],
     assets: [],
     revision: 0,
@@ -248,6 +250,8 @@ export function validateProject(value: unknown): Project {
       ))
   )
     throw Error('资产生图Skill选择无效');
+  if (p.storyLength !== undefined && !['500字以下', '500～1000字', '1000～2000字', '2000～3000字', '3000～5000字', '5000字以上'].includes(p.storyLength))
+    throw Error('故事篇幅选项无效');
   if (p.storySkillId !== undefined && !str(p.storySkillId, 80))
     throw Error('故事Skill选择无效');
   if (
@@ -302,7 +306,7 @@ export function validateProject(value: unknown): Project {
     if (!str(p[k], 100000)) throw Error('文本内容格式不正确');
   if (
     !str(p.style, 300) ||
-    !['16:9', '9:16', '1:1'].includes(p.ratio) ||
+    !validAspectRatio(p.ratio) ||
     !Array.isArray(p.shots) ||
     p.shots.length > 200 ||
     !Array.isArray(p.assets) ||
@@ -635,4 +639,11 @@ export function validateProject(value: unknown): Project {
     }
   }
   return p;
+}
+
+/** Positive decimal ratios, bounded to practical video proportions. */
+export function validAspectRatio(value: unknown): value is string {
+  if (typeof value !== 'string' || !/^\d{1,4}(?:\.\d{1,3})?:\d{1,4}(?:\.\d{1,3})?$/.test(value)) return false;
+  const [w, h] = value.split(':').map(Number);
+  return w > 0 && h > 0 && w / h >= 1 / 8 && w / h <= 8;
 }

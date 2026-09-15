@@ -297,3 +297,19 @@ const corrected=await submitJob(mmInput,'corrected-chat-minimax');
 assert.equal(corrected.status,'running');assert.equal(migrationRequests.length,1);assert.equal(migrationRequests[0].url,'https://api.mmg.lat/v1/videos');assert.equal(migrationRequests[0].body.model,'minimax_h3');assert(!migrationRequests[0].body.messages);assert(!migrationRequests[0].body.audios);
 assert.equal(corrected.diagnostics[0].providerTaskId,'recovered-protocol-task');assert.equal(corrected.diagnostics[0].requestId,'mmg-request');
 console.log('PASS MiniMax Chat misconfiguration correction, original-task diagnostics, missing-ID recovery explanation, safe logs and structured Chat content.');
+
+assert.doesNotThrow(()=>validateGeneration({...input,ratio:'2.35:1'}));
+assert.throws(()=>validateGeneration({...input,ratio:'0:1'}));
+assert.notEqual(imageSizeForRatio('2.35:1'),imageSizeForRatio('16:9'));
+assert(validImageSize(imageSizeForRatio('2.35:1')));
+console.log('PASS custom ratio passes request validation and preserves reference-image proportions');
+// Exercise timeout configuration and timeout diagnostics without waiting four minutes.
+const savedTimeout=AbortSignal.timeout,savedFetch=globalThis.fetch;
+let timeoutMs=0;
+try {
+  AbortSignal.timeout=ms=>{timeoutMs=ms;return new AbortController().signal};
+  globalThis.fetch=async()=>{throw new DOMException('simulated timeout','TimeoutError')};
+  await assert.rejects(()=>modelRequest({...modelDefaults[0],kind:'text',baseUrl:'https://api.example.com/v1',apiKey:'fake'},'/chat/completions',{messages:[]}),/240秒/);
+  assert.equal(timeoutMs,240000);
+} finally {AbortSignal.timeout=savedTimeout;globalThis.fetch=savedFetch;}
+console.log('PASS model requests allow 240 seconds and report the matching timeout without retries');

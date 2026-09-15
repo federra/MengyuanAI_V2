@@ -79,3 +79,15 @@ assert.deepEqual(creativeStages, ['创意', '故事', '剧本', '分镜', '剪�
 console.log(
   'Creative flow passed: legacy projects, story plan boundaries, persistence, selection and downstream review preservation.',
 );
+for (const ratio of ['4:3','21:9','2.35:1','5:4']) assert.doesNotThrow(()=>validateProject({...p,ratio}),'custom ratio must save');
+for (const ratio of ['0:1','-1:2','1:0','NaN:1','1:2:3','1000:1']) assert.throws(()=>validateProject({...p,ratio}));
+for (const storyLength of ['500字以下','500～1000字','1000～2000字','2000～3000字','3000～5000字','5000字以上']) assert.doesNotThrow(()=>validateProject({...p,storyLength}));
+assert.throws(()=>validateProject({...p,storyLength:'随便'}));
+const {customStylePatch,storyTokenBudget}=await import(pathToFileURL(path.resolve('work/test/creative.mjs')).href);
+const style=customStylePatch(p,'复古剪纸');
+assert.equal(style.style,'复古剪纸');
+assert.equal(style.assets.at(-1).kind,'风格');
+assert.equal(style.assets.at(-1).inLibrary,true);
+assert.equal(customStylePatch({...p,...style},'复古剪纸').assets.length,style.assets.length);
+assert(storyTokenBudget('5000字以上',4)>storyTokenBudget('500字以下',4));
+console.log('PASS custom settings persistence, validation, shared style templates and long story budget');

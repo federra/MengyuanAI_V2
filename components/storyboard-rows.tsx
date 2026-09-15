@@ -674,7 +674,7 @@ export function StoryboardRows({
                       }
                       onSettings={onModelSettings}
                     />
-                    <span>{s.videoModelId === 'doubao' ? s.doubaoRatio || doubao?.settings.ratio || project.ratio : project.ratio}</span>
+                    <span>{s.videoModelId === 'doubao' ? s.doubaoRatio || project.ratio || doubao?.settings.ratio : project.ratio}</span>
                     <label>
                       <input
                         type="number"
@@ -740,16 +740,16 @@ export function StoryboardRows({
                         {[...new Set([...(s.doubaoGroup ? [s.doubaoGroup] : []), ...doubaoGroups])].map(g => <option key={g} value={g}>{g}</option>)}
                       </select></label>
                       <label className="helper">豆包模型 <select aria-label={`镜头${i + 1}豆包模型`} value={s.doubaoModel || ''} onChange={e => onEdit({ doubaoModel: e.target.value }, s.id)}><option value="">插件默认</option>{[...new Set([...doubaoModels, ...(s.doubaoModel ? [s.doubaoModel] : [])])].map(m => <option key={m} value={m}>{m}</option>)}</select></label>
-                      <label className="helper">豆包画幅 <select aria-label={`镜头${i + 1}豆包画幅`} value={s.doubaoRatio || ''} onChange={e => onEdit({ doubaoRatio: e.target.value }, s.id)}><option value="">插件默认 · {doubao?.settings.ratio || project.ratio}</option>{doubaoRatios.map(r => <option key={r} value={r}>{r}</option>)}</select></label>
+                      <label className="helper">豆包画幅 <select aria-label={`镜头${i + 1}豆包画幅`} value={s.doubaoRatio || ''} onChange={e => onEdit({ doubaoRatio: e.target.value }, s.id)}><option value="">项目画幅 · {project.ratio || doubao?.settings.ratio}</option>{doubaoRatios.map(r => <option key={r} value={r}>{r}</option>)}</select></label>
                       <Button variant="ghost" onClick={() => setBatch('doubao')}>管理豆包账号</Button>
                     </div>
                   )}
                 </div>
                 <div className="row-media">
                   <div className="row-column-heading">画面预览</div>
-                  {pluginFailed && <output className="video-job-error" role="status">生成失败</output>}
-                  {pluginAttention && <output className="video-job-error" role="status">待核对结果</output>}
-                  {videoJob?.status === 'cancelled' && <output className="video-job-status" role="status">已取消</output>}
+                  {pluginFailed && <output className="video-job-error">生成失败</output>}
+                  {pluginAttention && <output className="video-job-error">待核对结果</output>}
+                  {videoJob?.status === 'cancelled' && <output className="video-job-status">已取消</output>}
                   {generatingVideo && (
                     <output className="video-job-status">
                       <>{pluginPaused ? <Pause /> : <LoaderCircle className="animate-spin" />}</>

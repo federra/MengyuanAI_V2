@@ -8,6 +8,7 @@ import {
   publicHttps,
   normalizeModelBase,
 } from './models';
+const modelRequestTimeoutMs = 240_000;
 async function cryptoKey() {
   if (!env.MODEL_ENCRYPTION_KEY) throw Error('模型密钥存储尚未初始化');
   return crypto.subtle.importKey(
@@ -147,7 +148,7 @@ export async function modelRequest(
       ...(body
         ? { body: body instanceof FormData ? body : JSON.stringify(body) }
         : {}),
-      signal: AbortSignal.timeout(110000),
+      signal: AbortSignal.timeout(modelRequestTimeoutMs),
     });
   } catch (e) {
     console.error(
@@ -160,7 +161,7 @@ export async function modelRequest(
     );
     if (e instanceof Error && ['TimeoutError', 'AbortError'].includes(e.name))
       throw Error(
-        '模型服务等待超过110秒，请缩短单次内容或选择响应更快的模型。未自动重试，避免重复计费。',
+        `模型服务等待超过${modelRequestTimeoutMs / 1000}秒，请缩短单次内容或选择响应更快的模型。未自动重试，避免重复计费。`,
       );
     const detail = (e instanceof Error ? e.message : '网络错误')
       .split(c.apiKey || '__no_key__')
@@ -269,7 +270,7 @@ export async function textRequest(body: Record<string, unknown>) {
   } catch (e) {
     if (e instanceof Error && ['TimeoutError', 'AbortError'].includes(e.name))
       throw Error(
-        '读取模型结果超时，未获得完整内容；请缩短单次输入后手动重试。',
+        `读取模型结果超过${modelRequestTimeoutMs / 1000}秒，未获得完整内容；请缩短单次输入后手动重试。未自动重试，避免重复计费。`,
       );
     if (e instanceof SyntaxError)
       throw Error('服务商响应不是完整JSON，请检查转发服务或稍后重试。');

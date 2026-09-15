@@ -58,3 +58,6 @@ const tailored=doubaoTasks({...p,shots:[overrides]},[s.id],defaults)[0];
 assert.equal(tailored.ratio,'4:3');assert.equal(tailored.duration,12);assert.equal(tailored.model,'Seedance 2.0 Fast');
 assert(tailored.prompt.includes('画幅：4:3'));assert(tailored.prompt.includes('时长：12秒'));assert(!tailored.prompt.includes('NaN'));
 console.log('PASS shot-first model/aspect/duration and explicit plugin defaults, prompt/request consistency.');
+
+assert.equal(doubaoParameters({...p,ratio:'21:9'},s,defaults).ratio,'21:9');
+assert.throws(()=>doubaoTasks({...p,ratio:'2.35:1',shots:[s]},[s.id],defaults),/不支持项目画幅/);

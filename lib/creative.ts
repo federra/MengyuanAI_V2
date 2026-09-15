@@ -52,3 +52,49 @@ export function chooseStory(
     })),
   };
 }
+
+export const storyLengths = [
+  '500字以下',
+  '500～1000字',
+  '1000～2000字',
+  '2000～3000字',
+  '3000～5000字',
+  '5000字以上',
+];
+export function storyTokenBudget(length: string, count = 1) {
+  const words =
+    [500, 1000, 2000, 3000, 5000, 6500][storyLengths.indexOf(length)] || 1000;
+  return Math.max(5000, count * (words * 2 + 1000));
+}
+export function customStylePatch(
+  project: Project,
+  value: string,
+): Partial<Project> & { assets: Project['assets'] } {
+  const style = value.trim();
+  if (!style || style.length > 150) throw Error('风格名称需为1至150字');
+  const existing = project.assets.find(
+    (a) => a.kind === '风格' && a.name === style,
+  );
+  if (!existing && project.assets.length >= 200)
+    throw Error('项目资产已达200个，请先清理后新增风格');
+  return {
+    style,
+    assets: existing
+      ? project.assets.map((a) =>
+          a.id === existing.id ? { ...a, inLibrary: true } : a,
+        )
+      : [
+          ...project.assets,
+          {
+            id: id(),
+            kind: '风格',
+            name: style,
+            description: style,
+            inLibrary: true,
+            status: '待完善',
+            origin: '创意工作区',
+            createdAt: new Date().toISOString(),
+          },
+        ],
+  };
+}

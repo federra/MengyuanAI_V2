@@ -10,8 +10,18 @@ export function imageSizeForRatio(ratio: string): string {
         '3:4': '1344x1792',
         '21:9': '2688x1152',
       } as Record<string, string>
-    )[ratio] || '2048x1152'
+    )[ratio] || customImageSize(ratio)
   );
+}
+function customImageSize(ratio: string): string {
+  const [w, h] = ratio.split(':').map(Number);
+  if (!w || !h || !Number.isFinite(w / h) || w / h < 1 / 8 || w / h > 8)
+    return '2048x1152';
+  const scale = Math.min(
+    4096 / Math.max(w, h),
+    Math.sqrt((2048 * 1152) / (w * h)),
+  );
+  return `${Math.round((w * scale) / 8) * 8}x${Math.round((h * scale) / 8) * 8}`;
 }
 export function validImageSize(size: string): boolean {
   if (['2K', '4K'].includes(size)) return true;

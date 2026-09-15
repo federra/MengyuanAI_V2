@@ -7,6 +7,7 @@ const root = process.cwd();
 await fs.mkdir('work/test', { recursive: true });
 for (const name of [
   'studio',
+  'creative',
   'dialogue-timeline',
   'export',
   'director',

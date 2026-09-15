@@ -17,7 +17,8 @@ for (const [file, name] of [
         module: ts.ModuleKind.ES2022,
       },
     })
-    .outputText.replaceAll("'@/lib/server'", "'./fake.mjs'")
+    .outputText.replaceAll("'@/lib/creative'", "'../test/creative.mjs'")
+    .replaceAll("'@/lib/server'", "'./fake.mjs'")
     .replaceAll("'@/lib/model-server'", "'./fake.mjs'")
     .replaceAll("'@/lib/director'", "'../test/director.mjs'")
     .replaceAll(
@@ -107,3 +108,11 @@ assert.equal(
 console.log(
   'PASS generation route: segment counts/timing, shared architecture, legacy compatibility, rejection of invalid/truncated output; fake model only.',
 );
+
+answer(JSON.stringify({plans:[{title:'长故事',summary:'概要',content:'完整正文',tags:[]}]}));
+const long=await POST(new Request('http://localhost/api/ai',{method:'POST',headers:{origin:'http://localhost','Content-Type':'application/json'},body:JSON.stringify({task:'storyOptions',content:'长篇测试',storyCount:4,storyLength:'5000字以上'})}));
+assert.equal(long.status,200);
+assert.match(requests.at(-1).messages[0].content,/5000字以上/);
+assert(!requests.at(-1).messages[0].content.includes('400至700'));
+assert(requests.at(-1).max_tokens>=52000);
+console.log('PASS long story instructions and output budget reach model');
