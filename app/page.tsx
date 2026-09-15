@@ -1,4 +1,5 @@
 'use client';
+import {ThemeToggle} from '@/components/theme-toggle';
 import { readApiResponse, progressType } from '@/lib/api-response';
 import {
   CreativeWorkspace,
@@ -958,6 +959,7 @@ export default function Home() {
             <span>{menu}</span>
             {creativeMode && <><ChevronRight size={15} /><b>{project.title}</b></>}
           </div>
+          <div className="topbar-tools">
           {creativeMode && <div className="save-state">
             {loading ? (
               '读取项目中'
@@ -975,6 +977,8 @@ export default function Home() {
               </>
             )}
           </div>}
+          <ThemeToggle />
+          </div>
         </header>
         {creativeMode && <div className="project-heading">
           <div>

@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {readTheme,saveTheme} from '../lib/theme-preference.ts';
+const storage={value:null,getItem(){return this.value},setItem(_,v){this.value=v}};
+assert.equal(readTheme('',storage),'light');
+assert.equal(readTheme('',{getItem(){throw Error('denied')}}),'light');
+assert.equal(readTheme('director_theme=dark',storage),'dark');
+assert.equal(readTheme('director_theme=invalid',storage),'light');
+let cookie='';saveTheme('dark',storage,v=>cookie=v);
+assert.equal(readTheme('',storage),'dark');assert.match(cookie,/director_theme=dark; Path=\/; Max-Age=/);
+assert.equal(readTheme(cookie,{getItem(){return null}}),'dark','cookie carries preference across desktop ports');
+saveTheme('light',storage,v=>cookie=v);assert.equal(readTheme(cookie,storage),'light');
+console.log('PASS light default, persistence, desktop port changes and unavailable storage');
