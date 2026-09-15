@@ -1,0 +1,33 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import http from 'node:http';
+import {createRequire} from 'node:module';
+const {DoubaoManager,allowedMedia}=createRequire(import.meta.url)('./doubao-manager.cjs');
+const root=await fs.mkdtemp(path.join(os.tmpdir(),'director-return-'));
+let releaseReturn,returnStarted;
+const returning=new Promise(resolve=>{returnStarted=resolve;});
+const server=http.createServer(async(req,res)=>{for await(const _chunk of req){}returnStarted();await new Promise(resolve=>{releaseReturn=resolve;});res.setHeader('Content-Type','application/json');res.end(JSON.stringify({id:'saved-video'}));});
+await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+const m=await new DoubaoManager({root,backend:()=>({origin:`http://127.0.0.1:${server.address().port}`,token:'test'}),launch:async()=>({}),fetchMedia:async()=>new Response('video bytes',{headers:{'Content-Type':'video/mp4'}})}).start();
+try{
+ await m.command('account',{name:'one'});await m.command('account',{name:'other'});const [a,other]=m.state.accounts;
+ const j={id:'job',accountId:a.id,status:'submitted',requestId:'request',submittedAt:new Date().toISOString(),title:'shot'};
+ m.state.jobs.push(j);await fs.writeFile(path.join(root,'job.bundle.json'),'{}');
+ const officialURL='https://test.byteimg.com/result.mp4?lr=video_gen_watermark_unpaid&sig=a%2fb';
+ assert.throws(()=>allowedMedia(officialURL),/水印/);
+ assert.equal(allowedMedia(officialURL,true),officialURL);
+ assert.throws(()=>allowedMedia(officialURL.replace('unpaid','dyn'),true),/水印/);
+ await m.event(a,{source:'doubao_without_watermark',aiWatermarkRemoved:true,type:'result',jobId:j.id,requestId:j.requestId,original:true,url:officialURL});
+ await returning;
+ assert.equal(j.aiWatermarkRemoved,true);assert.equal(j.brandWatermark,true);
+ assert.equal((await m.claim(a)).jobStates[0].returned,false,'downloaded bytes alone do not authorize closing');
+ assert.deepEqual((await m.claim(other)).jobStates,[],'receipt is account scoped');
+ releaseReturn();await Promise.all([...m.downloadJobs]);
+ const state=(await m.claim(a)).jobStates[0];assert.equal(state.returned,true);assert.equal(state.status,'succeeded');
+ const disk=JSON.parse(await fs.readFile(path.join(root,'manager.json'),'utf8'));assert.equal(disk.jobs[0].media.id,'saved-video');
+ assert(!('media' in state),'poll carries only receipt status, not media data');
+ j.status='attention';assert.equal((await m.claim(a)).jobStates[0].returned,false);
+ console.log('PASS close receipt only after download, authenticated workbench return and persistence; account isolation and failure retention.');
+}finally{releaseReturn?.();await m.stop();await new Promise(resolve=>server.close(resolve));}

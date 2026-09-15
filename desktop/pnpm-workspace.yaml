@@ -1,0 +1,5 @@
+nodeLinker: hoisted
+allowBuilds:
+  electron: true
+  sharp: true
+  workerd: true

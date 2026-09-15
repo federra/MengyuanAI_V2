@@ -1,0 +1,5 @@
+Draft JSON templates are from GuanYixuan/pyJianYingDraft, Apache-2.0.
+https://github.com/GuanYixuan/pyJianYingDraft
+Reference commit: c3318066d964744e2bfc66f75c71745fe8cea52a
+Templates are unchanged; this application's writer creates independent drafts.
+See LICENSE in this directory. No user draft data is bundled.

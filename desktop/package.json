@@ -1,0 +1,23 @@
+{
+  "name": "ai-director-desktop",
+  "productName": "AI短片导演测试版",
+  "version": "0.1.63",
+  "description": "AI短片导演 Windows 本地桌面测试版",
+  "private": true,
+  "type": "module",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "prepare:runtime": "node prepare.mjs",
+    "package": "node package.mjs",
+    "test": "node test-backend.mjs"
+  },
+  "dependencies": {
+    "ffprobe-static": "3.1.0",
+    "miniflare": "4.20260515.0"
+  },
+  "devDependencies": {
+    "@electron/packager": "20.3.0",
+    "electron": "44.3.0"
+  }
+}

@@ -1,0 +1,41 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import os from 'node:os';
+import {createRequire} from 'node:module';
+const {DoubaoManager}=createRequire(import.meta.url)('./doubao-manager.cjs');
+const root=await fs.mkdtemp(path.join(os.tmpdir(),'director-update-'));
+const calls=[];
+const m=await new DoubaoManager({root,backend:()=>({}),launch:async opts=>{calls.push(opts);return {extensionInstalled:true,extensionVersion:'0.13.0'};}}).start();
+try {
+  await m.command('account',{name:'test'});const a=m.state.accounts[0];
+  await m.command('participation',{ids:[a.id],selected:true});
+  const idle=()=>Object.assign(a,{runtimeState:'idle',runtimeAt:Date.now(),idleSamples:2,creationReady:true,lastSeen:Date.now()});
+  const version=(await m.snapshot()).helper.version;
+  const manifest=JSON.parse(await fs.readFile(new URL('../browser-extension/manifest.json',import.meta.url),'utf8'));
+  assert.equal(version,manifest.version,'scheduler must expect the actual shipped helper version');
+  a.executionBuild='0.11.2';idle();assert.equal(m.eligible(a),false);
+  await m.command('updateExtensions');assert.equal(calls.length,1);
+  assert.equal(calls[0].updateOnly,true);assert.equal(calls[0].forceRefresh,true);assert.equal(calls[0].allowRepair,true);
+  idle();await m.command('updateExtensions');assert.equal(calls.length,1,'no repeated reload before acknowledgement');
+  await m.event(a,{type:'runtime',state:'idle',executionBuild:version,autoUpdateCapable:true});
+  assert.equal(a.extensionUpdating,false);idle();assert.equal(m.eligible(a),true);
+  a.executionBuild='0.11.2';a.autoUpdateCapable=true;
+  const job={id:'running',accountId:a.id,accountIds:[a.id],status:'submitted'};m.state.jobs.push(job);
+  idle();assert.equal((await m.event(a,{type:'extensionUpdate',executionBuild:'0.11.2',safeToUpdate:true})).updateAllowed,false);
+  job.status='attention';assert.equal((await m.event(a,{type:'extensionUpdate',safeToUpdate:true})).updateAllowed,false,'unknown result still holds account');
+  job.status='failed';job.terminalAt=Date.now();idle();
+  assert.equal((await m.event(a,{type:'extensionUpdate',safeToUpdate:false})).updateAllowed,false,'page must also confirm safe');
+  m.state.paused=true;
+  const grant=await m.event(a,{type:'extensionUpdate',safeToUpdate:true});assert.equal(grant.updateAllowed,true);assert.equal(grant.version,version);
+  assert.equal(a.extensionUpdating,true);assert.equal(a.runtimeState,'unknown');
+  // Update grant prevents a concurrent dispatch and persists until the actual worker reports its build.
+  idle();assert.equal(m.eligible(a),false);
+  await m.event(a,{type:'runtime',state:'idle',executionBuild:'0.11.2'});assert.equal(a.extensionUpdating,true);
+  await m.event(a,{type:'runtime',state:'idle',executionBuild:version});assert.equal(a.extensionUpdating,false);assert.equal(m.state.paused,true);
+  Object.assign(job,{status:'attention',requestId:'old-request',submittedAt:new Date().toISOString(),conversationUrl:'https://www.doubao.com/chat/123'});delete job.terminalAt;
+  Object.assign(a,{executionBuild:'0.12.9',runtimeState:'unknown',lastExtensionUpdateAt:0,lastSeen:Date.now()});
+  await m.command('updateExtensions');assert.equal(calls.length,2,'a timed-out observer with a saved conversation must not prevent its own update');
+  assert.equal(calls[1].allowRepair,true);assert.equal(job.status,'attention','updating the observer never resubmits or discards its task');
+  console.log('PASS automatic legacy reload, throttling, actual-build acknowledgement, running/unknown task deferral, page safety and paused queue preservation.');
+} finally {await m.stop();await fs.rm(root,{recursive:true,force:true});}

@@ -1,0 +1,36 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import os from 'node:os';
+import http from 'node:http';
+import {createRequire} from 'node:module';
+const {DoubaoManager}=createRequire(import.meta.url)('./doubao-manager.cjs');
+const root=await fs.mkdtemp(path.join(os.tmpdir(),'director-recovery-'));
+const launches=[];let mediaMode='network',downloads=0;
+const server=http.createServer(async(req,res)=>{for await(const _chunk of req){}res.setHeader('Content-Type','application/json');res.end(JSON.stringify({id:'local-result',url:'/api/media/local-result',name:'result.mp4',type:'video/mp4'}));});
+await new Promise(r=>server.listen(0,'127.0.0.1',r));
+const m=await new DoubaoManager({root,backend:()=>({origin:`http://127.0.0.1:${server.address().port}`,token:'test'}),launch:async data=>{launches.push(data);if(data.profileDir.endsWith(failId))throw Error('isolated launch failure');},fetchMedia:async()=>{downloads++;if(mediaMode==='network')throw Error('network unavailable');if(mediaMode==='expired')return new Response('',{status:403});return new Response('video',{headers:{'Content-Type':'video/mp4'}});}}).start();
+let failId='never';
+try {
+  for(const name of ['ready','busy','quota','disabled','failure','outside'])await m.command('account',{name});
+  const [a,b,c,d,e,outside]=m.state.accounts;failId=e.id;
+  await m.command('participation',{ids:[a.id,b.id,c.id,e.id,outside.id],selected:true});
+  b.runtimeState='busy';b.runtimeAt=Date.now();c.dailyLimit=0;
+  const batch=await m.command('openAvailable',{ids:[a.id,b.id,c.id,d.id,e.id]});
+  assert.equal(batch.operationReport.opened,1);assert.equal(batch.operationReport.skipped.length,3);assert.equal(batch.operationReport.failed.length,1);assert.equal(launches.length,2);
+  assert(!launches.some(x=>x.profileDir.endsWith(outside.id)),'only requested group is opened');
+  const j={id:'job',accountId:a.id,accountIds:[a.id],status:'submitted',requestId:'request',videoId:'video',submittedAt:new Date().toISOString(),title:'镜头',projectId:'project',shotId:'shot'};m.state.jobs.push(j);
+  await m.event(a,{type:'result',jobId:j.id,videoId:'video',original:true,url:'https://test.byteimg.com/result.mp4'});
+  await Promise.all([...m.downloadJobs]);assert.equal(j.status,'attention');assert(j.resultUrl,'matched original URL survives a transport failure');
+  const snap=await m.snapshot();assert.equal(snap.jobs[0].hasSavedResult,true);assert(!('resultUrl' in snap.jobs[0]),'signed URL is not polled into the UI');
+  mediaMode='ok';const count=launches.length;await m.command('resume',{id:j.id});await Promise.all([...m.downloadJobs]);
+  assert.equal(j.status,'succeeded');assert.equal(downloads,2);assert.equal(launches.length,count,'cached result retry requires no browser');assert.equal(m.stats(a).submitted,1);assert.equal(j.media.id,'local-result');
+  j.status='attention';mediaMode='expired';await m.command('resume',{id:j.id});await Promise.all([...m.downloadJobs]);assert.equal(j.resultUrl,'');assert.equal(j.status,'attention');
+  a.lastSeen=0;await m.command('resume',{id:j.id});const recoveryKey=j.recoveryKey;
+  assert.equal(launches.length,count+1,'expired URL recovery reopens the original isolated account');assert.equal(j.videoId,'video');assert.equal(j.requestId,'request');assert.equal(j.status,'submitted');
+  await m.command('resume',{id:j.id});assert.equal(j.recoveryKey,recoveryKey,'double clicks do not start another recovery');assert.equal(m.stats(a).submitted,1);
+  j.status='attention';m.state.jobs.push({id:'unresolved',accountId:a.id,status:'attention'});
+  await assert.rejects(m.command('resume',{id:j.id}),/待核对/);
+  assert.equal(m.openSkipReason(a),'原任务尚未结束');
+  console.log('PASS scoped batch opening/skip reasons/partial failure, saved result retry, expired-link refresh, account reopening, exact identity and no duplicate generation/counting.');
+}finally{await m.stop();await new Promise(r=>server.close(r));}

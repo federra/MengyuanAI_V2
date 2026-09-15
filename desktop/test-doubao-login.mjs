@@ -1,0 +1,50 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import os from 'node:os';
+import {createRequire} from 'node:module';
+const {DoubaoManager}=createRequire(import.meta.url)('./doubao-manager.cjs');
+const root=await fs.mkdtemp(path.join(os.tmpdir(),'director-login-'));
+let m=await new DoubaoManager({root,backend:()=>({}),launch:async()=>{}}).start();
+try {
+  await m.command('account',{name:'A'});await m.command('account',{name:'B'});
+  const [a,b]=m.state.accounts;assert.equal(a.serial,1);assert.equal(b.serial,2);
+  await m.command('participation',{ids:[a.id],selected:true});a.lastSeen=Date.now();
+  await m.command('checkLogin',{id:a.id});
+  assert.equal(a.loginCheck.status,'pending');assert.equal(m.eligible(a),false);
+  const checkId=a.loginCheck.id,deadline=a.loginCheck.expiresAt;
+  for(const state of ['unknown','loggedOut','verification']) {
+    const waiting=await m.event(a,{type:'loginResult',checkId,state,safeToClose:true});
+    assert.equal(waiting.closeAllowed,false,'unconfirmed pages cannot be closed even with an old extension');
+    assert.equal(waiting.pending,true);assert.equal(a.loginCheck.status,'pending');
+    assert.equal(a.loginCheck.id,checkId);assert.equal(a.loginCheck.expiresAt,deadline,'retries do not extend the deadline indefinitely');
+    assert.equal(m.eligible(a),false);
+  }
+  assert.equal(a.loginStatus,'等待手动验证');assert.equal(a.loginCheck.waitingFor,'verification');
+  await assert.rejects(m.event(b,{type:'loginResult',checkId:a.loginCheck.id,state:'loggedIn',nickname:'wrong'}),/过期/);
+  const result=await m.event(a,{type:'loginResult',checkId:a.loginCheck.id,state:'loggedIn',nickname:'珍秘',safeToClose:true});
+  assert.equal(a.loginStatus,'已检测登录');assert.equal(a.nickname,'珍秘');assert.equal(result.closeAllowed,true);
+  assert.equal(m.eligible(a),false,'no task can be dispatched between detection and closing');
+  await m.event(a,{type:'loginClosed',checkId:a.loginCheck.id,closed:true});
+  assert.equal(a.lastSeen,0);assert.equal(a.closingCheckId,'');
+  await m.command('checkLogin',{id:a.id});
+  m.state.jobs.push({id:'active',accountId:a.id,accountIds:[a.id],status:'submitted',submittedAt:new Date().toISOString()});
+  const keep=await m.event(a,{type:'loginResult',checkId:a.loginCheck.id,state:'loggedIn',nickname:'珍秘',safeToClose:true});
+  assert.equal(keep.closeAllowed,false,'active generation windows cannot be closed');
+  await assert.rejects(m.command('deleteAccount',{id:a.id}),/原任务/);
+  m.state.jobs[0].status='succeeded';m.state.jobs[0].media={id:'video'};
+  m.state.jobs.push({id:'waiting',accountIds:[a.id],status:'queued'});
+  const oldToken=a.token;
+  await m.command('deleteAccount',{id:a.id});
+  assert.equal(m.state.accounts.some(x=>x.id===a.id),false);assert.equal(m.state.participatingAccountIds.includes(a.id),false);
+  assert.equal(m.state.jobs[0].media.id,'video');assert(m.state.jobs[0].accountName.includes('珍秘'));assert.equal(m.state.jobs[1].status,'cancelled');
+  assert.equal((await fetch(`http://127.0.0.1:${m.port}/next`,{headers:{Authorization:'Bearer '+oldToken}})).status,401);
+  await m.command('account',{name:'C'});assert.equal(m.state.accounts.at(-1).serial,3,'deleted serials are not reused');
+  b.lastSeen=Date.now();await m.command('checkLogin',{id:b.id});
+  await m.event(b,{type:'loginResult',checkId:b.loginCheck.id,state:'unknown',safeToClose:false});assert.equal(b.loginStatus,'检测未确认');
+  await m.command('checkLogin',{id:b.id});
+  await m.event(b,{type:'loginResult',checkId:b.loginCheck.id,state:'loggedOut',safeToClose:false});assert.equal(b.loginStatus,'未登录');
+  await m.stop();m=await new DoubaoManager({root,backend:()=>({})}).start();
+  assert.deepEqual(m.state.accounts.map(x=>x.serial),[2,3]);
+  console.log('PASS scoped login detection, truthful states/nickname, close handshake, active-job protection, deletion/token revocation, historical video preservation and stable serials across restart.');
+} finally {await m.stop();}

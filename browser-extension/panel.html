@@ -1,0 +1,10 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>豆包任务 · AI短片导演</title><link rel="stylesheet" href="panel.css"></head><body>
+<header><div><small>AI 短片导演</small><h1>豆包任务面板</h1></div><button id="login">打开豆包 / 登录</button></header>
+<main><section class="setup"><h2>当前账号连接</h2><p>回工作台点击此账号的“打开登录”，即可自动连接。首次加载插件后也无需复制连接码。</p><details><summary>手动连接（故障备用）</summary><label>账号连接码<textarea id="connection" rows="3" placeholder="粘贴账号连接 JSON"></textarea></label><div class="buttons"><button id="connect">连接账号</button><button id="disconnect">断开连接</button></div></details><button id="prepare">重试准备当前任务</button><output id="bridge" role="status"></output></section>
+<section class="setup"><details><summary>兼容旧版任务包导入</summary><label>导入工作台任务包<input id="import" type="file" accept=".json"></label></details><output id="status" role="status"></output></section>
+<div class="columns"><aside><h2 id="project">尚未导入项目</h2><nav id="tasks" aria-label="分镜列表"></nav></aside><section id="detail" hidden>
+<h2 id="title"></h2><p id="settings"></p><div class="buttons"><button id="copy">复制提示词</button><button id="fill">填入豆包输入框</button></div>
+<label>完整提示词<textarea id="prompt" rows="14" readonly></textarea></label>
+<h3>参考图 · 按编号顺序上传</h3><p>图片编号与提示词一致。每张图片均需上传到豆包；不要将角色设定图当作首帧。</p><div id="references"></div>
+<section class="result"><h3>生成完成后回传视频</h3><p>在豆包下载视频，再选择文件导出结果包，回工作台“豆包插件”导入，视频会绑定到当前分镜。</p><label>选择当前分镜的视频<input id="result" type="file" accept="video/mp4,video/webm"></label></section>
+</section></div><section class="setup"><h2>已发现的原始图片 / 视频</h2><p>仅显示响应明确返回的原始文件地址。不含原始地址时，不会把预览文件标成无水印。</p><div id="originals"></div></section><p class="note">账号分组、启停、每天用量、积分和超时在桌面版管理。默认手动确认提交；有参考图的任务需核对上传完成和顺序。已匹配任务的原始视频会自动下载回工作台。账号积分仅在配置了页面元素时读取，否则为未知或手动记录。</p></main><script type="module" src="panel.js"></script></body></html>

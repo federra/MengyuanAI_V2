@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {readResultIdentity} from '../browser-extension/result-identity.js';
+const url='https://www.doubao.com/chat/123';
+globalThis.location={href:url,origin:'https://www.doubao.com'};
+const job={requestId:'req',conversationUrl:url};const result={url,messageId:'456'};
+let nodes=[];globalThis.document={querySelectorAll:()=>nodes};
+const node=(id,vid)=>({getAttribute:()=>id,getClientRects:()=>[1],closest:()=>null,querySelectorAll:()=>[],__reactFiber$test:{memoizedProps:{video:{vid,messageId:id}},return:null}});
+nodes=[node('456','video-1')];assert.deepEqual(readResultIdentity(job,result),{videoId:'video-1',messageId:'456'});
+assert.equal(readResultIdentity({...job,conversationUrl:url+'4'},result),null);
+assert.equal(readResultIdentity({...job,requestId:''},result),null);
+nodes=[node('789','video-1')];assert.equal(readResultIdentity(job,result),null);
+nodes=[node('456','video-1'),node('456','video-2')];assert.equal(readResultIdentity(job,result),null);
+nodes=[node('456','')];assert.equal(readResultIdentity(job,result),null);
+console.log('PASS embedded video identity: exact conversation/message, missing request and ambiguity guards');

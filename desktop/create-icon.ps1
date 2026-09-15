@@ -1,0 +1,25 @@
+Add-Type -AssemblyName System.Drawing
+$desktopBitmap = [System.Drawing.Bitmap]::new(256,256)
+$desktopGraphics = [System.Drawing.Graphics]::FromImage($desktopBitmap)
+$desktopGraphics.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+$desktopBlue = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(38,100,248))
+$desktopWhite = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::White)
+$desktopGraphics.FillRectangle($desktopBlue,24,0,208,256)
+$desktopGraphics.FillRectangle($desktopBlue,0,24,256,208)
+foreach ($desktopCorner in @(@(0,0),@(208,0),@(0,208),@(208,208))) { $desktopGraphics.FillEllipse($desktopBlue,$desktopCorner[0],$desktopCorner[1],48,48) }
+$desktopPen = [System.Drawing.Pen]::new([System.Drawing.Color]::White,12)
+$desktopGraphics.DrawRectangle($desktopPen,57,93,142,108)
+$desktopGraphics.DrawRectangle($desktopPen,57,58,142,35)
+foreach ($desktopX in @(72,112,152)) { $desktopGraphics.DrawLine($desktopPen,$desktopX,58,$desktopX+18,90) }
+$desktopGraphics.FillPolygon($desktopWhite,[System.Drawing.Point[]]@([System.Drawing.Point]::new(110,120),[System.Drawing.Point]::new(110,177),[System.Drawing.Point]::new(158,149)))
+$desktopStream = [System.IO.MemoryStream]::new()
+$desktopBitmap.Save($desktopStream,[System.Drawing.Imaging.ImageFormat]::Png)
+$desktopBytes = $desktopStream.ToArray()
+$desktopIcon = [System.IO.MemoryStream]::new()
+$desktopWriter = [System.IO.BinaryWriter]::new($desktopIcon)
+$desktopWriter.Write([uint16]0); $desktopWriter.Write([uint16]1); $desktopWriter.Write([uint16]1)
+$desktopWriter.Write([byte]0); $desktopWriter.Write([byte]0); $desktopWriter.Write([byte]0); $desktopWriter.Write([byte]0)
+$desktopWriter.Write([uint16]1); $desktopWriter.Write([uint16]32); $desktopWriter.Write([uint32]$desktopBytes.Length); $desktopWriter.Write([uint32]22)
+$desktopWriter.Write($desktopBytes)
+[System.IO.File]::WriteAllBytes((Join-Path $PSScriptRoot 'icon.ico'),$desktopIcon.ToArray())
+$desktopWriter.Dispose(); $desktopIcon.Dispose(); $desktopStream.Dispose(); $desktopGraphics.Dispose(); $desktopBitmap.Dispose(); $desktopBlue.Dispose(); $desktopWhite.Dispose(); $desktopPen.Dispose()

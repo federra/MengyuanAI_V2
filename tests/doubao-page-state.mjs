@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {readPageState} from '../browser-extension/page-state.js';
+globalThis.location={origin:'https://www.doubao.com'};
+const element={getClientRects:()=>[{}],closest:()=>null,getAttribute:()=>null,disabled:false};
+let busy=[],ready=[element];
+globalThis.document={querySelectorAll:s=>s==='.busy'?busy:s==='.idle'?ready:[]};
+const settings={runningSelector:'.busy',idleSelector:'.idle'};
+assert.equal(readPageState({}).state,'unknown');
+assert.equal(readPageState(settings).state,'idle');
+busy=[element];assert.equal(readPageState(settings).state,'busy');
+busy=[];ready=[];assert.equal(readPageState(settings).state,'unknown');
+ready=[element,element];assert.equal(readPageState(settings).state,'unknown');
+ready=[{...element,disabled:true}];assert.equal(readPageState(settings).state,'unknown');
+document.querySelectorAll=()=>{throw Error('invalid selector');};assert.equal(readPageState(settings).state,'unknown');
+console.log('PASS missing/ambiguous/disabled/invalid idle markers fail closed; running marker overrides idle.');

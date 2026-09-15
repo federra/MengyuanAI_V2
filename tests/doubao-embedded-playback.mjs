@@ -1,0 +1,30 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import vm from 'node:vm';
+const messages=[],calls=[];let receive;
+const win={addEventListener:(_,fn)=>receive=fn,postMessage:m=>messages.push(m),fetch:async(url,init)=>{calls.push({url,body:JSON.parse(init.body)});return Response.json({code:0,data:{original_media_info:{main_url:'https://test.byteimg.com/original.mp4'}}});}};
+class XHR{open(){}send(){}}
+const location={origin:'https://www.doubao.com',href:'https://www.doubao.com/chat/123'};
+const ctx=vm.createContext({window:win,location,URL,Request,XMLHttpRequest:XHR,TextDecoder,crypto:{randomUUID:()=> 'read-only'},atob,console});
+vm.runInContext(await fs.readFile('browser-extension/media-extractor.js','utf8'),ctx);vm.runInContext(await fs.readFile('browser-extension/observer.js','utf8'),ctx);
+receive({source:win,origin:location.origin,data:{channel:'director-doubao-control',type:'resolveVideo',job:{id:'job',requestId:'req',url:location.href,messageId:'result',videoId:'vid-123'}}});
+await new Promise(r=>setTimeout(r,30));
+assert(calls.length>0,'embedded video must query playback without a user click');
+assert(calls.every(c=>c.url.includes('/samantha/media/get_play_info')&&c.body.key==='vid-123'));
+assert(messages.some(m=>m.requestId==='req'&&m.media?.some(v=>v.videoId==='vid-123')),'original request identity survives retrieval');
+console.log('PASS embedded video retrieval without playback click or generation request');
+
+messages.length=0;calls.length=0;
+ctx.DirectorWatermark={resolve:async(videoId,messageId)=>({kind:'video',videoId,messageId,original:true,url:'https://test.byteimg.com/v?lr=video_gen_watermark_unpaid',source:'doubao_without_watermark',aiWatermarkRemoved:true,brandWatermark:true})};
+const job={id:'job',requestId:'req',url:location.href,messageId:'result',videoId:'vid-123'};
+receive({source:win,origin:location.origin,data:{channel:'director-doubao-control',type:'resolveVideo',job}});
+await new Promise(r=>setTimeout(r,30));
+assert.equal(calls.length,0,'official export replaces legacy playback');
+assert(messages.some(m=>m.requestId==='req'&&m.media?.some(v=>v.aiWatermarkRemoved&&v.brandWatermark&&v.videoId===job.videoId)));
+ctx.DirectorWatermark.resolve=async()=>{throw Error('official export unavailable')};
+messages.length=0;
+receive({source:win,origin:location.origin,data:{channel:'director-doubao-control',type:'recover',job:{...job,recoveryKey:'new'}}});
+await new Promise(r=>setTimeout(r,30));
+assert(messages.some(m=>m.type==='failed'&&m.jobId==='job'&&m.requestId==='req'));
+assert.equal(calls.length,0,'failure never falls back to a marked video or generates again');
+console.log('PASS official export provenance and correlated recovery failure without regeneration');

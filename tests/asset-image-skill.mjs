@@ -1,0 +1,38 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import ts from 'typescript';
+import {pathToFileURL} from 'node:url';
+import path from 'node:path';
+// Run tests/core.mjs first to prepare the real project/skill modules.
+const code=ts.transpileModule(await fs.readFile('lib/asset-image-skill.ts','utf8'),{
+  compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022},
+}).outputText.replaceAll("'./director'","'./director.mjs'");
+await fs.writeFile('work/test/asset-image-skill.mjs',code);
+const imp=n=>import(pathToFileURL(path.resolve('work/test',n+'.mjs')).href);
+const {assetImagePrompt,assetImageSkill,assetImageSkills}=await imp('asset-image-skill');
+const {exampleProject,validateProject}=await imp('studio');
+const p=exampleProject();
+const a=p.assets.find(a=>a.kind==='人物');
+assert(a);
+const baseline=assetImagePrompt(p,a);
+assert(!baseline.includes('本次生图 Skill'));
+p.assetImageSkillIds={人物:'character-three-view-image'};
+assert.match(assetImagePrompt(p,a),/正面、侧面、背面/);
+assert.match(assetImagePrompt(p,a),new RegExp(p.ratio));
+const custom={id:'custom-image-skill',name:'导入三视图',stage:'生图',version:'2',content:'单色背景，三个视图严格统一比例。完整保留技能末尾规则。'};
+p.skills=[custom,{...custom,id:'unrelated',stage:'故事'}];
+a.imageSkillId=custom.id;
+assert.equal(assetImageSkill(p,a).id,custom.id);
+assert(assetImagePrompt(p,a).includes(custom.content));
+assert(!assetImageSkills(p).some(s=>s.id==='unrelated'));
+const saved=JSON.parse(JSON.stringify(p));
+validateProject(saved);
+assert.equal(assetImagePrompt(saved,saved.assets.find(x=>x.id===a.id)),assetImagePrompt(p,a));
+a.imageSkillId='none';
+assert.equal(assetImagePrompt(p,a),baseline);
+a.imageSkillId='deleted-skill';
+assert.throws(()=>assetImagePrompt(p,a),/重新选择/);
+a.imageSkillId=custom.id;
+custom.content='长'.repeat(10000);
+assert.throws(()=>assetImagePrompt(p,a),/超过10000字/);
+console.log('Asset image skills: legacy defaults, saved selection, per-role override, imported content, missing and oversized skills passed. No provider requests made.');

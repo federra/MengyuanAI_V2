@@ -1,0 +1,38 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import {createRequire} from 'node:module';
+const {DoubaoManager}=createRequire(import.meta.url)('./doubao-manager.cjs');
+const root=await fs.mkdtemp(path.join(os.tmpdir(),'director-connect-'));
+const launches=[];
+const manager=await new DoubaoManager({root,backend:()=>({}),launch:async args=>{launches.push(args);return {extensionInstalled:true,extensionVersion:'0.6.0'};}}).start();
+const origin='chrome-extension://'+'a'.repeat(32);
+const redeem=(ticket,source=origin)=>fetch(`http://127.0.0.1:${manager.port}/connect/redeem`,{method:'POST',headers:{'Content-Type':'application/json',...(source?{Origin:source}:{})},body:JSON.stringify({ticket})});
+try {
+  await manager.command('account',{name:'A'});await manager.command('account',{name:'B'});
+  const [a,b]=manager.state.accounts;
+  await manager.command('open',{ids:[a.id,b.id]});
+  assert.equal(a.extensionSetup.status,'verified');assert.equal(a.extensionSetup.version,'0.6.0');
+  const urls=launches.map(x=>new URL(x.url));
+  const codes=urls.map(x=>new URLSearchParams(x.hash.slice(1)).get('ticket'));
+  assert.notEqual(codes[0],codes[1]);assert.notEqual(launches[0].profileDir,launches[1].profileDir);
+  assert(launches.every(x=>!x.url.includes(a.token)&&!x.url.includes(b.token)),'long-lived account tokens never enter navigation URLs');
+  const page=await fetch(urls[0].origin+urls[0].pathname);const html=await page.text();
+  assert(!html.includes(codes[0])&&!html.includes(a.token),'public help page contains no pairing secret');
+  assert.equal((await redeem(codes[0],'https://www.doubao.com')).status,403);
+  assert.equal((await redeem(codes[0],'')).status,403);
+  const connection=await (await redeem(codes[0])).json();assert.equal(connection.accountId,a.id);assert.equal(connection.token,a.token);
+  assert.equal((await redeem(codes[0])).status,401,'tickets can only be redeemed once');
+  manager.loginTickets.get(codes[1]).expiresAt=Date.now()-1;
+  assert.equal((await redeem(codes[1])).status,401,'expired tickets rejected');
+  await manager.command('open',{ids:[a.id]});
+  const fresh=new URLSearchParams(new URL(launches.at(-1).url).hash.slice(1)).get('ticket');
+  assert.equal((await (await redeem(fresh)).json()).accountId,a.id,'login can reconnect the same account');
+  assert.deepEqual(manager.state.participatingAccountIds,[],'connecting does not silently opt an account into generation');
+  assert.equal(a.loginStatus,'未确认','extension pairing is not represented as Doubao login');
+  manager.launch=async()=>{throw Error('Chrome unavailable');};
+  await assert.rejects(manager.command('open',{ids:[a.id]}),/Chrome unavailable/);
+  assert.equal(a.extensionSetup.status,'failed','failed launch must not keep a stale installation-success label');
+  console.log('PASS automatic pairing: profile isolation, single-use/expiring grants, origin checks, no permanent token in URL/page, same-account reconnect and explicit login/participation.');
+} finally {await manager.stop();}

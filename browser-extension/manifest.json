@@ -1,0 +1,63 @@
+{
+  "manifest_version": 3,
+  "name": "AI短片导演 · 豆包助手",
+  "version": "0.13.4",
+  "description": "连接本机豆包账号管理器，领取任务、记录用量、提取原始图片视频并回传对应分镜。",
+  "permissions": [
+    "scripting",
+    "downloads",
+    "storage",
+    "alarms",
+    "unlimitedStorage"
+  ],
+  "host_permissions": [
+    "https://www.doubao.com/*",
+    "https://doubao.com/*",
+    "http://127.0.0.1/*"
+  ],
+  "action": {
+    "default_title": "打开豆包任务面板"
+  },
+  "options_page": "panel.html",
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.doubao.com/*",
+        "https://doubao.com/*"
+      ],
+      "js": [
+        "media-extractor.js",
+        "watermark-policy.js",
+        "observer.js"
+      ],
+      "world": "MAIN",
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://www.doubao.com/*",
+        "https://doubao.com/*"
+      ],
+      "js": [
+        "forwarder.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "http://127.0.0.1/*"
+      ],
+      "js": [
+        "auto-connect.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'"
+  }
+}

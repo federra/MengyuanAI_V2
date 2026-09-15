@@ -1,0 +1,26 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import vm from 'node:vm';
+const old={id:'old',status:'submitted',requestId:'r-old',slotReleased:true,conversationUrl:'https://www.doubao.com/chat/123'};
+const store={connection:{url:'http://127.0.0.1:1234',token:'test'},activeJob:old,taskTab:1};
+const tabs=[{id:1,url:old.conversationUrl}];let opened=0;
+let next={enabled:true,paused:false,waiting:true,job:null,waitingJobs:[old],settings:{automaticPage:true}};
+const inspectComposer=()=>{},readLoginState=()=>{};
+const chrome={storage:{local:{get:async keys=>Object.fromEntries(keys.map(k=>[k,structuredClone(store[k])])),set:async p=>Object.assign(store,structuredClone(p))}},runtime:{getURL:()=> 'chrome-extension://test/',onMessage:{addListener(){}},onStartup:{addListener(){}}},action:{onClicked:{addListener(){}}},alarms:{create:async()=>{},onAlarm:{addListener(){}}},tabs:{get:async id=>tabs.find(t=>t.id===id),query:async()=>tabs,create:async({url})=>{const t={id:++opened+1,url};tabs.push(t);return t;},sendMessage:async()=>{}},scripting:{executeScript:async({func,target})=>[{result:func===inspectComposer?{state:target.tabId===1?'busy':'idle'}:func===readLoginState?{state:'loggedIn'}:null}]}};
+const events=[];
+const ctx=vm.createContext({chrome,inspectComposer,readLoginState,labelAccount:()=>{},probeResult:()=>{},readGenerationProgress:()=>{},confirmVideo:()=>{},URL,AbortSignal,Map,Set,Date,fetch:async(url,init)=>{if(url.endsWith('/event')){events.push(JSON.parse(init.body));return Response.json({ok:true});}return Response.json(next);}});
+vm.runInContext((await fs.readFile('browser-extension/background.js','utf8')).replace(/^import .*;\r?\n/gm,'')+'\nglobalThis.testPoll=poll;',ctx);
+await ctx.testPoll();assert.equal(opened,1);assert.equal(store.waitingJobs.old.tabId,1);assert.equal(store.taskTab,2);
+await ctx.testPoll();assert.equal(opened,1);assert.equal(events.at(-1).state,'idle','old busy conversation does not block fresh idle proof');
+next.job={id:'new',status:'prepared',prepareAttempts:3,settings:{}};next.waiting=false;
+await ctx.testPoll();assert.equal(opened,1,'prepared job reuses preflight page');assert.equal(store.activeJob.id,'new');assert.equal(store.taskTab,2);
+next.job=null;next.waiting=true;next.waitingJobs=[];next.jobStates=[{...old,status:'cancelled',terminal:true}];
+store.activeJob=old;store.taskTab=1;
+await ctx.testPoll();assert.equal(opened,2,'cancelled task uses a new page');assert.equal(tabs[0].url,old.conversationUrl);
+await ctx.testPoll();assert.equal(events.at(-1).state,'idle','cancelled task webpage cannot keep the account locked');assert.equal(opened,2);
+console.log('PASS timeout preflight, one fresh tab, original mapping, old busy page isolation and cancellation handoff');
+
+store.activeJob={id:'unconfirmed',status:'attention'};store.taskTab=2;store.waitingJobs={};store.retiredTaskTabs={};
+next.jobStates=[{id:'unconfirmed',status:'cancelled',terminal:true}];
+await ctx.testPoll();assert.equal(opened,3,'cancellation before request capture still preserves old page and opens fresh');
+console.log('PASS cancellation without request acknowledgement');

@@ -1,0 +1,294 @@
+export type ModelKind = 'text' | 'image' | 'video' | 'audio';
+export function imageSizeForRatio(ratio: string): string {
+  return (
+    (
+      {
+        '16:9': '2048x1152',
+        '9:16': '1152x2048',
+        '1:1': '1536x1536',
+        '4:3': '1792x1344',
+        '3:4': '1344x1792',
+        '21:9': '2688x1152',
+      } as Record<string, string>
+    )[ratio] || '2048x1152'
+  );
+}
+export function validImageSize(size: string): boolean {
+  if (['2K', '4K'].includes(size)) return true;
+  if (!/^\d{3,4}x\d{3,4}$/.test(size)) return false;
+  const [w, h] = size.split('x').map(Number);
+  return w >= 256 && h >= 256 && w <= 4096 && h <= 4096;
+}
+export type ModelConfig = {
+  id?: string;
+  isDefault?: boolean;
+  kind: ModelKind;
+  name: string;
+  baseUrl: string;
+  model: string;
+  protocol: string;
+  thinking: string;
+  enabled: boolean;
+  voiceReference?: 'auto' | 'none' | 'text' | 'audio';
+  hasKey?: boolean;
+  apiKey?: string;
+  speechPath?: string;
+  speechVoice?: string;
+  speechVoices?: string[];
+  speechFormat?: 'mp3' | 'wav';
+  speechInstructions?: boolean;
+};
+export const modelDefaults: ModelConfig[] = [
+  // Keep text first: the environment-provided text configuration uses index zero.
+  {
+    kind: 'text',
+    name: '文本推理',
+    baseUrl: 'https://api.deepseek.com',
+    model: '',
+    protocol: 'chat',
+    thinking: 'auto',
+    enabled: false,
+  },
+  {
+    kind: 'image',
+    name: '图片生成',
+    baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+    model: '',
+    protocol: 'seedream',
+    thinking: 'auto',
+    enabled: false,
+  },
+  {
+    kind: 'video',
+    name: '视频生成',
+    baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+    model: '',
+    protocol: 'ark-video',
+    thinking: 'auto',
+    enabled: false,
+  },
+  {
+    kind: 'audio',
+    name: '声音合成',
+    baseUrl: '',
+    model: '',
+    protocol: 'speech',
+    thinking: 'auto',
+    enabled: false,
+    speechPath: '/audio/speech',
+    speechVoice: '',
+    speechVoices: [],
+    speechFormat: 'mp3',
+    speechInstructions: false,
+  },
+];
+export function publicHttps(value: string) {
+  const u = new URL(value);
+  const h = u.hostname.toLowerCase();
+  if (
+    u.protocol !== 'https:' ||
+    u.username ||
+    u.password ||
+    u.hash ||
+    (u.port && u.port !== '443') ||
+    !h.includes('.') ||
+    h === 'localhost' ||
+    /(^|\.)(localhost|local|internal|test|invalid)$/.test(h) ||
+    /^[\d.]+$/.test(h) ||
+    h.includes(':') ||
+    h.startsWith('[') ||
+    h.endsWith('.workers.dev') ||
+    h.endsWith('.chatgpt.site')
+  )
+    throw Error('请填写公开 HTTPS 服务地址，不支持本机、内网或本站地址');
+  return u;
+}
+export function validateModel(raw: ModelConfig): ModelConfig {
+  raw = upgradeVideoConfig(raw);
+  const allowed: Record<ModelKind, string[]> = {
+    text: ['chat'],
+    image: ['images', 'seedream'],
+    video: ['ark-video', 'heima-video', 'heima-minimax', 'chat-video'],
+    audio: ['speech'],
+  };
+  if (!allowed[raw.kind]?.includes(raw.protocol)) throw Error('模型协议不匹配');
+  const u = publicHttps(raw.baseUrl);
+  if (u.search) throw Error('API 基础地址不能包含查询参数');
+  if (
+    typeof raw.model !== 'string' ||
+    !raw.model.trim() ||
+    raw.model.length > 150 ||
+    typeof raw.name !== 'string' ||
+    raw.name.length > 80
+  )
+    throw Error('请填写模型名称或推理接入点 ID');
+  if (!['auto', 'enabled', 'disabled'].includes(raw.thinking))
+    throw Error('推理模式无效');
+  if (raw.kind === 'audio') {
+    if (!/^\/[A-Za-z0-9/_-]{1,150}$/.test(raw.speechPath || '/audio/speech'))
+      throw Error('声音接口路径必须是以 / 开头的相对路径');
+    if (
+      typeof (raw.speechVoice ?? '') !== 'string' ||
+      (raw.speechVoice || '').length > 150
+    )
+      throw Error('默认音色 ID 无效');
+    if (
+      !Array.isArray(raw.speechVoices ?? []) ||
+      (raw.speechVoices || []).length > 100 ||
+      (raw.speechVoices || []).some(
+        (v) => typeof v !== 'string' || !v.trim() || v.length > 150,
+      )
+    )
+      throw Error('音色列表格式无效');
+    if (!['mp3', 'wav'].includes(raw.speechFormat || 'mp3'))
+      throw Error('请选择 MP3 或 WAV');
+  }
+  if (
+    raw.voiceReference !== undefined &&
+    !['auto', 'none', 'text', 'audio'].includes(raw.voiceReference)
+  )
+    throw Error('音色参考能力设置无效');
+  if (
+    raw.voiceReference === 'audio' &&
+    (raw.kind !== 'video' ||
+      !['ark-video', 'heima-minimax'].includes(raw.protocol))
+  )
+    throw Error('当前音频样本接口支持方舟兼容与黑马 MiniMax H3 协议');
+  return {
+    kind: raw.kind,
+    name: raw.name.trim(),
+    baseUrl: normalizeModelBase(u.href),
+    model: raw.model.trim(),
+    protocol: raw.protocol,
+    thinking: raw.thinking,
+    enabled: raw.enabled === true,
+    ...(raw.kind === 'audio'
+      ? {
+          speechPath: raw.speechPath || '/audio/speech',
+          speechVoice: (raw.speechVoice || '').trim(),
+          speechVoices: [...new Set(raw.speechVoices || [])],
+          speechFormat: raw.speechFormat || 'mp3',
+          speechInstructions: raw.speechInstructions === true,
+        }
+      : {}),
+    ...(raw.kind === 'video'
+      ? { voiceReference: raw.voiceReference || 'auto' }
+      : {}),
+  };
+}
+export function normalizeModelBase(value: string) {
+  const u = publicHttps(value.trim());
+  if (u.search || /^\/console(?:\/|$)/.test(u.pathname))
+    throw Error('请填写 API 基础地址，不要填写控制台或令牌管理页面');
+  u.pathname = u.pathname
+    .replace(/\/+$/, '')
+    .replace(
+      /\/(?:chat\/completions|audio\/speech|images\/generations|contents\/generations\/tasks|video\/generations|videos|models)$/,
+      '',
+    );
+  if (u.hostname === 'api.mmg.lat' && (u.pathname === '/' || !u.pathname))
+    u.pathname = '/v1';
+  return u.href.replace(/\/$/, '');
+}
+// Upgrade only the known legacy H3 configuration; preserve omission of voice references.
+export function upgradeVideoConfig(c: ModelConfig): ModelConfig {
+  if (
+    c.kind === 'video' &&
+    (c.protocol === 'heima-video' ||
+      (['chat-video', 'heima-minimax'].includes(c.protocol) &&
+        /^https:\/\/api\.mmg\.lat(?:\/|$)/i.test(c.baseUrl || ''))) &&
+    ['minimax_h3', 'minimax_h3_no_audios'].includes(c.model)
+  )
+    return {
+      ...c,
+      protocol: 'heima-minimax',
+      model: 'minimax_h3',
+      ...(c.model.endsWith('_no_audios')
+        ? { voiceReference: 'none' as const }
+        : {}),
+    };
+  return c;
+}
+export type GenerationInput = {
+  mediaUrls?: Record<string, string>;
+  modelConfigId?: string;
+  projectId: string;
+  targetId: string;
+  target: 'image' | 'video' | 'blockingImage' | 'asset';
+  prompt: string;
+  ratio: string;
+  duration: number;
+  referenceIds: string[];
+  referenceBindings?: import('./video-request').VideoReferenceBinding[];
+  voiceBindings?: import('./video-voice').VoiceBinding[];
+  firstFrameId?: string;
+  size: string;
+  resolution: string;
+};
+export type GenerationJob = {
+  diagnostics?: {
+    at: string;
+    phase: string;
+    httpStatus: number;
+    requestId: string;
+    fields: string[];
+    providerStatus: string;
+    providerTaskId: string;
+    contentType: string;
+    hasVideoUrl: boolean;
+  }[];
+  id: string;
+  projectId: string;
+  targetId: string;
+  target: GenerationInput['target'] | 'audio';
+  lineId?: string;
+  speechText?: string;
+  status: string;
+  createdAt: string;
+  model: string;
+  prompt: string;
+  error?: string;
+  referenceBindings?: import('./video-request').VideoReferenceBinding[];
+  voiceBindings?: import('./video-voice').VoiceBinding[];
+  videoSettings?: { ratio: string; duration: number; resolution: string };
+  media?: import('./studio').Media;
+};
+export function videoBody(
+  model: string,
+  input: GenerationInput,
+  refs: string[],
+  first?: string,
+  audios: string[] = [],
+  generateAudio = false,
+) {
+  if (first && refs.length)
+    throw Error('首帧模式和多参考图模式请分别提交，避免模型参数冲突');
+  return {
+    model,
+    content: [
+      { type: 'text', text: input.prompt },
+      ...(first
+        ? [
+            {
+              type: 'image_url',
+              image_url: { url: first },
+              role: 'first_frame',
+            },
+          ]
+        : refs.map((url) => ({
+            type: 'image_url',
+            image_url: { url },
+            role: 'reference_image',
+          }))),
+      ...audios.map((url) => ({
+        type: 'audio_url',
+        audio_url: { url },
+        role: 'reference_audio',
+      })),
+    ],
+    ...(generateAudio ? { generate_audio: true } : {}),
+    ratio: input.ratio,
+    duration: input.duration,
+    resolution: input.resolution,
+  };
+}
