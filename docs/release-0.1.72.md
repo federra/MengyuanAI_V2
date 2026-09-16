@@ -17,3 +17,11 @@
 ## 发布路径
 
 服务器目录 `/srv/ai-director-studio-updates/`，按平台分 `windows/` 与 `mac/`。仅上传包、校验元数据及清单，不包含源码目录、账号服务凭据或用户数据。先上传版本文件并比对SHA-512，然后原子切换更新清单；旧版文件保留。具体在线验证及Git记录见开发交接最新记录。
+
+## 发布完成
+
+- 功能提交 `cf66632` 已快进合并到 `main` 并推送 `origin/main`。安装包、临时运行目录与用户资料未入Git。
+- 三个安装包均完成服务器SHA-512及字节数核对；Mac arm64为219239827字节，x64为229166904字节。
+- Windows `latest.yml` 和 `release.json`、Mac `release.json` 已原子切换为0.1.72，公开HTTPS读取确认；三个包匿名Range请求均返回206。证书验证未关闭。
+- Windows旧0.1.70包及清单备份保留；中央账号服务未改动。
+- 下载：Windows `https://121.199.40.214/updates/windows/MengyuanAI-Setup-0.1.72-x64.exe`；Apple Silicon `https://121.199.40.214/updates/mac/MengyuanAI-0.1.72-arm64.zip`；Intel `https://121.199.40.214/updates/mac/MengyuanAI-0.1.72-x64.zip`。

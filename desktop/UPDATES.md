@@ -60,3 +60,7 @@ Windows 使用 electron-builder NSIS 安装版 + electron-updater。源码启动
 ## 0.1.70 发布记录（2026-09-15）
 
 用户明确要求在暂无Windows PC的条件下发布，作为本次先实机验收规则的例外。0.1.70安装包及两份更新清单已发布到上述固定渠道，大小176,204,097字节，SHA-512与清单一致，匿名HTTPS Range返回206；未签名，Windows安装与升级实机验收仍待完成。后续发布继续遵守上述默认顺序。
+
+## 0.1.72 发布记录（2026-09-16）
+
+Mac arm64/x64与Windows x64均已上传发布，大小及SHA-512核对一致，公开HTTPS Range均为206。用户已明确授权本次发布；Windows安装升级、Intel Mac实机仍待验收，Apple Silicon独立.app已启动验证。详见 [发布记录](../docs/release-0.1.72.md)。
