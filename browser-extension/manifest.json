@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AI短片导演 · 豆包助手",
-  "version": "0.13.4",
+  "version": "0.13.5",
   "description": "连接本机豆包账号管理器，领取任务、记录用量、提取原始图片视频并回传对应分镜。",
   "permissions": [
     "scripting",

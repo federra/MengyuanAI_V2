@@ -33,3 +33,12 @@ const fail=new SoftwareUpdate({version:'0.1.69',canInstall:true,updater,fetch:as
 await fail.check();await fail.downloadAndInstall();assert.equal(fail.snapshot().status,'error');assert(!fail.snapshot().downloaded);
 await assert.rejects(()=>readRelease(async()=>new Response('x'.repeat(70000)),'https://example.com/release.json'),/过大/);
 console.log('PASS update versions, check states, unsupported host, verified download, canceled close, safe installer handoff and failure recovery');
+let opened='';
+const macRelease={...release,platform:'darwin',architectures:['arm64','x64']};
+const macDownload=new SoftwareUpdate({version:'0.1.69',platform:'darwin',arch:'arm64',openDownload:url=>{opened=url},fetch:async url=>{assert.equal(url,'https://121.199.40.214/updates/mac/release.json');return Response.json(macRelease)}});
+await macDownload.check();assert.equal(macDownload.snapshot().status,'available');
+await macDownload.downloadAndInstall();assert.equal(opened,'https://121.199.40.214/updates/mac/MengyuanAI-0.1.70-arm64.zip');
+assert.equal(macDownload.snapshot().canInstall,false);
+await assert.rejects(()=>readRelease(async()=>Response.json(release),undefined,'darwin','arm64'),/格式无效/);
+await assert.rejects(()=>readRelease(async()=>Response.json({...macRelease,architectures:['arm64']}),undefined,'darwin','x64'),/架构/);
+console.log('PASS Mac platform channel, architecture-specific fixed download URL, manual install, mismatched manifests rejected');

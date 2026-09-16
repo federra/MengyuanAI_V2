@@ -511,29 +511,10 @@ export function CreativeWorkspace({
               placeholder={`在这里编写${stage}，或通过上方导入TXT / MD正文。`}
               onChange={(e) => onEdit({ [key]: e.target.value })}
             />
-            <div className="creative-editor-footer">
+            <div
+              className={`creative-editor-footer${stage === '故事' ? ' creative-story-footer' : ''}`}
+            >
               <div className="actions">
-                {stage === '故事' && (
-                  <label
-                    className="script-skill-choice"
-                    htmlFor="script-skill-selector"
-                  >
-                    <span>剧本 Skill</span>
-                    <BusinessSelect
-                      label="剧本 Skill"
-                      id="script-skill-selector"
-                      favorites={project.favoriteSkillIds}
-                      onOpenCenter={() => onOpenSkills('scriptSkillId')}
-                      value={project.scriptSkillId || 'script'}
-                      onChange={(value) => onEdit({ scriptSkillId: value })}
-                      options={skills
-                        .filter(
-                          (s) => s.stage === '剧本' || s.stage === '全项目',
-                        )
-                        .map((s) => ({ value: s.id, label: s.name }))}
-                    />
-                  </label>
-                )}
                 {(stage !== '剧本' || !project.script.trim()) && (
                   <Button
                     variant="outline"
@@ -587,6 +568,27 @@ export function CreativeWorkspace({
                 )}
               </div>
               <div className="actions">
+                {stage === '故事' && (
+                  <label
+                    className="script-skill-choice"
+                    htmlFor="script-skill-selector"
+                  >
+                    <span>剧本 Skill</span>
+                    <BusinessSelect
+                      label="剧本 Skill"
+                      id="script-skill-selector"
+                      favorites={project.favoriteSkillIds}
+                      onOpenCenter={() => onOpenSkills('scriptSkillId')}
+                      value={project.scriptSkillId || 'script'}
+                      onChange={(value) => onEdit({ scriptSkillId: value })}
+                      options={skills
+                        .filter(
+                          (s) => s.stage === '剧本' || s.stage === '全项目',
+                        )
+                        .map((s) => ({ value: s.id, label: s.name }))}
+                    />
+                  </label>
+                )}
                 {stage === '剧本' && (
                   <label
                     className="script-skill-choice"

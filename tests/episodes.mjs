@@ -231,3 +231,12 @@ if (process.argv[2]) {
 console.log(
   'Episode import, legacy formats, timing validation, limits, asset merge and round-trip passed.',
 );
+
+const structuredRefs=structuredClone(data);
+structuredRefs.episodes[0].source_refs=[{chapter:'第一章',paragraphs:[1,2],quote:'原文'.repeat(100)}];
+assert.match(parseStoryboardImport(stringify(structuredRefs)).shots[0].description,/第一章/);
+const grouped={shots:[{title:'测试分镜',description:'保留原镜头'}],assets:{characters:[{name:'小林',description:'蓝色外套'}],scenes:[{name:'庭院',description:'木门'}],props:[]}};
+assert.equal(parseStoryboardImport(stringify(grouped)).assets.length,2);
+assert.equal(parseStoryboardImport(stringify({...grouped,assets:null})).assets.length,0);
+assert.throws(()=>parseStoryboardImport(stringify({...grouped,assets:{unknown:[{name:'不能丢失'}]}})),/资产|assets/);
+console.log('PASS structured source references and grouped asset import preserve content.');

@@ -9,7 +9,7 @@ import {confirmVideo} from './confirm-video.js';
 import {probeResult} from './probe-result.js';
 import {readResultIdentity} from './result-identity.js';
 import {readGenerationProgress} from './generation-progress.js';
-const EXECUTION_BUILD='0.13.4';
+const EXECUTION_BUILD='0.13.5';
 const own=url=>url?.startsWith(chrome.runtime.getURL(''));
 const doubao=url=>{try{return ['https://www.doubao.com','https://doubao.com'].includes(new URL(url).origin);}catch{return false;}};
 let tail=Promise.resolve(),polling=false;
@@ -17,7 +17,7 @@ const preparingJobs=new Map();
 // Keep the task on its original page. Otherwise prefer AI creation, without
 // making unrelated history tabs a prerequisite for connecting the account.
 function chooseTab(tabs,taskTab){const ready=tabs.filter(t=>doubao(t.url));return ready.find(t=>t.id===taskTab)||ready.find(t=>t.active&&new URL(t.url).pathname.startsWith('/chat/create-image'))||ready.find(t=>new URL(t.url).pathname.startsWith('/chat/create-image'))||ready.find(t=>t.active)||ready[0];}
-async function saved(){return chrome.storage.local.get(['connection','activeJob','taskTab','waitingJobs','retiredTaskTabs','bridgeStatus','originals','freshRetryJobId','pendingExtensionUpdate','eventOutbox']);}
+async function saved(){return chrome.storage.local.get(['connection','activeJob','taskTab','waitingJobs','retiredTaskTabs','bridgeStatus','originals','freshRetryJobId','freshCreationTabId','pendingExtensionUpdate','eventOutbox']);}
 // Persist before transmission. A worker suspension or a brief desktop outage
 // must not lose the only submission/result notification. Replay in order.
 let eventWrites=Promise.resolve();
@@ -247,13 +247,13 @@ async function poll(){
     const protectedTab=id=>Object.values(prior.waitingJobs||{}).some(e=>e.tabId===id)||!!prior.retiredTaskTabs?.[id];
     if(next.enabled&&!next.paused&&next.waiting&&!next.job&&(!prior.taskTab||protectedTab(prior.taskTab))&&(Object.keys(prior.waitingJobs||{}).length||Object.keys(prior.retiredTaskTabs||{}).length)){
       const fresh=await chrome.tabs.create({url:'https://www.doubao.com/chat/create-image',active:true});
-      await chrome.storage.local.set({activeJob:null,taskTab:fresh.id});
+      await chrome.storage.local.set({activeJob:null,taskTab:fresh.id,freshCreationTabId:fresh.id});
       await api('/event',{type:'runtime',state:'unknown'});
       await setStatus('原任务已释放账号，正在新创作页检查下一任务');return;
     }
     if(next.job?.status==='prepared' && prior.activeJob?.id!==next.job.id && (protectedTab(prior.taskTab)||prior.activeJob?.requestId)){
       const fresh=await chrome.tabs.create({url:'https://www.doubao.com/chat/create-image',active:true});
-      await chrome.storage.local.set({activeJob:next.job,taskTab:fresh.id});
+      await chrome.storage.local.set({activeJob:next.job,taskTab:fresh.id,freshCreationTabId:fresh.id});
       await setStatus('正在新创作页准备下一任务，原对话已保留');return;
     }
     if(await closeReturnedTasks(next))return;
@@ -320,13 +320,17 @@ async function poll(){
     let job=next.job;
     if(['submitted','attention'].includes(job.status)&&job.requestId){await trackWaiting(next,tabs);return;}
     if (!next.paused && next.enabled && job.retryOf && job.status==='prepared' && prior.freshRetryJobId!==job.id) {
-      const freshTab=await chrome.tabs.create({url:'https://www.doubao.com/chat/create-image',active:true});
-      await chrome.storage.local.set({activeJob:job,taskTab:freshTab.id,freshRetryJobId:job.id});
-      await setStatus('重新生成：正在打开新的创作页');return;
+      const reusable=prior.freshCreationTabId===tab.id&&!protectedTab(tab.id)&&page?.state==='idle'&&page.hasDraft===false&&page.hasAttachments===false&&page.uploads===0&&!page.uploading;
+      if(!reusable){
+        const freshTab=await chrome.tabs.create({url:'https://www.doubao.com/chat/create-image',active:true});
+        await chrome.storage.local.set({activeJob:job,taskTab:freshTab.id,freshRetryJobId:job.id,freshCreationTabId:null});
+        await setStatus('重新生成：正在打开新的创作页');return;
+      }
+      await chrome.storage.local.set({freshRetryJobId:job.id,freshCreationTabId:null});
     }
     job.settings={...job.settings,automaticPage:next.settings.automaticPage,...(page?.settings||{}),autoSubmit:job.settings.autoSubmit,runningSelector:page?.settings?.runningSelector||next.settings.runningSelector,idleSelector:page?.settings?.idleSelector||next.settings.idleSelector};
     if(prior.activeJob?.id===job.id)job={...job,requestId:job.requestId||prior.activeJob.requestId,videoId:job.videoId||prior.activeJob.videoId,submissionAttempted:prior.activeJob.submissionAttempted,confirmationAttempted:prior.activeJob.confirmationAttempted,resultProbeAt:prior.activeJob.resultProbeAt,...(prior.activeJob.prepareRevision===job.prepareRevision?{prepareAttempts:prior.activeJob.prepareAttempts,lastPrepareAt:prior.activeJob.lastPrepareAt}:{})};
-    await chrome.storage.local.set({activeJob:job});
+    await chrome.storage.local.set({activeJob:job,freshCreationTabId:null});
     await chrome.storage.local.set({taskTab:tab.id});
     try{await chrome.tabs.sendMessage(tab.id,{type:'arm',job,settings:next.settings});}
     catch(error){
@@ -341,7 +345,7 @@ async function poll(){
     }
     if(next.paused||!next.enabled){await setStatus('已暂停准备新提交，仍等待已提交结果');return;}
     if(job.status==='prepared'&&!job.submissionAttempted&&(job.prepareAttempts||0)<3&&Date.now()-(job.lastPrepareAt||0)>5000){
-      job.prepareAttempts=(job.prepareAttempts||0)+1;job.lastPrepareAt=Date.now();await chrome.storage.local.set({activeJob:job});
+      job.prepareAttempts=(job.prepareAttempts||0)+1;job.lastPrepareAt=Date.now();await chrome.storage.local.set({activeJob:job,freshCreationTabId:null});
       await chrome.tabs.update?.(tab.id,{active:true});
       const result=await prepareCurrent(job,tab.id);
       await setStatus(result?.ok?'任务已准备；以豆包页面实际提交状态为准':result?.error||'准备失败，请在面板重试准备');
@@ -371,7 +375,7 @@ async function handle(msg,sender){
     const tab=chooseTab(tabs,previous.taskTab);
     const fresh=new URLSearchParams(source.hash.slice(1)).get('fresh')==='1';
     if(!fresh&&tab&&(new URL(tab.url).pathname.startsWith('/chat/create-image')||(previous.activeJob&&previous.taskTab===tab.id))){await chrome.storage.local.set({taskTab:tab.id});await chrome.tabs.update(tab.id,{active:true});await chrome.tabs.remove(sender.tab.id);}
-    else {await chrome.storage.local.set({taskTab:sender.tab.id});await chrome.tabs.update(sender.tab.id,{url:'https://www.doubao.com/chat/create-image'});}
+    else {await chrome.storage.local.set({taskTab:sender.tab.id,freshCreationTabId:sender.tab.id});await chrome.tabs.update(sender.tab.id,{url:'https://www.doubao.com/chat/create-image'});}
     await poll();return {ok:true};
   }
   if(msg.type==='connect'&&internal){const c=msg.connection;if(c?.version!==1||!/^http:\/\/127\.0\.0\.1:\d{1,5}$/.test(c.url)||!/^[a-f0-9]{64}$/.test(c.token)||typeof c.accountId!=='string')throw Error('连接码无效');await chrome.storage.local.set({connection:c,activeJob:null,taskTab:null});await chrome.alarms.create('director-poll',{periodInMinutes:0.5});await poll();return {ok:true};}

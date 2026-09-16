@@ -1,0 +1,33 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {spawnSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
+import {packager} from '@electron/packager';
+import {stageRuntime} from './build/stage-runtime.mjs';
+const here=path.dirname(fileURLToPath(import.meta.url)),root=path.dirname(here);
+const pkg=JSON.parse(await fs.readFile(path.join(here,'package.json'),'utf8'));
+const arch=process.argv[2] || process.arch;
+if(!['arm64','x64'].includes(arch))throw Error('Unsupported Mac architecture');
+const out=path.join(here,'release',`v${pkg.version}`,`mac-${arch}`),stage=path.join(out,'source');
+await fs.mkdir(out,{recursive:true});await fs.mkdir(stage);
+await stageRuntime(here,root,stage);
+const appPkg={...pkg};delete appPkg.devDependencies;delete appPkg.scripts;
+await fs.writeFile(path.join(stage,'package.json'),JSON.stringify(appPkg,null,2));
+function run(command,args){const r=spawnSync(command,args,{stdio:'inherit'});if(r.status!==0)throw Error(`${command} failed (${r.status})`);}
+run('npm',['install','--prefix',stage,'--omit=dev','--ignore-scripts','--os=darwin',`--cpu=${arch}`,'--no-audit','--no-fund']);
+for(const platform of ['win32','linux'])await fs.rm(path.join(stage,'node_modules/ffprobe-static/bin',platform),{recursive:true,force:true});
+for(const file of await fs.readdir(stage,{recursive:true}))if(file.endsWith('.map')||path.basename(file)==='.DS_Store')await fs.rm(path.join(stage,file),{force:true});
+for(const file of ['package-lock.json','node_modules/.package-lock.json'])await fs.rm(path.join(stage,file),{force:true});
+const [appDir]=await packager({dir:stage,name:pkg.productName,out:path.join(out,'packaged'),platform:'darwin',arch,electronVersion:pkg.devDependencies.electron,asar:false,prune:false,overwrite:false,appVersion:pkg.version,appBundleId:'com.mengyuan.director.studio',...(process.env.ELECTRON_ZIP_DIR?{electronZipDir:process.env.ELECTRON_ZIP_DIR}:{})});
+const appPath=path.join(appDir,`${pkg.productName}.app`);
+// Ad-hoc signing permits local execution; this is not Developer ID notarization.
+run('/usr/bin/codesign',['--force','--deep','--sign','-',appPath]);
+run('/usr/bin/codesign',['--verify','--deep','--strict',appPath]);
+await fs.writeFile(path.join(appDir,'安装说明.txt'),'将 AI短片导演测试版.app 拖入“应用程序”。更新前保存项目并退出旧版，再替换应用。项目和设置保存在用户资料目录，不在应用包内。\n此版本尚未取得 Apple Developer ID 签名和公证，macOS 可能阻止首次打开；仅在确认下载来源后，按系统“隐私与安全性”提示允许打开。\n');
+const publish=path.join(out,'publish');await fs.mkdir(publish);
+const archive=path.join(publish,`MengyuanAI-${pkg.version}-${arch}.zip`);
+run('/usr/bin/ditto',['-c','-k','--sequesterRsrc','--keepParent',appDir,archive]);
+const sha512=createHash('sha512').update(await fs.readFile(archive)).digest('base64');
+await fs.writeFile(path.join(publish,`artifact-${arch}.json`),JSON.stringify({version:pkg.version,platform:'darwin',arch,file:path.basename(archive),size:(await fs.stat(archive)).size,sha512},null,2));
+console.log(JSON.stringify({archive,sha512,published:false}));

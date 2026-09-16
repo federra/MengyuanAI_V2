@@ -46,6 +46,8 @@ export function inspectComposer(settings = {}) {
       return /^(发送|生成|开始生成|生成视频|提交|Send|Generate)(\s|$)/i.test(label)||/(?:^|[\s_-])(send|submit)(?:[\s_-]|$)/i.test(id);
     }).map(e=>e.closest('button,[role="button"]')||e);
     const sends=[...new Set(send)];if(sends.length===1)sends[0].setAttribute('data-director-send','true');
+    // Count pending/failed attachment controls separately from ready thumbnails.
+    const hasAttachments=inputs.some(input=>input.files?.length>0)||[...root.querySelectorAll('button,[role="button"],[aria-label],[data-testid]')].some(e=>/删除|移除|remove|delete/i.test([e.getAttribute('aria-label'),e.getAttribute('title'),e.getAttribute('data-testid'),e.className,text(e)].join(' ')));
     const uploads=query(root,'img').filter(img=>{
       const rect=img.getBoundingClientRect();if(rect.width<28||rect.height<28)return false;
       let tile=img.parentElement;
@@ -60,6 +62,6 @@ export function inspectComposer(settings = {}) {
     const resolved={...settings,automaticPage:true,promptSelector:'[data-director-editor="true"]',uploadSelector:'[data-director-upload="true"]',uploadReadySelector:'[data-director-ready="true"]',submitSelector:'[data-director-send="true"]',idleSelector:'[data-director-editor="true"]',runningSelector:'[data-director-busy="true"]'};
     const activity=globalThis.__directorUploadActivity;
     const uploading=activity?.active>0;
-    return {state:'idle',settings:resolved,uploads:uploads.length,canSend:sends.length===1&&enabled(sends[0])&&!uploading,hasUpload:inputs.length===1,uploading};
+    return {state:'idle',settings:resolved,uploads:uploads.length,hasAttachments,hasDraft:!!(editor.value||editor.textContent||'').trim(),canSend:sends.length===1&&enabled(sends[0])&&!uploading,hasUpload:inputs.length===1,uploading};
   }catch{return fail('创作页面暂未就绪，稍后自动重试');}
 }

@@ -10,10 +10,25 @@
     return value.data;
   }
   async function ensure() {
-    const read = async () => (await post('/creativity/user_config/get', {}))?.config_map?.['1']?.watermark_option?.is_on;
+    const read = async () => {
+      const data = await post('/creativity/user_config/get', {});
+      const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+      if (!object(data)) throw Error('豆包水印设置返回结构异常，未提交生成');
+      if (data.config_map === undefined) return undefined;
+      if (!object(data.config_map)) throw Error('豆包水印设置返回结构异常，未提交生成');
+      const config = data.config_map['1'];
+      if (config === undefined) return undefined;
+      if (!object(config)) throw Error('豆包水印配置格式异常，未提交生成');
+      const option = config.watermark_option;
+      if (option === undefined) return undefined;
+      if (!object(option)) throw Error('豆包水印选项格式异常，未提交生成');
+      return option.is_on;
+    };
     const before = await read();
     if (before === true) return {verified:true,changed:false};
-    if (before !== false) throw Error('无法确认豆包 AI 水印设置，未提交生成');
+    // The official creation UI treats an unset preference as initially off.
+    // Initialize it through the official endpoint, never assume the write worked.
+    if (before !== false && before !== undefined) throw Error('无法确认豆包 AI 水印设置，未提交生成');
     await post('/creativity/user_config/set', {config_type:1,config_value:{watermark_option:{is_on:true}}});
     if (await read() !== true) throw Error('豆包去除 AI 生成明水印设置未生效，未提交生成');
     return {verified:true,changed:true};

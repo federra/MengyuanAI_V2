@@ -195,6 +195,50 @@ export function parseStoryboardImport(text: string): {
   const adapted = isEpisodes
     ? normalizeEpisodes(data as Record<string, unknown>)
     : undefined;
+  // Models commonly group asset lists by category; normalize without dropping groups.
+  if (
+    !isEpisodes &&
+    data &&
+    !Array.isArray(data) &&
+    typeof data === 'object' &&
+    'assets' in data
+  ) {
+    if (data.assets == null) data.assets = [];
+    else if (typeof data.assets === 'object' && !Array.isArray(data.assets)) {
+      const groups: Record<string, string> = {
+        characters: '人物',
+        roles: '人物',
+        scenes: '场景',
+        props: '道具',
+        costumes: '服饰',
+        styles: '风格',
+        人物: '人物',
+        场景: '场景',
+        道具: '道具',
+        服装: '服饰',
+        服饰: '服饰',
+        voices: '声音',
+        声音: '声音',
+        风格: '风格',
+      };
+      const normalized: Record<string, unknown>[] = [];
+      for (const [key, entries] of Object.entries(data.assets)) {
+        const kind = groups[key];
+        if (!kind || !Array.isArray(entries))
+          throw Error(
+            `assets.${key}需要已支持分类的资产数组（characters/scenes/props/costumes/styles）`,
+          );
+        for (const entry of entries) {
+          if (!entry || typeof entry !== 'object' || Array.isArray(entry))
+            throw Error(`assets.${key}每项必须为资产对象`);
+          if ('kind' in entry && entry.kind !== kind)
+            throw Error(`assets.${key}中的kind与资产分类不一致`);
+          normalized.push({ ...entry, kind });
+        }
+      }
+      data.assets = normalized;
+    }
+  }
   const flatAssets: Asset[] = [];
   if (
     !isEpisodes &&

@@ -86,6 +86,15 @@ app.whenReady().then(async()=>{
     await win.webContents.executeJavaScript('globalThis.__directorUploadActivity={active:1}');
     const uploading=await win.webContents.executeJavaScript('globalThis.__directorInspectComposer({automaticPage:true})');
     assert.equal(uploading.canSend,false,'active reference upload must block submission');
+    const failedAttachment=await win.webContents.executeJavaScript(`(()=>{
+      const editor=document.querySelector('[data-director-editor]');if('value' in editor)editor.value='';else editor.textContent='';
+      for(const input of document.querySelectorAll('input[type=file]'))input.value='';
+      const root=document.querySelector('[data-director-composer]');
+      for(const image of root.querySelectorAll('img'))image.parentElement.append(document.createTextNode('上传失败'));
+      return globalThis.__directorInspectComposer({automaticPage:true});
+    })()`);
+    assert.equal(failedAttachment.hasAttachments,true,'failed image attachments still make the page occupied');
+    assert.equal(failedAttachment.uploads,0,'failed images are not ready uploads');
     console.log('Fixture:',variant);
     }
     html=`<!doctype html><div data-message-id="u">本条分镜 10 秒</div><div data-message-id="a"><div data-streaming="false">确认后我再开始生成视频。</div></div><div contenteditable="true"></div><button id="flow-end-msg-send" disabled>发送</button><script>window.clicks=0;document.querySelector('[contenteditable]').oninput=()=>document.querySelector('button').disabled=false;document.querySelector('button').onclick=()=>{window.clicks++;window.sent=document.querySelector('[contenteditable]').innerText;const m=document.createElement('div');m.dataset.messageId='confirmation';m.textContent='正在处理视频';document.body.append(m);document.querySelector('[contenteditable]').innerText=''}</script>`;

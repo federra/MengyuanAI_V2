@@ -1,6 +1,6 @@
 (() => {
   if(window.__directorObserver)return;window.__directorObserver=true;
-  window.__directorObserverBuild='0.13.4';
+  window.__directorObserverBuild='0.13.5';
   const nativeFetch=window.fetch.bind(window),parse=JSON.parse.bind(JSON);
   let armed=null,pendingPlayback=null;const resolved=new Set(),recoveries=new Set();
   const send=(type,data)=>window.postMessage({channel:'director-doubao-v2',type,...data},location.origin);

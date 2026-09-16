@@ -90,6 +90,33 @@ export function inspectSkillFile(source: string): SkillQuality {
     .replace(/^\uFEFF/, '')
     .trim()
     .replace(/^```json\s*\n([\s\S]*?)\n```$/i, '$1');
+  const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/.exec(text);
+  if (frontmatter) {
+    const metadata: Record<string, unknown> = {};
+    for (const line of frontmatter[1].split(/\r?\n/)) {
+      const entry = /^([a-zA-Z][\w-]*):\s*(.*)$/.exec(line);
+      if (!entry) continue;
+      if (
+        !entry[2].trim() &&
+        [
+          'tools',
+          'dependencies',
+          'scripts',
+          'resources',
+          'allowed-tools',
+        ].includes(entry[1])
+      ) {
+        metadata[entry[1]] = '声明外部依赖';
+        continue;
+      }
+      try {
+        metadata[entry[1]] = JSON.parse(entry[2]);
+      } catch {
+        metadata[entry[1]] = entry[2].replace(/^['"]|['"]$/g, '');
+      }
+    }
+    return inspectSkill({ ...metadata, content: frontmatter[2].trim() });
+  }
   try {
     return inspectSkill(JSON.parse(text));
   } catch {

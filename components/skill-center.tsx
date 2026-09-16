@@ -30,6 +30,11 @@ import {
 import { builtinSkills, type Skill } from '@/lib/director';
 import { id, validateProject, type Project } from '@/lib/studio';
 import { download } from '@/lib/export';
+import {
+  exportSkillFile,
+  readSkillFile,
+  type SkillFileFormat,
+} from '@/lib/skill-files';
 import { inspectSkill, skillStages as scopes } from '@/lib/skill-quality';
 type ImportReport = {
   adapted: boolean;
@@ -102,6 +107,8 @@ export function SkillCenter({
   onChange: (p: Project) => void;
   onUse: (s: Skill) => void;
 }) {
+  const [exporting, setExporting] = useState<Skill | null>(null);
+  const [exportFormat, setExportFormat] = useState<SkillFileFormat>('json');
   const [query, setQuery] = useState('');
   const [stage, setStage] = useState(selectionStage || '全部阶段');
   const [onlyFavorites, setOnlyFavorites] = useState(false);
@@ -209,8 +216,7 @@ export function SkillCenter({
   async function read(file: File | undefined) {
     if (!file || importing) return;
     try {
-      if (file.size > 100000) throw Error('技能文件最多100KB');
-      await checkImport({ source: await file.text(), filename: file.name });
+      await checkImport(await readSkillFile(file));
     } catch (e) {
       setError(e instanceof Error ? e.message : '导入失败');
     }
@@ -314,7 +320,7 @@ export function SkillCenter({
         ref={file}
         hidden
         type="file"
-        accept=".md,.txt,.json"
+        accept=".md,.txt,.json,.zip"
         onChange={(e) => {
           void read(e.target.files?.[0]);
           e.target.value = '';
@@ -327,8 +333,8 @@ export function SkillCenter({
       )}
       {notice && <output className="biz-notice">{notice}</output>}
       <p className="biz-muted">
-        支持 MD / TXT /
-        JSON（100KB以内）。兼容格式直接导入；不兼容时自动使用已配置的文本模型转换，可能产生模型调用费用。转换后可查看问题、修改说明并编辑，再保存到当前项目。
+        支持 MD / TXT / JSON（100KB以内）及 ZIP
+        技能包（5MB以内，展开的文本合计100KB以内）。兼容格式直接导入；不兼容时自动使用已配置的文本模型转换，可能产生模型调用费用。转换后可查看问题、修改说明并编辑，再保存到当前项目。
       </p>
       {importFile && error && !importing && !draft && (
         <Button
@@ -474,13 +480,8 @@ export function SkillCenter({
                   </Button>
                   <Button
                     variant="ghost"
-                    aria-label="导出技能JSON"
-                    onClick={() =>
-                      download(
-                        `${skill.name}.json`,
-                        JSON.stringify(skill, null, 2),
-                      )
-                    }
+                    aria-label={`下载技能：${skill.name}`}
+                    onClick={() => setExporting(skill)}
                   >
                     <Download />
                   </Button>
@@ -520,6 +521,45 @@ export function SkillCenter({
           )}
         </aside>
       </div>
+      <Dialog
+        open={!!exporting}
+        onOpenChange={(open) => !open && setExporting(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>下载 Skill</DialogTitle>
+            <DialogDescription>
+              {exporting?.name} · 选择文件格式后下载
+            </DialogDescription>
+          </DialogHeader>
+          <label className="biz-field">
+            下载格式
+            <select
+              aria-label="Skill 下载格式"
+              value={exportFormat}
+              onChange={(event) =>
+                setExportFormat(event.target.value as SkillFileFormat)
+              }
+            >
+              <option value="json">JSON</option>
+              <option value="txt">TXT</option>
+              <option value="md">Markdown（MD）</option>
+              <option value="zip">ZIP 技能包</option>
+            </select>
+          </label>
+          <Button
+            onClick={() => {
+              if (!exporting) return;
+              const file = exportSkillFile(exporting, exportFormat);
+              download(file.name, file.data, file.type);
+              setExporting(null);
+            }}
+          >
+            <Download />
+            下载
+          </Button>
+        </DialogContent>
+      </Dialog>
       <Dialog open={!!draft} onOpenChange={(v) => !v && setDraft(null)}>
         <DialogContent className="biz-dialog">
           <DialogHeader>

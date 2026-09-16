@@ -217,7 +217,7 @@ else {
     const canInstall=process.platform==='win32' && app.isPackaged && !process.env.PORTABLE_EXECUTABLE_FILE && require('node:fs').existsSync(path.join(process.resourcesPath,'app-update.yml'));
     const nativeUpdater=canInstall ? new (require('electron-updater').NsisUpdater)({provider:'generic',url:UPDATE_BASE}) : undefined;
     softwareUpdate=new SoftwareUpdate({
-      version:app.getVersion(),canInstall,updater:nativeUpdater,
+      version:app.getVersion(),canInstall,platform:process.platform,arch:process.arch,openDownload:url=>shell.openExternal(url),updater:nativeUpdater,
       requestInstall:async()=>{
         if(exportingDraft)throw Error('剪映草稿正在导出，请完成后再安装');
         const active=!!doubaoManager?.state.jobs.some(j=>['queued','prepared','submitted','downloading'].includes(j.status));

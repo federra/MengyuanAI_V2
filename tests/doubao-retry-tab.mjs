@@ -18,3 +18,22 @@ ctx.fetch=async()=>Response.json({enabled:true,paused:false,job,waitingJobs:[wai
 await ctx.testPoll();assert.equal(opened,1);assert.equal(store.activeJob.id,'independent');assert.equal(store.waitingJobs.waiting.tabId,1);assert.equal(store.taskTab,2);
 await ctx.testPoll();assert.equal(opened,1,'pending video does not repeatedly open a new task tab');
 console.log('PASS acknowledged video retains original tab while independent next task opens once.');
+
+// A bridge-created tab has already provided a fresh page for this retry.
+store.waitingJobs={};store.retiredTaskTabs={};store.activeJob=null;
+store.taskTab=1;store.freshCreationTabId=1;delete store.freshRetryJobId;
+job.id='retry-after-browser-launch';job.retryOf='old';opened=0;tabs.splice(1);
+chrome.scripting.executeScript=async({func})=>[{result:func===inspectComposer?{state:'idle',uploads:0,hasDraft:false,hasAttachments:false,settings:{automaticPage:true}}:{state:'loggedIn'}}];
+ctx.fetch=async()=>Response.json({enabled:true,paused:false,job,settings:{automaticPage:true}});
+await ctx.testPoll();assert.equal(opened,0,'a newly opened empty bridge page must not spawn a duplicate retry tab');
+assert.equal(store.freshRetryJobId,job.id);
+assert.equal(store.freshCreationTabId,null,'fresh page may be consumed only once');
+console.log('PASS retry consumes the freshly opened empty bridge tab.');
+for (const occupied of [{hasDraft:true,uploads:0,hasAttachments:false},{hasDraft:false,uploads:1,hasAttachments:true},{hasDraft:false,uploads:0,hasAttachments:true}]) {
+ store.activeJob=null;store.taskTab=1;store.freshCreationTabId=1;delete store.freshRetryJobId;
+ opened=0;tabs.splice(1);job.id='retry-occupied-'+occupied.uploads;
+ chrome.scripting.executeScript=async({func})=>[{result:func===inspectComposer?{state:'idle',...occupied,settings:{automaticPage:true}}:{state:'loggedIn'}}];
+ await ctx.testPoll();assert.equal(opened,1,'a fresh tab with user draft/attachment must be preserved');
+ assert.equal(tabs[0].id,1);
+}
+console.log('PASS user draft and attachment prevent fresh tab reuse.');

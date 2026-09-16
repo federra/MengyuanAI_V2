@@ -1,12 +1,13 @@
 const {EventEmitter} = require('node:events');
 const UPDATE_BASE = 'https://121.199.40.214/updates/windows/';
+const MAC_UPDATE_BASE = 'https://121.199.40.214/updates/mac/';
 function compareVersions(a,b) {
   const parse=value=>{if(typeof value!=='string'||!/^\d{1,6}\.\d{1,6}\.\d{1,6}$/.test(value))throw Error('更新版本号格式无效');return value.split('.').map(Number)};
   const aa=parse(a),bb=parse(b);
   for(let i=0;i<3;i++){if(aa[i]!==bb[i])return aa[i]>bb[i]?1:-1;}
   return 0;
 }
-async function readRelease(fetcher,url=UPDATE_BASE+'release.json') {
+async function readRelease(fetcher,url=UPDATE_BASE+'release.json',platform='win32',arch=process.arch) {
   const response=await fetcher(url,{cache:'no-store',redirect:'error',signal:AbortSignal.timeout(20000)});
   if(response.status===404)return null;
   if(!response.ok)throw Error(`更新服务返回${response.status}，请稍后重试。`);
@@ -18,13 +19,14 @@ async function readRelease(fetcher,url=UPDATE_BASE+'release.json') {
   } finally {await reader.cancel().catch(()=>{});}
   let info;try{info=JSON.parse(text)}catch{throw Error('更新信息格式无效，请联系发布者。')}
   compareVersions(info?.version,'0.0.0');
-  if(info.platform!=='win32'||typeof info.releaseNotes!=='string'||info.releaseNotes.length>20000)throw Error('更新信息格式无效，请联系发布者。');
+  if(info.platform!==platform||typeof info.releaseNotes!=='string'||info.releaseNotes.length>20000)throw Error('更新信息格式无效，请联系发布者。');
+  if(platform==='darwin' && (!['arm64','x64'].includes(arch) || !info.architectures?.includes(arch)))throw Error('当前 Mac 架构暂无可下载版本');
   return {version:info.version,releaseNotes:info.releaseNotes,platform:info.platform};
 }
 class SoftwareUpdate extends EventEmitter {
-  constructor({version,canInstall=false,updater,fetch=globalThis.fetch,requestInstall=()=>{},onInstallError=()=>{}}) {
-    super();this.updater=updater;this.fetch=fetch;this.requestInstall=requestInstall;this.onInstallError=onInstallError;
-    this.state={currentVersion:version,availableVersion:null,releaseNotes:'',canInstall,status:'idle',progress:0,downloaded:false,message:''};
+  constructor({version,canInstall=false,platform='win32',arch=process.arch,openDownload,updater,fetch=globalThis.fetch,requestInstall=()=>{},onInstallError=()=>{}}) {
+    super();this.platform=platform;this.arch=arch;this.openDownload=openDownload;this.updater=updater;this.fetch=fetch;this.requestInstall=requestInstall;this.onInstallError=onInstallError;
+    this.state={currentVersion:version,availableVersion:null,releaseNotes:'',canInstall,platform,canDownload:platform==='darwin' && ['arm64','x64'].includes(arch) && !!openDownload,status:'idle',progress:0,downloaded:false,message:''};
     this.operation=null;
     if(updater){
       updater.autoDownload=false;updater.autoInstallOnAppQuit=false;updater.autoRunAppAfterInstall=true;updater.allowDowngrade=false;updater.allowPrerelease=false;
@@ -39,7 +41,7 @@ class SoftwareUpdate extends EventEmitter {
     if(['downloaded','installing'].includes(this.state.status))return this.snapshot();
     this.set({status:'checking',message:'正在检查更新…',availableVersion:null,releaseNotes:'',downloaded:false,progress:0});
     try {
-      const info=await readRelease(this.fetch);
+      const info=await readRelease(this.fetch,(this.platform==='darwin'?MAC_UPDATE_BASE:UPDATE_BASE)+'release.json',this.platform,this.arch);
       if(!info)this.set({status:'unpublished',message:'更新服务尚未发布版本，请稍后检查。'});
       else if(compareVersions(info.version,this.state.currentVersion)<=0)this.set({status:'current',availableVersion:info.version,releaseNotes:info.releaseNotes,message:'当前已是最新版。'});
       else this.set({status:'available',availableVersion:info.version,releaseNotes:info.releaseNotes,message:'发现新版本。'});
@@ -48,6 +50,12 @@ class SoftwareUpdate extends EventEmitter {
   });}
   downloadAndInstall(){
     if(this.state.status==='installing')return Promise.resolve(this.snapshot());
+    if(this.state.canDownload)return this.run(async()=>{
+      if(!this.state.availableVersion||compareVersions(this.state.availableVersion,this.state.currentVersion)<=0)throw Error('请先检查可用更新。');
+      await this.openDownload(`${MAC_UPDATE_BASE}MengyuanAI-${this.state.availableVersion}-${this.arch}.zip`);
+      this.set({message:'已打开 Mac 更新包下载。请保存项目并退出旧版，再用新版应用替换旧版；项目数据保留。'});
+      return this.snapshot();
+    });
     if(!this.state.canInstall||!this.updater)return Promise.reject(Error('自动安装仅支持正式Windows安装版；当前环境可检查更新。'));
     return this.run(async()=>{
       if(!this.state.availableVersion||compareVersions(this.state.availableVersion,this.state.currentVersion)<=0)throw Error('请先检查可用更新。');
@@ -72,4 +80,4 @@ class SoftwareUpdate extends EventEmitter {
     this.updater.quitAndInstall(true,true);
   }
 }
-module.exports={SoftwareUpdate,compareVersions,readRelease,UPDATE_BASE};
+module.exports={SoftwareUpdate,compareVersions,readRelease,UPDATE_BASE,MAC_UPDATE_BASE};

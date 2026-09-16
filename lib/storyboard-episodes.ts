@@ -19,6 +19,25 @@ function strings(value: unknown, label: string): string[] {
   return value.map((v) => text(v, label, 150));
 }
 
+// Source references describe provenance, not asset IDs; retain structured references.
+function references(value: unknown, label: string): string[] {
+  if (value == null) return [];
+  const values = Array.isArray(value) ? value : [value];
+  if (values.length > 200) throw Error(`${label}最多200项`);
+  const result = values.map((entry, index) => {
+    if (typeof entry === 'string')
+      return text(entry, `${label}第${index + 1}项`, 10000);
+    if (typeof entry === 'number' && Number.isFinite(entry))
+      return String(entry);
+    if (entry && typeof entry === 'object' && !Array.isArray(entry))
+      return text(JSON.stringify(entry), `${label}第${index + 1}项`, 10000);
+    throw Error(`${label}第${index + 1}项需要文本、编号或来源对象`);
+  });
+  if (result.join('、').length > 10000)
+    throw Error(`${label}合计超过10000字，请精简来源引用`);
+  return result;
+}
+
 // One episode is one generated video. Its shots form an internal timeline,
 // and must never be flattened into separate workbench storyboard rows.
 export function normalizeEpisodes(root: RecordValue) {
@@ -88,7 +107,7 @@ export function normalizeEpisodes(root: RecordValue) {
       throw Error(`${label}需要1至1000个内部子镜头`);
     const scene = text(episode.scene_name ?? '', `${label}场景`, 150);
     const characters = strings(episode.characters, `${label} characters`);
-    const sourceRefs = strings(episode.source_refs, `${label} source_refs`);
+    const sourceRefs = references(episode.source_refs, `${label} source_refs`);
     const assetNames: { kind: string; name: string }[] = [];
     const addName = (kind: string, name: string) => {
       if (

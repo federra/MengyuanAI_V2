@@ -3,6 +3,8 @@ export type SoftwareUpdateState = {
   availableVersion: string | null;
   releaseNotes: string;
   canInstall: boolean;
+  platform?: string;
+  canDownload?: boolean;
   status:
     | 'idle'
     | 'checking'

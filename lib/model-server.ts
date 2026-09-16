@@ -8,7 +8,7 @@ import {
   publicHttps,
   normalizeModelBase,
 } from './models';
-const modelRequestTimeoutMs = 240_000;
+export const modelRequestTimeoutMs = 600_000;
 async function cryptoKey() {
   if (!env.MODEL_ENCRYPTION_KEY) throw Error('模型密钥存储尚未初始化');
   return crypto.subtle.importKey(

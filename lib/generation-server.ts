@@ -6,7 +6,12 @@ import {
   finalVideoPrompt,
   videoReferenceError,
 } from './video-request';
-import { modelRequest, readyConfig, config } from './model-server';
+import {
+  modelRequest,
+  readyConfig,
+  config,
+  modelRequestTimeoutMs,
+} from './model-server';
 import {
   publicHttps,
   videoBody,
@@ -193,7 +198,7 @@ async function saveOutput(
       response ||
       (await fetch(data.url!, {
         redirect: 'manual',
-        signal: AbortSignal.timeout(110000),
+        signal: AbortSignal.timeout(modelRequestTimeoutMs),
       }));
     if (!r.ok || !r.body)
       throw Error('生成完成，但素材下载失败；请刷新任务重试下载');

@@ -21,3 +21,25 @@ enabled=false;failSave=true;await assert.rejects(api.ensure(),/未生效/);
 assert(calls.every(c=>!c.path.includes('chat/completion')),'never regenerates');
 ctx.location.origin='https://example.com';await assert.rejects(api.ensure(),/豆包/);
 console.log('PASS official watermark setting, readback, exact video, unchanged signature, AI/brand distinction and failure guards');
+
+// Official creation UI treats an absent preference as its initial off state.
+for (const initial of [{},{config_map:{}},{config_map:{1:{}}},{config_map:{1:{watermark_option:{}}}}]) {
+ let stored=false;const requests=[];
+ const fresh=vm.createContext({location:{origin:'https://www.doubao.com'},URL,AbortSignal,fetch:async(path,init)=>{
+  requests.push(path);
+  if(path.endsWith('/set')){stored=true;return Response.json({code:0});}
+  return Response.json({code:0,data:stored?{config_map:{1:{watermark_option:{is_on:true}}}}:initial});
+ }});
+ vm.runInContext(source,fresh);
+ assert.equal((await fresh.DirectorWatermark.ensure()).verified,true);
+ assert.deepEqual(requests,['/creativity/user_config/get','/creativity/user_config/set','/creativity/user_config/get']);
+}
+console.log('PASS unset official watermark preference initializes and verifies through readback.');
+for (const data of [null, {config_map:null}, {config_map:[]}, {config_map:{1:null}}, {config_map:{1:{watermark_option:[]}}}, {config_map:{1:{watermark_option:{is_on:'false'}}}}]) {
+ let writes=0;
+ const malformed=vm.createContext({location:{origin:'https://www.doubao.com'},URL,AbortSignal,fetch:async(path)=>{if(path.endsWith('/set'))writes++;return Response.json({code:0,data});}});
+ vm.runInContext(source,malformed);await assert.rejects(malformed.DirectorWatermark.ensure());assert.equal(writes,0);
+}
+const neverSaved=vm.createContext({location:{origin:'https://www.doubao.com'},URL,AbortSignal,fetch:async()=>Response.json({code:0,data:{config_map:{}}})});
+vm.runInContext(source,neverSaved);await assert.rejects(neverSaved.DirectorWatermark.ensure(),/未生效/);
+console.log('PASS malformed preference and unconfirmed initialization never pass generation guard.');

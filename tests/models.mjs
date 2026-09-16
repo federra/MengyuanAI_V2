@@ -6,14 +6,17 @@ import path from 'node:path';
 const dir='work/model-test';await fs.mkdir(dir,{recursive:true});
 for(const name of ['models','model-server','generation-server','api-response','video-request','video-voice']){
  let code=ts.transpileModule(await fs.readFile(`lib/${name}.ts`,'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
- code=code.replaceAll("'cloudflare:workers'","'./fake.mjs'").replaceAll("'./server'","'./fake.mjs'").replaceAll("'./video-voice'","'./video-voice.mjs'").replaceAll("'./video-request'","'./video-request.mjs'").replaceAll("'./models'","'./models.mjs'").replaceAll("'./model-server'","'./model-server.mjs'");await fs.writeFile(`${dir}/${name}.mjs`,code);
+ code=code.replaceAll("'cloudflare:workers'","'./fake.mjs'").replaceAll("'./server'","'./fake.mjs'").replaceAll("'./usage-server'","'./fake.mjs'").replaceAll("'./video-voice'","'./video-voice.mjs'").replaceAll("'./video-request'","'./video-request.mjs'").replaceAll("'./models'","'./models.mjs'").replaceAll("'./model-server'","'./model-server.mjs'");await fs.writeFile(`${dir}/${name}.mjs`,code);
 }
 await fs.writeFile(`${dir}/fake.mjs`, `
 export const json=(data,status=200)=>Response.json(data,{status});export const sameOrigin=()=>{};
 export const env={MODEL_ENCRYPTION_KEY:'local-test-secret-not-production'};
 export const profiles=new Map(),defaults=new Map();
+export const stableMediaId=async operation=>operation;
+export async function saveMediaRecord(value){media.set(value.id,[value.id,value.name,value.type,value.size]);}
+
 export const configs=new Map(),jobs=new Map(),media=new Map(),blobs=new Map();
-export function db(){return {prepare(sql){let a;return {bind(...args){a=args;return this},async first(){if(sql.includes('model_defaults'))return defaults.has(a[0])?{profile_id:defaults.get(a[0])}:null;if(sql.includes('model_profiles')){const r=profiles.get(a[0]);return r&&(!a[1]||r.kind===a[1])?r:null;}if(sql.includes('model_configs'))return configs.get(a[0])||null;if(sql.includes("json_extract(body,'$.media.id')")){return [...jobs.values()].find(r=>JSON.parse(r.body).media?.id===a[0]&&r.project_id===a[1]&&r.status==='succeeded')||null;}if(sql.includes('generation_jobs'))return jobs.get(a[0])||null;throw Error(sql)},async all(){if(sql.includes('model_profiles'))return {results:[...profiles.values()]};throw Error(sql)},async run(){
+export function db(){return {prepare(sql){let a;return {bind(...args){a=args;return this},async first(){if(sql.includes('FROM media WHERE id=')){const r=media.get(a[0]);return r?{id:r[0],name:r[1],type:r[2]}:null;}if(sql.includes('model_defaults'))return defaults.has(a[0])?{profile_id:defaults.get(a[0])}:null;if(sql.includes('model_profiles')){const r=profiles.get(a[0]);return r&&(!a[1]||r.kind===a[1])?r:null;}if(sql.includes('model_configs'))return configs.get(a[0])||null;if(sql.includes("json_extract(body,'$.media.id')")){return [...jobs.values()].find(r=>JSON.parse(r.body).media?.id===a[0]&&r.project_id===a[1]&&r.status==='succeeded')||null;}if(sql.includes('generation_jobs'))return jobs.get(a[0])||null;throw Error(sql)},async all(){if(sql.includes('model_profiles'))return {results:[...profiles.values()]};throw Error(sql)},async run(){
 if(sql.startsWith('INSERT OR IGNORE INTO generation_jobs')){if(jobs.has(a[0]))return {meta:{changes:0}};jobs.set(a[0],{id:a[0],project_id:a[1],body:a[2],status:a[3],config:a[4],created_at:a[5],remote_id:null});}
 else if(sql.startsWith('UPDATE generation_jobs')){const old=jobs.get(a[3]);jobs.set(a[3],{...old,body:a[0],status:a[1],remote_id:a[2]||old.remote_id});}
 else if(sql.startsWith('INSERT INTO model_defaults'))defaults.set(a[0],a[1]);
@@ -56,7 +59,7 @@ blobs.set('first',{size:3,httpMetadata:{contentType:'image/png'},arrayBuffer:asy
 const v=await submitJob({...input,firstFrameId:'first'},'video-1');assert.equal(v.status,'running');const req=JSON.parse(requests.at(-1).init.body);assert.equal(req.content[1].role,'first_frame');assert(req.content[1].image_url.url.startsWith('data:image/png;base64,'));assert(!jobs.get('video-1').config.includes(key));
 let count=requests.length;await submitJob(input,'video-1');assert.equal(requests.length,count,'same request ID must not create a second billable job');
 downloadFail=true;assert.equal((await refreshJob('video-1')).status,'attention');downloadFail=false;
-const completed=await refreshJob('video-1');assert.equal(completed.status,'succeeded');assert(completed.media.url.startsWith('/api/media/'));count=requests.length;await refreshJob('video-1');assert.equal(requests.length,count);
+const completed=await refreshJob('video-1');assert.equal(completed.status,'succeeded',completed.error);assert(completed.media.url.startsWith('/api/media/'));count=requests.length;await refreshJob('video-1');assert.equal(requests.length,count);
 downloadFail=true;assert.equal((await submitJob({...input,target:'image'},'image-1')).status,'attention');downloadFail=false;assert.equal((await refreshJob('image-1')).status,'succeeded','image download retry must reuse original output');
 providerFail=true;assert.equal((await submitJob(input,'timeout-1')).status,'attention');count=requests.length;await submitJob(input,'timeout-1');assert.equal(requests.length,count,'uncertain submission is never automatically retried');
 await assert.rejects(()=>submitJob({...input,referenceIds:['missing']},'missing-1'));assert(!jobs.has('missing-1'));
@@ -303,13 +306,13 @@ assert.throws(()=>validateGeneration({...input,ratio:'0:1'}));
 assert.notEqual(imageSizeForRatio('2.35:1'),imageSizeForRatio('16:9'));
 assert(validImageSize(imageSizeForRatio('2.35:1')));
 console.log('PASS custom ratio passes request validation and preserves reference-image proportions');
-// Exercise timeout configuration and timeout diagnostics without waiting four minutes.
+// Exercise timeout configuration and timeout diagnostics without waiting ten minutes.
 const savedTimeout=AbortSignal.timeout,savedFetch=globalThis.fetch;
 let timeoutMs=0;
 try {
   AbortSignal.timeout=ms=>{timeoutMs=ms;return new AbortController().signal};
   globalThis.fetch=async()=>{throw new DOMException('simulated timeout','TimeoutError')};
-  await assert.rejects(()=>modelRequest({...modelDefaults[0],kind:'text',baseUrl:'https://api.example.com/v1',apiKey:'fake'},'/chat/completions',{messages:[]}),/240秒/);
-  assert.equal(timeoutMs,240000);
+  for(const kind of ['text','image','video','audio']) await assert.rejects(()=>modelRequest({...modelDefaults[0],kind,baseUrl:'https://api.example.com/v1',apiKey:'fake'},'/test',{messages:[]}),/600秒/);
+  assert.equal(timeoutMs,600000);
 } finally {AbortSignal.timeout=savedTimeout;globalThis.fetch=savedFetch;}
-console.log('PASS model requests allow 240 seconds and report the matching timeout without retries');
+console.log('PASS model requests allow 600 seconds and report the matching timeout without retries');

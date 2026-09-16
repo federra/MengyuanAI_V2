@@ -4,7 +4,7 @@
 
 系统设置下方的“软件更新”展示当前版本、可用版本、更新内容，以及“检查更新”“下载并安装”。没有新版本显示“当前已是最新版。”；服务器未发布清单（404）时显示“更新服务尚未发布版本”，网络失败不冒充已是最新版。
 
-Windows 使用 electron-builder NSIS 安装版 + electron-updater。源码启动版和旧便携包只能检查；旧用户需要先手动安装一次带更新组件的 NSIS 安装版。Mac 按本次需求仅查询 Windows 发布版本，禁用安装按钮，不下载或执行 Windows 程序。
+Windows 使用 electron-builder NSIS 安装版 + electron-updater。源码启动版和旧便携包只能检查；旧用户需要先手动安装一次带更新组件的 NSIS 安装版。从0.1.72起，Mac读取独立Mac渠道，按Apple Silicon（arm64）/Intel（x64）下载ZIP应用包。Mac保存退出后手动替换应用，不自动安装；0.1.71及更早Mac需先通过下载链接手动更新一次。
 
 下载由主进程执行并校验 SHA-512。下载成功后经过关闭窗口保护：未保存编辑或运行中的操作会触发原保存提示，豆包活动任务会单独提示。用户取消关闭后保留下载，下次点击继续安装。窗口允许退出后，先停止插件/后端，再调用 `quitAndInstall(true, true)`，安装后重新打开。更新不更改应用 userData 路径，不包含用户数据库、媒体、账号或密钥。
 
@@ -20,6 +20,15 @@ Windows 使用 electron-builder NSIS 安装版 + electron-updater。源码启动
 ```json
 {"version":"0.1.69","platform":"win32","releaseNotes":"更新点一\n更新点二","publishedAt":"2026-09-15T00:00:00.000Z"}
 ```
+
+## Mac 下载渠道
+
+- `https://121.199.40.214/updates/mac/release.json`：Mac版本、更新说明及可用架构。
+- `MengyuanAI-版本-arm64.zip`、`MengyuanAI-版本-x64.zip`：独立应用包；服务器目录 `/srv/ai-director-studio-updates/mac/`。
+- `artifact-arm64.json`、`artifact-x64.json` 记录文件大小及SHA-512；手动下载依赖有效HTTPS，客户端不执行Mac自动安装。
+- 构建：根目录构建后分别执行 `node desktop/package-mac-download.mjs arm64` 和 `node desktop/package-mac-download.mjs x64`，输出 `desktop/release/v版本/mac-架构/publish/`。仅包含程序和生产依赖，不依赖本机工程路径。
+- 应用采用本地临时签名，尚无Apple Developer ID及公证。macOS可能提示阻止首次打开，安装说明随ZIP提供；不要关闭系统安全检查。
+- 两个架构包先上传校验，最后原子替换Mac的release.json。旧包保留。
 
 ## 构建
 

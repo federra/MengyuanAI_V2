@@ -103,14 +103,14 @@ export function SoftwareUpdate() {
           {state?.status === 'checking' ? '检查中…' : '检查更新'}
         </Button>
         <Button
-          disabled={!state?.canInstall || !hasUpdate || busy}
+          disabled={(!state?.canInstall && !state?.canDownload) || !hasUpdate || busy}
           onClick={() => void run('install')}
         >
           {state?.status === 'downloading'
             ? '下载中…'
             : state?.status === 'installing'
               ? '准备安装…'
-              : '下载并安装'}
+              : state?.canDownload ? '下载 Mac 更新包' : '下载并安装'}
         </Button>
       </div>
       {(error || state?.message) && (
@@ -120,8 +120,9 @@ export function SoftwareUpdate() {
       )}
       {state && !state.canInstall && (
         <p className="mt-3 text-sm text-muted-foreground">
-          当前环境仅支持检查 Windows 发布版本。自动安装请使用正式 Windows
-          安装版；Mac 暂不提供自动安装。
+          {state.platform === 'darwin'
+            ? 'Mac 更新包按当前芯片类型下载。保存项目并退出旧版后，解压并替换应用；已保存的项目和设置保留。'
+            : '当前环境仅支持检查更新。自动安装请使用正式 Windows 安装版。'}
         </p>
       )}
       {state?.canInstall && (

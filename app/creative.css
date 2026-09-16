@@ -757,3 +757,7 @@
 .plan-preview-hit { position: absolute; inset: 0; width: 100%; height: 100%; background: transparent; border: 0; cursor: pointer; border-radius: inherit; }
 .plan-preview-hit:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .creative-plan-list .plan-body .actions { position: relative; z-index: 1; }
+
+.creative-editor-footer.creative-story-footer { justify-content: space-between; }
+.creative-story-footer > .actions { flex-wrap: nowrap; }
+.creative-story-footer > .actions:last-child { margin-left: auto; }
