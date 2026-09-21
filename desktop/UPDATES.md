@@ -68,3 +68,7 @@ Mac arm64/x64与Windows x64均已上传发布，大小及SHA-512核对一致，�
 ## 0.1.73 发布记录（2026-09-17）
 
 Mac arm64/x64与Windows x64已发布，修复Chrome查找并新增Helper手动路径设置。三个包及Windows blockmap大小/SHA-512核对一致，公开HTTPS清单0.1.73，三个包Range均206。详见 [发布记录](../docs/release-0.1.73.md)。
+
+## 2026-09-21 Windows 0.1.74
+
+仅Windows发布0.1.74，Mac渠道保留0.1.73。安装包、blockmap的服务器大小/SHA-512及公开HTTPS清单、Range206已核对；旧包保留。源码提交c58dff8已推送main，详见 [发布记录](../docs/release-0.1.74.md)。Windows实机验收仍待完成。
