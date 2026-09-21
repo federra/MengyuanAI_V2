@@ -1,5 +1,18 @@
 export type ModelKind = 'text' | 'image' | 'video' | 'audio';
-export function imageSizeForRatio(ratio: string): string {
+export function imageSizeForRatio(ratio: string, protocol?: string, model = ''): string {
+  if (protocol === 'images') {
+    const options = imageSizeOptions(protocol, model);
+    const [w,h] = ratio.split(':').map(Number);
+    return options.length === 3 && !/dall-e-2/i.test(model)
+      ? options[w > h ? 1 : w < h ? 2 : 0] : '1024x1024';
+  }
+  if (protocol === 'seedream') {
+    const sizes: Record<string, string> = {
+      '16:9': '2560x1440', '9:16': '1440x2560', '1:1': '2048x2048',
+      '4:3': '2304x1728', '3:4': '1728x2304', '21:9': '3024x1296',
+    };
+    return sizes[ratio] || resolveImageSize(customImageSize(ratio), protocol);
+  }
   return (
     (
       {
@@ -28,6 +41,28 @@ export function validImageSize(size: string): boolean {
   if (!/^\d{3,4}x\d{3,4}$/.test(size)) return false;
   const [w, h] = size.split('x').map(Number);
   return w >= 256 && h >= 256 && w <= 4096 && h <= 4096;
+}
+export function imageSizeOptions(protocol?: string, model = ''): string[] {
+  if (protocol !== 'images') return ['2K', '4K'];
+  if (/dall-e-2/i.test(model)) return ['256x256', '512x512', '1024x1024'];
+  if (/dall-e-3/i.test(model)) return ['1024x1024', '1792x1024', '1024x1792'];
+  return ['1024x1024', '1536x1024', '1024x1536'];
+}
+// Seedream 4.5 accepts at least 2560 * 1440 pixels. Upgrade legacy
+// explicit dimensions before sending, keeping their aspect ratio (8px rounding).
+export function resolveImageSize(size: string, protocol: string, model = ''): string {
+  if (protocol === 'images' && /gpt-image|dall-e-[23]/i.test(model) && !imageSizeOptions(protocol, model).includes(size))
+    throw Error('该模型不支持所选图片尺寸，请重新选择兼容尺寸。');
+  if (protocol !== 'seedream' || ['2K', '4K'].includes(size)) return size;
+  if (!validImageSize(size)) throw Error('图片尺寸无效，请重新选择。');
+  const [w, h] = size.split('x').map(Number);
+  if (w * h >= 3686400) return size;
+  const scale = Math.sqrt(3686400 / (w * h));
+  const width = Math.ceil(w * scale / 8) * 8;
+  const height = Math.ceil(h * scale / 8) * 8;
+  const resolved = `${width}x${height}`;
+  if (!validImageSize(resolved)) throw Error('该画幅无法在当前尺寸范围满足 Seedream 最低像素要求，请选择2K、4K或常用画幅。');
+  return resolved;
 }
 export type ModelConfig = {
   id?: string;

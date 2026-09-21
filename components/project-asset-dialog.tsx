@@ -166,7 +166,7 @@ export function ProjectAssetDialog({
             ratio: project.ratio,
             duration: 5,
             resolution: '720p',
-            size: imageSizeForRatio(project.ratio),
+            size: imageSizeForRatio(project.ratio, model.protocol, model.model),
             referenceIds:
               model.protocol === 'seedream' && a.referenceImage
                 ? [a.referenceImage.id]

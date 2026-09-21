@@ -16,6 +16,7 @@ import {
   publicHttps,
   videoBody,
   validImageSize,
+  resolveImageSize,
   type ModelConfig,
   type GenerationInput,
   type GenerationJob,
@@ -358,6 +359,7 @@ export async function submitJob(
     validateVideoModel(c, input);
     input = { ...input, prompt: finalVideoPrompt(input, c) };
   }
+  if (input.target !== 'video') input = { ...input, size: resolveImageSize(input.size, c.protocol, c.model) };
   const voicePlan = planVideoVoices(c, input);
   const audioRefs: string[] = [];
   for (const sample of voicePlan.samples)

@@ -316,3 +316,10 @@ try {
   assert.equal(timeoutMs,600000);
 } finally {AbortSignal.timeout=savedTimeout;globalThis.fetch=savedFetch;}
 console.log('PASS model requests allow 600 seconds and report the matching timeout without retries');
+// A legacy client must send a valid Seedream size on the first (only) provider call.
+configs.set('image',{body:JSON.stringify({...modelDefaults.find(m=>m.kind==='image'),enabled:true,model:'doubao-seedream-4-5-251128',baseUrl:'https://api.example.com/v1'}),secret:sealed});
+let seedreamCalls=0;
+globalThis.fetch=async(url,init)=>{assert(url.endsWith('/images/generations'));const body=JSON.parse(init.body);assert.equal(body.size,'2560x1440');seedreamCalls++;throw Error('Mock: provider call captured without generating an image');};
+await submitJob({...input,target:'asset',size:'2048x1152',referenceIds:[]},'seedream-size-regression');
+assert.equal(seedreamCalls,1);
+console.log('PASS actual image submission upgrades legacy Seedream pixels before one provider call');

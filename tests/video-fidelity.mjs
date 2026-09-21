@@ -40,3 +40,11 @@ s.lines=[{...s.lines[0],text:'回来。',start:1,end:3}];s.dialogue='回来。';
 assert.equal(videoDialogue(s,['石头'])[0].time,'1—3秒');
 await fs.writeFile(`${dir}/optimized-prompt.txt`,final);
 console.log('PASS exact original dialogue, legacy metadata/emotions, single timeline, retained sound effects, reordered image aliases, escaped aliases, literal dialogue preservation, repeated speech and conflicting timeline validation.');
+
+// Imported generation_prompt is separate metadata, not the final subshot body.
+s.prompt='电影质感，保持光照连续。\n\n完整子镜头时间轴：\n'+timeline;
+const imported=composeVideoContext(p,s,shotVisualText(s),{ratio:'16:9',resolution:'768p',duration:10});
+assert.equal(imported.split('子镜头02').length-1,1);
+assert(imported.includes('电影质感'));
+assert.throws(()=>videoTimeline(s.description,s.prompt.replace('踮脚','坐下')),/不一致/);
+console.log('PASS imported prompt boundaries preserve genuine timeline conflicts');

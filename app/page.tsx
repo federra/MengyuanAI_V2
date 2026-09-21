@@ -1,4 +1,5 @@
 'use client';
+import { recoverProject } from '@/lib/project-recovery';
 import { AdminConsole } from '@/components/admin-console';
 import {AccessGate,AccessProfile} from '@/components/access-gate';
 import type {AccessState} from '@/lib/access';
@@ -374,6 +375,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
   }, [aiTask, aiText]);
   const [undo, setUndo] = useState<Project | null>(null);
   const [savedTime, setSavedTime] = useState('');
+  const recoveryCopies = useRef(new Set<string>());
   const current = useRef(project);
   const lock = useRef(false);
   const isDirty = useRef(dirty);
@@ -398,7 +400,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
   }, [project, dirty]);
   useEffect(()=>{
     if(loading)return;
-    const snapshot={project,dirty};
+    const snapshot={project,dirty,recoveredCopy:recoveryCopies.current.has(project.id)};
     const timer=setTimeout(()=>{void window.directorDesktop?.auth?.('recovery-write',snapshot);},300);
     return()=>{clearTimeout(timer);void window.directorDesktop?.auth?.('recovery-write',snapshot);};
   },[project,dirty,loading]);
@@ -414,8 +416,17 @@ function Workbench({accessState}:{accessState:AccessState}) {
           setProject(data[0]);
           setSelected(data[0].shots[0]?.id || '');
         } else setDirty(true);
-        const recovery=await window.directorDesktop?.auth?.('recovery-read') as {project?:Project;dirty?:boolean}|null;
-        if(recovery?.dirty&&recovery.project&&window.confirm('发现该账号上次未保存的项目，是否恢复为待保存草稿？')){setProject(recovery.project);setSelected(recovery.project.shots[0]?.id||'');setDirty(true);}
+        const recovery=await window.directorDesktop?.auth?.('recovery-read') as {project?:Project;dirty?:boolean;recoveredCopy?:boolean}|null;
+        if (recovery?.dirty && recovery.project && window.confirm('发现该账号上次未保存的项目，是否恢复？如已保存版本发生变化，将另建恢复草稿，保留两份内容。')) {
+          const restored = recoverProject(recovery.project, data);
+          if (restored.copied || recovery.recoveredCopy) recoveryCopies.current.add(restored.project.id);
+          current.current = restored.project;
+          isDirty.current = restored.dirty;
+          setProject(restored.project);
+          setSelected(restored.project.shots[0]?.id || '');
+          setDirty(restored.dirty);
+          if (restored.copied) setNotice('旧草稿与已保存版本不同，已恢复为独立草稿。保存后可继续生成；原项目和历史任务仍保留在项目中心。');
+        }
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -574,38 +585,45 @@ function Workbench({accessState}:{accessState:AccessState}) {
       setBusy('');
     }
   }
-  async function save(p = current.current) {
-    const atStart = current.current;
-    const result: Project = await api<Project>('/api/projects', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(p),
+  const saveQueue = useRef<Promise<unknown>>(Promise.resolve());
+  async function save(input?: Project) {
+    const pending = saveQueue.current.then(async () => {
+      const p = input ?? current.current;
+      const atStart = current.current;
+      const result: Project = await api<Project>('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(recoveryCopies.current.has(p.id) ? { 'x-director-import': '1' } : {}) },
+        body: JSON.stringify(p),
+      });
+      setProjects((all) => [result, ...all.filter((x) => x.id !== result.id)]);
+      const changedDuringSave = current.current !== atStart;
+      if (changedDuringSave && current.current.id === result.id) {
+        const next = { ...current.current, revision: result.revision, updatedAt: result.updatedAt };
+        current.current = next;
+        isDirty.current = true;
+        setProject(next);
+        setDirty(true);
+      } else if (!changedDuringSave) {
+        current.current = result;
+        isDirty.current = false;
+        setProject(result);
+        setDirty(false);
+      }
+      setSavedTime(
+        new Date().toLocaleTimeString('zh-CN', {
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+      );
+      setNotice(
+        changedDuringSave
+          ? '已保存提交时的版本，新增修改仍待保存。'
+          : '项目已保存',
+      );
+      return result;
     });
-    setProjects((all) => [result, ...all.filter((x) => x.id !== result.id)]);
-    const changedDuringSave = current.current !== atStart;
-    if (changedDuringSave && current.current.id === result.id) {
-      setProject((latest) => ({
-        ...latest,
-        revision: result.revision,
-        updatedAt: result.updatedAt,
-      }));
-      setDirty(true);
-    } else if (!changedDuringSave) {
-      setProject(result);
-      setDirty(false);
-    }
-    setSavedTime(
-      new Date().toLocaleTimeString('zh-CN', {
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
-    );
-    setNotice(
-      changedDuringSave
-        ? '已保存提交时的版本，新增修改仍待保存。'
-        : '项目已保存',
-    );
-    return result;
+    saveQueue.current = pending.catch(() => {});
+    return pending;
   }
   async function action(name: string, fn: () => Promise<void>) {
     if (lock.current) return;

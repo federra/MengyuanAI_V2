@@ -4,6 +4,7 @@ import {
   videoSoundEffects,
 } from './video-performance';
 import type { VoiceBinding } from './video-voice';
+import { shotVisualText } from './studio';
 import { dialogueLines } from './dialogue';
 import type { Asset, Media, Project, Shot } from './studio';
 import { videoDimensions, type VideoReferenceBinding } from './video-request';
@@ -104,7 +105,7 @@ export function composeVideoContext(
     .join('\n');
   return [
     `【制作设置】\n项目：${project.title}；视频类型：${project.videoType || '按镜头内容'}；风格：${project.style}；画幅：${settings.ratio}；分辨率：${settings.resolution}（目标尺寸${videoDimensions(settings.ratio, settings.resolution)}）；时长：${settings.duration}秒。以本节及请求参数为准，旧正文中的冲突尺寸与时长不作为制作参数。`,
-    `【当前分镜】\n${shot.title}（分镜ID：${shot.id}）\n场景：${shot.scene || '按正文'}；人物：${shot.character || '按已绑定角色与正文'}${/秒\s*[·•]\s*子镜头/.test(text) ? '' : `；景别：${shot.size}；运镜：${shot.camera}`}。\n${videoTimeline(text)}`,
+    `【当前分镜】\n${shot.title}（分镜ID：${shot.id}）\n场景：${shot.scene || '按正文'}；人物：${shot.character || '按已绑定角色与正文'}${/秒\s*[·•]\s*子镜头/.test(text) ? '' : `；景别：${shot.size}；运镜：${shot.camera}`}。\n${text === shotVisualText(shot) ? videoTimeline(shot.description, shot.prompt || '') : videoTimeline(text)}`,
     `【角色、场景、道具与服装设定】\n${
       assets
         .filter((a) => a.kind !== '声音')

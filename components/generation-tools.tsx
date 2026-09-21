@@ -32,6 +32,7 @@ import { type Project, shotVisualText, compilePrompt } from '@/lib/studio';
 import {
   type GenerationInput,
   imageSizeForRatio,
+  imageSizeOptions,
   type GenerationJob,
   type ModelConfig,
 } from '@/lib/models';
@@ -79,8 +80,6 @@ export function GenerationDialog({
   const [mode, setMode] = useState(video ? 'all' : 'none');
   const [refs, setRefs] = useState<string[]>([]);
   const [size, setSize] = useState('video');
-  const effectiveSize =
-    size === 'video' ? imageSizeForRatio(project.ratio) : size;
   const [selectedResolution, setResolution] = useState('');
   const [mediaUrls, setMediaUrls] = useState<Record<string, string>>({});
   const [duration, setDuration] = useState(Math.round(shot?.duration || 5));
@@ -101,6 +100,13 @@ export function GenerationDialog({
       m.kind === (video ? 'video' : 'image') &&
       (selectedModelId ? m.id === selectedModelId : m.isDefault),
   );
+  const sizeOptions = imageSizeOptions(model?.protocol, model?.model);
+  const selectedSize = size === 'video' || sizeOptions.includes(size) ? size : 'video';
+  let ratioSize = '', sizeError = '';
+  try { ratioSize = imageSizeForRatio(project.ratio, model?.protocol, model?.model); }
+  catch (e) { if (selectedSize === 'video') sizeError = (e as Error).message; }
+  const effectiveSize = selectedSize === 'video' ? ratioSize : selectedSize;
+  const sizeLabel = model?.protocol === 'images' ? '按画幅选择兼容尺寸' : '与视频比例一致';
   const minimax = model?.protocol === 'heima-minimax';
   const resolutions = minimax ? ['480p', '768p'] : ['480p', '720p', '1080p'];
   const resolution = resolutions.includes(selectedResolution)
@@ -192,6 +198,7 @@ export function GenerationDialog({
     : [];
   async function submit() {
     if (lock.current) return;
+    if (!video && sizeError) { setMessage(sizeError); return; }
     if (video && (!videoInput || videoError)) {
       setMessage(videoError || '当前分镜不存在，请重新打开。');
       return;
@@ -200,6 +207,7 @@ export function GenerationDialog({
     setBusy(true);
     setMessage('');
     let returned = false;
+    let submissionStarted = false;
     const label = asset?.name || shot?.title || '生成任务';
     const returnToWork = (j: GenerationJob) => {
       onJob(j);
@@ -215,6 +223,7 @@ export function GenerationDialog({
     };
     try {
       await onBeforeSubmit?.();
+      submissionStarted = true;
       const j = await modelApi<GenerationJob>(
         '/api/generations',
         {
@@ -263,7 +272,9 @@ export function GenerationDialog({
       }
     } catch (e) {
       const error =
-        (e as Error).message + '。请先到任务中心核对记录，避免重复提交。';
+        (e as Error).message + (submissionStarted
+          ? '。请先到任务中心核对记录，避免重复提交。'
+          : ' 本次未提交生成任务，请先处理项目保存问题。');
       if (returned) onNotice(`${label}：${error}`);
       else setMessage(error);
     } finally {
@@ -455,23 +466,19 @@ export function GenerationDialog({
           ) : (
             <label className="field" htmlFor="generation-size">
               <span>图片尺寸</span>
-              <Select value={size} onValueChange={(v) => v && setSize(v)}>
+              <Select value={selectedSize} onValueChange={(v) => v && setSize(v)}>
                 <SelectTrigger id="generation-size">
                   <SelectValue>
-                    {size === 'video'
-                      ? `与视频比例一致 · ${project.ratio} · ${effectiveSize}`
-                      : size}
+                    {selectedSize === 'video'
+                      ? `${sizeLabel} · ${project.ratio} · ${effectiveSize || '不支持此画幅'}`
+                      : selectedSize}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="video">
-                    与视频比例一致 · {project.ratio} ·{' '}
-                    {imageSizeForRatio(project.ratio)}
+                    {sizeLabel} · {project.ratio} · {ratioSize || '不支持此画幅'}
                   </SelectItem>
-                  {(model?.protocol === 'images'
-                    ? ['1024x1024', '1536x1024', '1024x1536']
-                    : ['2K', '4K']
-                  ).map((v) => (
+                  {sizeOptions.map((v) => (
                     <SelectItem key={v} value={v}>
                       {v}
                     </SelectItem>
@@ -480,6 +487,8 @@ export function GenerationDialog({
               </Select>
             </label>
           )}
+          {!video && sizeError && <p role="alert">{sizeError}</p>}
+          {!video && model?.protocol === 'images' && selectedSize === 'video' && <p className="helper">按横向、竖向或方形选择接口支持的尺寸，实际比例以像素尺寸为准。</p>}
           {video && (
             <div className="video-request-preview">
               <p className="helper">
@@ -548,7 +557,7 @@ export function GenerationDialog({
             disabled={
               !model?.enabled ||
               !model.hasKey ||
-              (video ? !videoInput || !!videoError : !prompt.trim())
+              (video ? !videoInput || !!videoError : !prompt.trim() || !!sizeError)
             }
             onClick={submit}
           >

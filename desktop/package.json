@@ -1,7 +1,7 @@
 {
   "name": "ai-director-desktop",
   "productName": "AI短片导演测试版",
-  "version": "0.1.74",
+  "version": "0.1.75",
   "description": "AI短片导演本地桌面版",
   "private": true,
   "type": "module",

@@ -38,47 +38,52 @@ export function videoDialogue(shot: Shot, speakers: string[]) {
   });
 }
 
-export function videoTimeline(text: string) {
-  const normalized = text.replace(/\r\n/g, '\n');
-  const headers = [
-    ...normalized.matchAll(
-      /^\s*\d+(?:\.\d+)?\s*[—–-]\s*\d+(?:\.\d+)?\s*秒\s*[·•]\s*子镜头[^\n]*/gm,
-    ),
-  ];
+export function videoTimeline(...texts: string[]) {
   const seen = new Map<string, string>();
   const blocks: string[] = [];
-  const clean = (s: string) =>
-    s
-      .split('\n')
-      .filter(
-        (line) =>
-          !/^\s*(?:声音|对白|台词|旁白|音效|环境音|环境声|背景音乐|BGM|音乐|原视频段|视频时长|场景|角色|完整子镜头时间轴)\s*[:：]/i.test(
-            line,
-          ),
-      )
-      .join('\n')
-      .trim();
-  if (headers.length) {
-    const intro = clean(normalized.slice(0, headers[0].index));
-    if (intro) blocks.push(intro);
-    headers.forEach((h, i) => {
-      const key = h[0].trim().replaceAll(' ', '');
-      const block = clean(
-        normalized.slice(h.index, headers[i + 1]?.index ?? normalized.length),
-      );
-      const previous = seen.get(key);
-      if (previous && previous !== block)
-        throw Error(
-          '同一子镜头存在两份不一致的描述，请核对分镜描述与提示词后提交。',
+  const intros: string[] = [];
+  for (const text of texts) {
+    const normalized = text.replace(/\r\n/g, '\n');
+    const headers = [
+      ...normalized.matchAll(
+        /^\s*\d+(?:\.\d+)?\s*[—–-]\s*\d+(?:\.\d+)?\s*秒\s*[·•]\s*子镜头[^\n]*/gm,
+      ),
+    ];
+    const clean = (s: string) =>
+      s
+        .split('\n')
+        .filter(
+          (line) =>
+            !/^\s*(?:声音|对白|台词|旁白|音效|环境音|环境声|背景音乐|BGM|音乐|原视频段|视频时长|场景|角色|完整子镜头时间轴)\s*[:：]/i.test(
+              line,
+            ),
+        )
+        .join('\n')
+        .trim();
+    if (headers.length) {
+      const intro = clean(normalized.slice(0, headers[0].index));
+      if (intro && !intros.includes(intro)) intros.push(intro);
+      headers.forEach((h, i) => {
+        const key = h[0].trim().replaceAll(' ', '');
+        const block = clean(
+          normalized.slice(h.index, headers[i + 1]?.index ?? normalized.length),
         );
-      if (!previous) {
-        seen.set(key, block);
-        blocks.push(block);
-      }
-    });
-    return blocks.join('\n\n');
+        const previous = seen.get(key);
+        if (previous && previous !== block)
+          throw Error(
+            '同一子镜头存在两份不一致的描述，请核对分镜描述与提示词后提交。',
+          );
+        if (!previous) {
+          seen.set(key, block);
+          blocks.push(block);
+        }
+      });
+    } else {
+      const intro = clean(normalized);
+      if (intro && !intros.includes(intro)) intros.push(intro);
+    }
   }
-  return clean(normalized);
+  return [...intros, ...blocks].join('\n\n');
 }
 
 export function videoSoundEffects(...texts: string[]) {
