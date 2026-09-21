@@ -60,6 +60,7 @@ import {
   ListVideo,
   Scissors,
   Settings2,
+  Wrench,
   Blocks,
   Wallet,
   Users,
@@ -911,9 +912,9 @@ function Workbench({accessState}:{accessState:AccessState}) {
   const inputStage = ['创意', '故事', '剧本', '分场'].includes(step);
   return (
     <SidebarProvider
-      style={{ '--sidebar-width': '216px' } as React.CSSProperties}
+      style={{ '--sidebar-width': '216px', '--sidebar-width-icon': '64px' } as React.CSSProperties}
     >
-      <Sidebar>
+      <Sidebar collapsible="icon">
         <SidebarHeader>
           <div className="brand">
             <span className="brand-icon">
@@ -931,6 +932,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
             {menus.map(({ icon: Icon, name }) => (
               <SidebarMenuItem key={name}>
                 <SidebarMenuButton
+                  tooltip={name} aria-label={name}
                   disabled={!!busy}
                   isActive={menu === name}
                   onClick={() => {
@@ -955,11 +957,11 @@ function Workbench({accessState}:{accessState:AccessState}) {
               </SidebarMenuItem>
             ))}
             <SidebarMenuItem>
-              <SidebarMenuButton onClick={()=>setDirectorySettingsOpen(true)}>
-                <Settings2 /><span>系统设置</span>
+              <SidebarMenuButton tooltip="系统设置" aria-label="系统设置" onClick={()=>setDirectorySettingsOpen(true)}>
+                <Wrench /><span>系统设置</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
-            {accessState.user?.role === 'super_admin' && <SidebarMenuItem><SidebarMenuButton disabled={!!busy} isActive={menu === '管理员后台'} onClick={(event)=>{setMenu('管理员后台');event.currentTarget.scrollIntoView({block:'nearest'});}}><ShieldCheck /><span>管理员后台</span></SidebarMenuButton></SidebarMenuItem>}
+            {accessState.user?.role === 'super_admin' && <SidebarMenuItem><SidebarMenuButton tooltip="管理员后台" aria-label="管理员后台" disabled={!!busy} isActive={menu === '管理员后台'} onClick={(event)=>{setMenu('管理员后台');event.currentTarget.scrollIntoView({block:'nearest'});}}><ShieldCheck /><span>管理员后台</span></SidebarMenuButton></SidebarMenuItem>}
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter>

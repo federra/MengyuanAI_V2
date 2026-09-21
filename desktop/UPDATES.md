@@ -64,3 +64,7 @@ Windows 使用 electron-builder NSIS 安装版 + electron-updater。源码启动
 ## 0.1.72 发布记录（2026-09-16）
 
 Mac arm64/x64与Windows x64均已上传发布，大小及SHA-512核对一致，公开HTTPS Range均为206。用户已明确授权本次发布；Windows安装升级、Intel Mac实机仍待验收，Apple Silicon独立.app已启动验证。详见 [发布记录](../docs/release-0.1.72.md)。
+
+## 0.1.73 发布记录（2026-09-17）
+
+Mac arm64/x64与Windows x64已发布，修复Chrome查找并新增Helper手动路径设置。三个包及Windows blockmap大小/SHA-512核对一致，公开HTTPS清单0.1.73，三个包Range均206。详见 [发布记录](../docs/release-0.1.73.md)。

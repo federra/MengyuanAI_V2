@@ -32,6 +32,9 @@ export function ModelSettings({ onChanged }: { onChanged: () => void }) {
   const [rows, setRows] = useState(
     modelDefaults.map((m) => ({ ...m, id: m.kind })) as ModelConfig[],
   );
+  const [kind, setKind] = useState<ModelConfig['kind']>('text');
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const kindLabels = {text:'文本模型',image:'图片模型',video:'视频模型',audio:'音频模型'};
   const [newIds, setNewIds] = useState<string[]>([]);
   const [busy, setBusy] = useState('');
   const [message, setMessage] = useState('');
@@ -92,8 +95,12 @@ export function ModelSettings({ onChanged }: { onChanged: () => void }) {
           基础地址和模型 ID；密钥加密保存在服务端，保存后不回显。
         </p>
         <output aria-live="polite">{message}</output>
+        <div className="model-kind-tabs" role="tablist" aria-label="模型类别">
+          {(['text','image','video','audio'] as const).map(type=><button key={type} type="button" role="tab" id={'model-tab-'+type} aria-selected={kind===type} aria-controls="model-kind-panel" onClick={()=>setKind(type)}>{kindLabels[type]} <small>{rows.filter(r=>r.kind===type).length}</small></button>)}
+        </div>
+        <div id="model-kind-panel" role="tabpanel" aria-labelledby={'model-tab-'+kind}>
         <div className="actions model-add-actions">
-          {modelDefaults.map((template) => (
+          {modelDefaults.filter(template=>template.kind===kind).map((template) => (
             <Button
               key={template.kind}
               variant="outline"
@@ -105,6 +112,7 @@ export function ModelSettings({ onChanged }: { onChanged: () => void }) {
                   { ...template, id, name: '自定义' + template.name },
                 ]);
                 setNewIds((ids) => [...ids, id]);
+                setExpanded(id);
               }}
             >
               ＋ 添加
@@ -119,9 +127,16 @@ export function ModelSettings({ onChanged }: { onChanged: () => void }) {
             </Button>
           ))}
         </div>
-        {rows.map((row) => (
+        {loaded&&!rows.some(row=>row.kind===kind)&&<p className="helper">尚未添加此类配置，请点击上方按钮添加。</p>}
+        {rows.filter(row=>row.kind===kind).map((row) => (
+          <details className="model-config-disclosure" key={row.id} open={expanded===row.id}>
+            <summary onClick={event=>{event.preventDefault();setExpanded(expanded===row.id?null:row.id!);}}>
+              <span className="model-summary-name">{row.name}</span>
+              <span className="model-summary-id" title={row.model}>{row.model || '未填写模型 ID'}</span>
+              <span className="model-summary-status">{row.isDefault?'默认 · ':''}{row.enabled?'已启用':'未启用'}{newIds.includes(row.id!)?' · 待保存':''}</span>
+              <span aria-hidden="true">{expanded===row.id?'收起 −':'配置 ＋'}</span>
+            </summary>
           <fieldset
-            key={row.id}
             disabled={!loaded || !!busy}
             className="model-config-card"
           >
@@ -375,7 +390,9 @@ export function ModelSettings({ onChanged }: { onChanged: () => void }) {
               )}
             </div>
           </fieldset>
+          </details>
         ))}
+        </div>
         <p className="helper">
           连接检查只查询服务，不生成素材；部分服务不开放模型列表，检查失败不一定代表生成接口不可用。实际生成会消耗服务商额度，模型支持的时长、画幅和参考图模式以服务商为准。
         </p>

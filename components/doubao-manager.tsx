@@ -563,6 +563,11 @@ export function DoubaoManager({
       )}
       {tab === 'Helper' && (
         <>
+          <div className="actions">
+            <Button variant="outline" disabled={busy} onClick={() => void run('chrome-select')}>选择 Chrome 程序</Button>
+            <Button variant="outline" disabled={busy} onClick={() => void run('chrome-auto')}>恢复自动查找</Button>
+          </div>
+          <p>自动识别失败时，选择安装目录里的 chrome.exe（Mac 选择 Google Chrome.app）。路径保存在本机；已打开的账号窗口不受影响，新路径用于下次启动浏览器。</p>
           <dl className="doubao-helper">
             {Object.entries({
               版本: data.helper.version,

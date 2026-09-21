@@ -5,15 +5,52 @@ const {spawn}=require('node:child_process');
 const {ChromePipe}=require('./chrome-pipe.cjs');
 const {enableDeveloperMode}=require('./chrome-developer-mode.cjs');
 const {reloadExtension,verifyExtensionBuild}=require('./reload-doubao-extension.cjs');
+let chromeSettingsFile='',customChrome='',cachedChrome='',cacheUntil=0;
+const {execFile}=require('node:child_process');
+async function configureChrome(settingsFile){
+  chromeSettingsFile=settingsFile;customChrome='';cachedChrome='';cacheUntil=0;
+  try{const data=JSON.parse(await fs.readFile(settingsFile,'utf8'));if(typeof data.path==='string')customChrome=data.path;}
+  catch(error){if(error.code!=='ENOENT')throw Error('Chrome路径设置读取失败：'+error.message);}
+}
+async function validateChrome(file){
+  if(typeof file!=='string'||!path.isAbsolute(file)||file.includes('\0'))throw Error('请选择 Chrome 程序的完整路径');
+  if(process.platform==='win32'&&path.basename(file).toLowerCase()!=='chrome.exe')throw Error('请选择 chrome.exe，不要选择快捷方式');
+  if(process.platform==='darwin'&&path.basename(file)!=='Google Chrome')throw Error('请选择 Google Chrome.app');
+  try{if(!(await fs.stat(file)).isFile())throw Error('not a file');await fs.access(file);}
+  catch{throw Error('Chrome程序不存在或无法读取，请重新选择');}
+  return file;
+}
+async function saveChromePath(file){
+  if(!chromeSettingsFile)throw Error('Chrome设置尚未就绪');
+  if(file)await validateChrome(file);
+  await fs.mkdir(path.dirname(chromeSettingsFile),{recursive:true});
+  await fs.writeFile(chromeSettingsFile+'.tmp',JSON.stringify({path:file||''}),{mode:0o600});
+  await fs.rename(chromeSettingsFile+'.tmp',chromeSettingsFile);
+  customChrome=file||'';cachedChrome='';cacheUntil=0;
+}
+function registryChrome(key,view){
+  const systemRoot=process.env.SystemRoot||process.env.SYSTEMROOT||'C:\\Windows';
+  return new Promise(resolve=>execFile(path.join(systemRoot,'System32','reg.exe'),['query',key,'/ve',`/reg:${view}`],{windowsHide:true,timeout:1500,maxBuffer:32768,encoding:'utf8',shell:false},(error,stdout)=>{
+    if(error)return resolve('');
+    const value=String(stdout).match(/REG_(?:EXPAND_)?SZ\s+([^\r\n]+)/i)?.[1]?.trim()||'';
+    const expanded=value.replace(/%([^%]+)%/g,(match,name)=>Object.entries(process.env).find(([key])=>key.toLowerCase()===name.toLowerCase())?.[1]||match);
+    resolve(expanded.replace(/^"(.*)"$/,'$1'));
+  }));
+}
 async function findChrome(){
+  if(customChrome){try{return await validateChrome(customChrome);}catch{throw Error('手动设置的Chrome路径已失效，请在豆包插件 → Helper 中重新选择或恢复自动查找。');}}
+  if(Date.now()<cacheUntil){if(cachedChrome){try{return await validateChrome(cachedChrome);}catch{}}else throw Error('未找到 Google Chrome，请在豆包插件 → Helper 中选择 Chrome 程序。');}
+  const env=name=>Object.entries(process.env).find(([key])=>key.toLowerCase()===name.toLowerCase())?.[1];
   const candidates=process.platform==='darwin'
     ? ['/Applications',path.join(os.homedir(),'Applications')].map(root=>path.join(root,'Google Chrome.app','Contents','MacOS','Google Chrome'))
-    : [process.env.PROGRAMFILES,process.env['PROGRAMFILES(X86)'],process.env.LOCALAPPDATA].filter(Boolean).map(root=>path.join(root,'Google','Chrome','Application','chrome.exe'));
-  for(const file of candidates){
-    try{await fs.access(file);}catch{continue;}
-    return file;
+    : [env('ProgramW6432'),env('ProgramFiles'),env('ProgramFiles(x86)'),env('LocalAppData')].filter(Boolean).map(root=>path.join(root,'Google','Chrome','Application','chrome.exe'));
+  for(const file of candidates){try{await validateChrome(file);cachedChrome=file;cacheUntil=Date.now()+30000;return file;}catch{}}
+  if(process.platform==='win32')for(const hive of ['HKCU','HKLM'])for(const view of [64,32]){
+    const file=await registryChrome(hive+'\\Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\chrome.exe',view);
+    try{await validateChrome(file);cachedChrome=file;cacheUntil=Date.now()+30000;return file;}catch{}
   }
-  throw Error('未找到 Google Chrome，请安装谷歌浏览器后重试。');
+  cachedChrome='';cacheUntil=Date.now()+30000;
+  throw Error('未找到 Google Chrome，请在豆包插件 → Helper 中选择 Chrome 程序；尚未安装时请先安装 Google Chrome。');
 }
 function validateUrl(url) {
   const target = new URL(url);
@@ -128,4 +165,4 @@ function createChromeLauncher({locate = findChrome, spawnBrowser = spawn, timeou
   return launch;
 }
 const openChrome = createChromeLauncher();
-module.exports={openChrome,findChrome,createChromeLauncher};
+module.exports={openChrome,findChrome,createChromeLauncher,configureChrome,saveChromePath,validateChrome};

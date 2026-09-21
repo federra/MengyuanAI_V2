@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 // Both deliveries copy the same business files and compiled runtime.
 export async function stageRuntime(here, root, stage) {
-const files=['access-session.cjs','admin-bridge.cjs','usage-outbox.cjs','account-workspace.cjs','main.cjs','preload.cjs','backend.mjs','software-update.cjs','chrome-developer-mode.cjs','chrome-pipe.cjs','close-window.cjs','directory-settings.cjs','doubao-chrome.cjs','doubao-manager.cjs','image-files.cjs','jianying-export.cjs','reload-doubao-extension.cjs','shutdown.cjs','video-files.cjs','icon.ico','使用说明.txt'];
+const files=['remembered-login.cjs','access-session.cjs','admin-bridge.cjs','usage-outbox.cjs','account-workspace.cjs','main.cjs','preload.cjs','backend.mjs','software-update.cjs','chrome-developer-mode.cjs','chrome-pipe.cjs','close-window.cjs','directory-settings.cjs','doubao-chrome.cjs','doubao-manager.cjs','image-files.cjs','jianying-export.cjs','reload-doubao-extension.cjs','shutdown.cjs','video-files.cjs','icon.ico','使用说明.txt'];
 for(const file of files)await fs.copyFile(path.join(here,file),path.join(stage,file));
 await fs.cp(path.join(here,'jianying-templates'),path.join(stage,'jianying-templates'),{recursive:true});
 await fs.cp(path.join(root,'browser-extension'),path.join(stage,'doubao-extension'),{recursive:true});

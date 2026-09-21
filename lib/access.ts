@@ -13,6 +13,7 @@ export type AccessState = {
   };
 };
 export const accessMessages: Record<string, string> = {
+  REMEMBER_FAILED: '无法安全保存登录信息，请取消勾选“记住账号和密钥”后重试。',
   UNAUTHENTICATED: '请输入账号和密钥登录。',
   INVALID_CREDENTIALS: '账号或密钥不正确。',
   INVALID_INPUT: '请检查账号和密钥格式。',

@@ -3,7 +3,7 @@ const {exportImage} = require('./image-files.cjs');
 const {exportVideo} = require('./video-files.cjs');
 const {exportJianying} = require('./jianying-export.cjs');
 const {DirectorySettings} = require('./directory-settings.cjs');
-const {openChrome} = require('./doubao-chrome.cjs');
+const {openChrome,configureChrome,saveChromePath} = require('./doubao-chrome.cjs');
 const {DoubaoManager} = require('./doubao-manager.cjs');
 const {attachCloseGuard} = require('./close-window.cjs');
 const {createShutdown} = require('./shutdown.cjs');
@@ -21,6 +21,7 @@ const smokeDir = process.env.DIRECTOR_SMOKE_DIR;
 if (smoke && smokeDir) app.setPath('userData',path.resolve(smokeDir));
 let window, backend, origin, token, doubaoManager, shuttingDown = false;
 const userRoot=app.getPath('userData');
+const rememberedLogin=require('./remembered-login.cjs').createRememberedLogin({file:path.join(userRoot,'remembered-login.enc'),safeStorage});
 let accountRoot=path.join(userRoot,'login-shell'), boundUserId='', workspaceReady=false, internalToken='';
 const owners=new AccountWorkspace(userRoot);
 let dataDir=path.join(accountRoot,'workspace');
@@ -183,14 +184,19 @@ if (!app.requestSingleInstanceLock()) app.quit();
 else {
   app.on('second-instance',()=>{if(window){if(window.isMinimized())window.restore();window.show();window.focus();}});
   app.whenReady().then(async()=>{
+    await configureChrome(path.join(userRoot,'chrome-path.json')).catch(error=>log(error.message));
     const trusted=(event)=>{if(!window || event.sender!==window.webContents || event.senderFrame!==window.webContents.mainFrame || !origin || new URL(event.senderFrame.url).origin!==origin)throw Error('请从本地工作台操作豆包插件');};
     ipcMain.handle('director:admin',async(event,action,input)=>{try{trusted(event);return {data:await adminCommand(auth,authorized,action,input)};}catch(error){return {error:error.message};}});
     ipcMain.handle('director:auth',async(event,action,input)=>{
       trusted(event);
       try {
         if(action==='state'){if(auth.token)await auth.authorize().catch(()=>{});const state=authState();return {...state,completedResults:state.authorized?(await fs.readdir(path.join(dataDir,'completed-results')).catch(()=>[])).length:0};}
+        if(action==='credentials-load')return rememberedLogin.read();
+        if(action==='credentials-clear'){await rememberedLogin.clear();return {ok:true};}
         if(action==='login'){
           await auth.login(input?.account,input?.key,boundUserId||undefined);
+          try{if(input?.remember)await rememberedLogin.save(input.account,input.key);else await rememberedLogin.clear();}
+          catch{await auth.logout();throw Error('REMEMBER_FAILED');}
           if(!workspaceReady)await activateWorkspace();
           return authState();
         }
@@ -255,7 +261,13 @@ else {
       finally{exportingDraft=false;}
     });
     ipcMain.handle('director:open-doubao',async(event)=>{trusted(event);await authorized();return openChrome();});
-    ipcMain.handle('director:doubao',async(event,action,data)=>{trusted(event);await authorized();if(!doubaoManager)throw Error('豆包管理服务尚未启动');return doubaoManager.command(action,data);});
+    ipcMain.handle('director:doubao',async(event,action,data)=>{trusted(event);await authorized();if(!doubaoManager)throw Error('豆包管理服务尚未启动');if(action==='chrome-select'){
+      const picked=await dialog.showOpenDialog(window,{title:'选择 Google Chrome',properties:['openFile'],...(process.platform==='win32'?{filters:[{name:'Chrome 程序',extensions:['exe']}]}:{})});
+      if(!picked.canceled&&picked.filePaths[0]){let file=picked.filePaths[0];if(process.platform==='darwin'&&file.endsWith('.app'))file=path.join(file,'Contents','MacOS','Google Chrome');await saveChromePath(file);}
+      return doubaoManager.snapshot();
+    }
+    if(action==='chrome-auto'){await saveChromePath('');return doubaoManager.snapshot();}
+    return doubaoManager.command(action,data);});
     ipcMain.handle('director:open-doubao-extension',async(event)=>{trusted(event);await authorized();const error=await shell.openPath(path.join(accountRoot,'doubao-extension'));if(error)throw Error(error);return {ok:true};});
     ipcMain.handle('director:reveal-image', async (event, input) => {
       if (!window || event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame || !origin || new URL(event.senderFrame.url).origin !== origin)

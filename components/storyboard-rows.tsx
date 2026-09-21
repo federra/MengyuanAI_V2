@@ -157,6 +157,7 @@ export function StoryboardRows({
   const [models, setModels] = useState<ModelConfig[]>([]);
   const [doubao, setDoubao] = useState<DoubaoSnapshot>();
   const doubaoPreview = useDoubaoTaskPreview(state => {setDoubao(state);setMessage('已确认并加入豆包队列，完成后返回本分镜。');});
+  const sheetHead = useRef<HTMLDivElement>(null);
   const submittingDoubao = useRef(new Set<string>());
   const [doubaoPending, setDoubaoPending] = useState<string[]>([]);
   useEffect(() => {
@@ -287,7 +288,7 @@ export function StoryboardRows({
           豆包插件
         </Button>
       </div>
-      <div className="sheet-scroll">
+      <div className="sheet-head-sticky"><div className="sheet-head-scroll" ref={sheetHead}>
         <div className="sheet-column-head">
           <Checkbox
             aria-label="选择全部分镜"
@@ -306,6 +307,8 @@ export function StoryboardRows({
           <span>视频</span>
           <span>操作</span>
         </div>
+      </div></div>
+      <div className="sheet-scroll" onScroll={event=>{if(sheetHead.current)sheetHead.current.scrollLeft=event.currentTarget.scrollLeft;}}>
         {message && <output className="row-message">{message}</output>}
         {project.shots.map((s, i) => {
           const job = latestBlockingJob(generationJobs, project.id, s.id);

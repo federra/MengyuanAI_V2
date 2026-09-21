@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';import os from 'node:os';import path from 'node:path';import {createRequire} from 'node:module';import crypto from 'node:crypto';
+const require=createRequire(import.meta.url),{createRememberedLogin}=require('./remembered-login.cjs');
+const root=await fs.mkdtemp(path.join(os.tmpdir(),'director-remember-test-')),file=path.join(root,'saved.enc');
+const key=crypto.randomBytes(32);let enabled=true;
+const safeStorage={isEncryptionAvailable:()=>enabled,encryptString(value){const iv=crypto.randomBytes(12),c=crypto.createCipheriv('aes-256-gcm',key,iv);return Buffer.concat([iv,c.update(value,'utf8'),c.final(),c.getAuthTag()]);},decryptString(value){const d=crypto.createDecipheriv('aes-256-gcm',key,value.subarray(0,12));d.setAuthTag(value.subarray(-16));return Buffer.concat([d.update(value.subarray(12,-16)),d.final()]).toString();}};
+const store=createRememberedLogin({file,safeStorage});
+assert.equal((await store.read()).available,true);await store.save('member-test','long-secret-test');
+assert(!(await fs.readFile(file)).includes(Buffer.from('long-secret-test')));
+assert.equal((await createRememberedLogin({file,safeStorage}).read()).key,'long-secret-test');
+await store.clear();assert.equal((await store.read()).account,undefined);
+enabled=false;await assert.rejects(()=>store.save('member-test','long-secret-test'));assert.equal((await store.read()).available,false);
+enabled=true;await fs.writeFile(file,'broken');assert((await store.read()).error);await store.clear();
+console.log('PASS encrypted credential persistence, no plaintext, reload, clear, unavailable storage and corrupt data.');

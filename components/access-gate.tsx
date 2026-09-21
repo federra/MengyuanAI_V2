@@ -21,6 +21,9 @@ export function AccessGate({
     [show, setShow] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
+  const [remember, setRemember] = useState(false);
+  const [rememberAvailable, setRememberAvailable] = useState(false);
+  const [credentialsLoaded, setCredentialsLoaded] = useState(false);
   const [desktop, setDesktop] = useState(true);
   useEffect(() => {
     const api = window.directorDesktop;
@@ -29,6 +32,13 @@ export function AccessGate({
       return;
     }
     let disposed = false;
+    void api.auth('credentials-load').then(result=>{
+      if(disposed)return;
+      const saved=result as {account?:string;key?:string;available?:boolean;error?:string};
+      setRememberAvailable(!!saved.available);setRemember(!!saved.account&&!!saved.key);
+      if(saved.account)setAccount(saved.account);if(saved.key)setKey(saved.key);
+      if(saved.error)setError(saved.error);
+    }).catch(()=>{}).finally(()=>{if(!disposed)setCredentialsLoaded(true);});
     let polling = false;
     const accept = (next: AccessState) => {
       if (!disposed) {
@@ -74,6 +84,7 @@ export function AccessGate({
       const next = (await window.directorDesktop!.auth!('login', {
         account,
         key,
+        remember,
       })) as AccessState;
       setKey('');
       setState(next);
@@ -112,7 +123,7 @@ export function AccessGate({
               required
               maxLength={64}
               placeholder="请输入账号"
-              disabled={busy || !desktop}
+              disabled={busy || !desktop || !credentialsLoaded}
             />
           </div>
           <label htmlFor="access-key">密钥</label>
@@ -127,7 +138,7 @@ export function AccessGate({
               required
               maxLength={128}
               placeholder="请输入登录密钥"
-              disabled={busy || !desktop}
+              disabled={busy || !desktop || !credentialsLoaded}
             />
             <button
               type="button"
@@ -137,10 +148,16 @@ export function AccessGate({
               {show ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
           </div>
+          <label className="access-remember">
+            <input type="checkbox" checked={remember} disabled={busy || !rememberAvailable || !credentialsLoaded}
+              onChange={async e=>{const checked=e.target.checked;setRemember(checked);if(!checked){try{await window.directorDesktop?.auth?.('credentials-clear');}catch{setError('清除保存信息失败，请重试。');setRemember(true);}}}} />
+            在此电脑记住账号和密钥
+          </label>
+          {!rememberAvailable&&credentialsLoaded&&<small>本机安全存储不可用，请手动输入登录。</small>}
           <output className="access-error">
             {!desktop ? '请使用已更新的桌面软件登录。' : error || ' '}
           </output>
-          <button className="access-submit" disabled={busy || !desktop}>
+          <button className="access-submit" disabled={busy || !desktop || !credentialsLoaded}>
             {busy ? '正在登录…' : '登录'}
           </button>
         </form>
