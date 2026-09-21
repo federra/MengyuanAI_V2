@@ -72,3 +72,7 @@ Mac arm64/x64与Windows x64已发布，修复Chrome查找并新增Helper手动�
 ## 2026-09-21 Windows 0.1.74
 
 仅Windows发布0.1.74，Mac渠道保留0.1.73。安装包、blockmap的服务器大小/SHA-512及公开HTTPS清单、Range206已核对；旧包保留。源码提交c58dff8已推送main，详见 [发布记录](../docs/release-0.1.74.md)。Windows实机验收仍待完成。
+
+## 2026-09-21 双端0.1.75
+
+Windows、Mac Apple Silicon及Intel包已发布，三个包及blockmap服务器SHA-512核对通过；双端更新清单均0.1.75，匿名HTTPS及Range206验证通过。保留旧文件，Windows实机与Intel实机仍待验收。见[发布记录](../docs/release-0.1.75.md)。
