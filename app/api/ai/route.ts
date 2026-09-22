@@ -8,7 +8,7 @@ import { textRequest, config } from '@/lib/model-server';
 import { json, sameOrigin } from '@/lib/server';
 import { withProgress } from '@/lib/api-response';
 import { storyboardRules } from '@/lib/storyboard-contract';
-import { parseStoryboardImport } from '@/lib/director';
+import { prepareStoryboard } from '@/lib/storyboard-conversion-server';
 export async function GET() {
   const all = await Promise.all(
     ['text', 'image', 'video'].map((k) =>
@@ -24,9 +24,9 @@ export async function GET() {
   });
 }
 export function POST(req: Request) {
-  return withProgress(req, () => generate(req));
+  return withProgress(req, accepted => generate(req, accepted));
 }
-async function generate(req: Request) {
+async function generate(req: Request, accepted: (body: unknown) => void) {
   const requestId = crypto.randomUUID();
   try {
     sameOrigin(req);
@@ -112,9 +112,11 @@ async function generate(req: Request) {
       );
     if (task === 'shots') {
       try {
-        const imported = parseStoryboardImport(choice.message.content);
+        const prepared = await prepareStoryboard(choice.message.content, () => accepted({phase: 'storyboard-converting'}));
+        const imported = prepared.storyboard;
         return json({
-          text: choice.message.content,
+          text: prepared.text,
+          converted: prepared.converted,
           storyboard: {
             segments: imported.shots.length,
             duration: imported.shots.reduce((sum, s) => sum + s.duration, 0),

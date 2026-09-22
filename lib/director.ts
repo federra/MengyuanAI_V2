@@ -325,6 +325,10 @@ export function parseStoryboardImport(text: string): {
         (s as unknown as Record<string, unknown>)[field] = x[field];
       }
     }
+    if (x.sourceMetadata !== undefined) {
+      if (typeof x.sourceMetadata !== 'string' || x.sourceMetadata.length > 10000) throw Error('分镜原始资料最多10000字');
+      s.sourceMetadata = x.sourceMetadata;
+    }
     if (x.lines !== undefined) {
       s.lines = parseLines(x.lines);
       if (s.lines.length || !s.dialogue.trim())
@@ -537,6 +541,7 @@ export function exportStoryboard(project: Project) {
   return {
     schema_version: 'director-storyboard/1.0',
     shots: project.shots.map((s) => ({
+      ...(s.sourceMetadata ? {sourceMetadata:s.sourceMetadata} : {}),
       ...Object.fromEntries(
         shotFields.map((field) => [field, s[field as keyof Shot]]),
       ),

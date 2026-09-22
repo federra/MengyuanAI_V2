@@ -13,6 +13,7 @@ export const stages = [
 export type Stage = (typeof stages)[number] | '分场';
 export type Media = { id: string; name: string; type: string; url: string };
 export type Asset = {
+  dismissedImageId?: string;
   imageSkillId?: string;
   inLibrary?: boolean;
   referenceImage?: Media;
@@ -44,6 +45,7 @@ export type Asset = {
   suggestedDescription?: string;
 };
 export type Shot = {
+  sourceMetadata?: string;
   videoModelId?: string;
   doubaoGroup?: string;
   doubaoModel?: string;
@@ -371,6 +373,8 @@ export function validateProject(value: unknown): Project {
         throw Error('资产时间无效');
     if (a.origin !== undefined && !str(a.origin, 200))
       throw Error('资产来源无效');
+    if (a.dismissedImageId !== undefined && !str(a.dismissedImageId, 150))
+      throw Error('已清除图片标记无效');
     if (a.imageSkillId !== undefined && !str(a.imageSkillId, 150))
       throw Error('资产生图Skill选择无效');
     if (
@@ -446,6 +450,7 @@ export function validateProject(value: unknown): Project {
         !Number.isFinite(Date.parse(s.videoManualUpdatedAt)))
     )
       throw Error('视频手动更新时间无效');
+    if (s.sourceMetadata !== undefined && !str(s.sourceMetadata, 10000)) throw Error('分镜原始资料最多10000字');
     if (s.blockingPrompt !== undefined && !str(s.blockingPrompt, 10000))
       throw Error('站位图生成要求最多10000字');
     if (

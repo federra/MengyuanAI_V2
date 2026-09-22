@@ -7,9 +7,20 @@ export function assetImageSkills(project: Project) {
   );
 }
 
+export const threeViewSkill = 'character-three-view-image';
+export function defaultAssetImageSkill(project: Project, kind: string) {
+  return project.assetImageSkillIds?.[kind] ?? (kind === '人物' ? threeViewSkill : 'none');
+}
+export function wantsThreeViews(asset: Asset) {
+  return asset.kind === '人物' && asset.attributes?.三视图 !== '否';
+}
+export function selectedAssetImageSkill(project: Project, asset: Asset) {
+  return asset.imageSkillId ?? project.assetImageSkillIds?.[asset.kind] ?? (wantsThreeViews(asset) ? threeViewSkill : 'none');
+}
+
 export function assetImageSkill(project: Project, asset: Asset) {
   const selected =
-    asset.imageSkillId || project.assetImageSkillIds?.[asset.kind] || 'none';
+    selectedAssetImageSkill(project, asset);
   if (selected === 'none') return undefined;
   const skill = assetImageSkills(project).find((s) => s.id === selected);
   if (!skill)
@@ -23,7 +34,7 @@ export function assetImagePrompt(project: Project, asset: Asset) {
   const prompt = [
     `生成${label}设定图片。画幅：${project.ratio}。统一风格：${project.style}。`,
     `${label}名称：${asset.name}\n${label}描述：${asset.description}`,
-    asset.attributes?.三视图 === '是'
+    wantsThreeViews(asset)
       ? '展示同一角色正面、侧面、背面三视图，服饰、比例、光照保持一致。'
       : '',
     skill

@@ -23,7 +23,6 @@ import {
   builtinSkills,
   type Skill,
   type Change,
-  parseShots,
   parseStoryboardImport,
   applyStoryboardImport,
   shotTemplate,
@@ -124,6 +123,11 @@ export function DirectorTools({
   const [baseId, setBaseId] = useState('');
   const [draft, setDraft] = useState<Skill>({ ...builtinSkills[0] });
   const [source, setSource] = useState('');
+  const [importChecking, setImportChecking] = useState(false);
+  const [converting, setConverting] = useState(false);
+  const importLock = useRef(false);
+  const importProject = useRef(project.id);
+  useEffect(() => { importProject.current = project.id; }, [project.id]);
   const [importMode, setImportMode] = useState('append');
   const [importKind, setImportKind] = useState('shots');
   const [importReady, setImportReady] = useState(false);
@@ -235,28 +239,34 @@ export function DirectorTools({
       setError(e instanceof Error ? e.message : '应用失败');
     }
   }
-  function previewImport() {
+  async function previewImport() {
+    if (importLock.current) return;
+    importLock.current = true;
+    const projectId = project.id;
+    setImportChecking(true); setBusy(true); setImportReady(false); setError('');
     try {
       if (!source.trim()) throw Error('请先粘贴或选择文件');
       if (importKind === 'shots') {
-        const shots = parseShots(source);
-        if (
-          importMode === 'append' &&
-          project.shots.length + shots.length > 200
-        )
+        const response = await fetch('/api/storyboards/normalize', {
+          method: 'POST', headers: {'Content-Type': 'application/json', Accept: progressType},
+          body: JSON.stringify({source}),
+        });
+        const result = await readApiResponse<{text: string; phase?: string}>(response, undefined,
+          progress => { if (progress.phase === 'storyboard-converting') setConverting(true); });
+        if (importProject.current !== projectId) throw Error('项目已切换，请在目标项目重新检查导入。');
+        const parsed = parseStoryboardImport(result.text);
+        if (importMode === 'append' && project.shots.length + parsed.shots.length > 200)
           throw Error('追加后超过200镜，请分项目导入');
-        applyStoryboardImport(
-          project,
-          source,
-          importMode === 'append' ? 'append' : 'replace',
-        );
-        setStoryboardPreview(parseStoryboardImport(source));
+        applyStoryboardImport(project, result.text, importMode === 'append' ? 'append' : 'replace');
+        setSource(result.text);
+        setStoryboardPreview(parsed);
       } else if (source.length > 100000) throw Error('文本最多100000字');
       setImportReady(true);
-      setError('');
     } catch (e) {
       setError(e instanceof Error ? e.message : '导入格式不正确');
-      setImportReady(false);
+    } finally {
+      importLock.current = false;
+      setImportChecking(false); setConverting(false); setBusy(false);
     }
   }
   function applyImport() {
@@ -551,7 +561,8 @@ export function DirectorTools({
             </>
           )}
           {dialog === 'import' && (
-            <>
+            <fieldset disabled={importChecking} style={{border:0,padding:0,minWidth:0}}>
+              {importChecking && <output>{converting ? '剧本格式转换中' : '正在校验分镜格式…'}</output>}
               <div className="field-grid">
                 <Choice
                   label="导入内容类型"
@@ -699,7 +710,7 @@ export function DirectorTools({
                   <Button onClick={applyImport}>确认应用导入</Button>
                 </div>
               )}
-            </>
+            </fieldset>
           )}
           {dialog === 'skills' && (
             <>

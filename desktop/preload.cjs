@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('directorDesktop', {
   }),
   openDoubao: () => ipcRenderer.invoke('director:open-doubao'),
   openDoubaoExtension: () => ipcRenderer.invoke('director:open-doubao-extension'),
+  chooseImage: input => ipcRenderer.invoke('director:choose-image', {projectId:input.projectId,mediaId:input.mediaId,name:input.name}),
   revealImage: (input) => ipcRenderer.invoke('director:reveal-image', {
     projectId: input.projectId, mediaId: input.mediaId, name: input.name,
   }),

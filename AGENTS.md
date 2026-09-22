@@ -59,3 +59,8 @@
 
 - 最新交付见 [第五阶段交付](docs/access-control-delivery.md)：Mac与Windows共用 `desktop/build/stage-runtime.mjs` 白名单和业务runtime；Mac执行 `desktop/package-mac.mjs`，Windows执行 `desktop/package-windows.mjs`。不可只向一个平台拷贝新增业务模块。
 - Mac为本机源码启动，Windows为NSIS包。0.1.70已生成并通过Mac隔离验证；用户暂无Windows实机，Windows安装/升级/NTFS导出实机验收待完成。用户随后明确授权公开发布0.1.70，Windows更新渠道已上线；不要把发布成功等同于实机验收通过。
+
+## 分镜转换及资产图片（2026-09-22）
+
+- 分镜生成、JSON导入、编辑AI结果后应用共用服务端 `lib/storyboard-normalize.ts` 校验；已知外部storyboards完整格式先确定性映射保留原文；其余非法输入最多调用一次默认文本模型转换，再校验，失败不应用。原始来源元数据通过Shot.sourceMetadata保留，不混入生成提示词。保留用户预览确认，不循环重试。详见 `docs/storyboard-conversion-assets.md`。
+- 角色默认三视图及对应Skill，保留显式选择。清除图片需记录 dismissedImageId，防止历史结果自动回显；图片目录必须保留系统原生文件选择窗口，只调整到账号/项目图片保存目录，不新增自定义目录界面。默认目录共用导出路径计算；选图走可信IPC和鉴权素材上传，不接受渲染端任意文件路径。

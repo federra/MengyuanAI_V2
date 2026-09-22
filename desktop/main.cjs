@@ -1,5 +1,5 @@
 const {app, BrowserWindow, Menu, dialog, shell, session, safeStorage, ipcMain, Notification} = require('electron');
-const {exportImage} = require('./image-files.cjs');
+const {exportImage,chooseImage} = require('./image-files.cjs');
 const {exportVideo} = require('./video-files.cjs');
 const {exportJianying} = require('./jianying-export.cjs');
 const {DirectorySettings} = require('./directory-settings.cjs');
@@ -269,6 +269,10 @@ else {
     if(action==='chrome-auto'){await saveChromePath('');return doubaoManager.snapshot();}
     return doubaoManager.command(action,data);});
     ipcMain.handle('director:open-doubao-extension',async(event)=>{trusted(event);await authorized();const error=await shell.openPath(path.join(accountRoot,'doubao-extension'));if(error)throw Error(error);return {ok:true};});
+    ipcMain.handle('director:choose-image', async (event,input) => {
+      trusted(event);await authorized();
+      return chooseImage(input,{picturesDir:path.join(app.getPath('pictures'),boundUserId),origin,token,authorize:authorized,pick:options=>dialog.showOpenDialog(window,options)});
+    });
     ipcMain.handle('director:reveal-image', async (event, input) => {
       if (!window || event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame || !origin || new URL(event.senderFrame.url).origin !== origin)
         throw Error('请从本地工作台打开图片目录');

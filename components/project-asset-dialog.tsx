@@ -25,6 +25,10 @@ import type { Media } from '@/lib/studio';
 import { AssetImagePreview, ImageFileButton } from './asset-image-preview';
 import { BusinessSelect } from './skill-center';
 import {
+  defaultAssetImageSkill,
+  selectedAssetImageSkill,
+  wantsThreeViews,
+  threeViewSkill,
   assetImageSkills,
   assetImageSkill,
   assetImagePrompt,
@@ -81,7 +85,7 @@ export function ProjectAssetDialog({
     name: string;
   } | null>(null);
   const imageSkills = assetImageSkills(project);
-  const defaultSkill = project.assetImageSkillIds?.[kind] || 'none';
+  const defaultSkill = defaultAssetImageSkill(project, kind);
   const skillOptions = [
     { value: 'none', label: '不使用 Skill' },
     ...imageSkills.map((s) => ({ value: s.id, label: s.name })),
@@ -118,6 +122,15 @@ export function ProjectAssetDialog({
   }
   function prompt(a: Asset) {
     return assetImagePrompt(project, a);
+  }
+  function applyImage(job: GenerationJob) {
+    const asset = project.assets.find(a => a.id === job.targetId);
+    if (!asset || !job.media || job.projectId !== project.id) {
+      setMessage('原资产已删除或项目已切换，无法应用。'); setPreview(null); return;
+    }
+    edit(asset, { image: job.media, dismissedImageId: undefined });
+    setMessage(`${asset.name}的生成图片已应用，请保存项目。`);
+    setPreview(null);
   }
   async function save() {
     try {
@@ -371,7 +384,7 @@ export function ProjectAssetDialog({
                       j.media,
                   );
                   const candidate =
-                    completed?.media && completed.media.id !== a.image?.id
+                    completed?.media && completed.media.id !== a.image?.id && completed.media.id !== a.dismissedImageId
                       ? completed
                       : undefined;
                   const shownImage = a.image || candidate?.media;
@@ -504,7 +517,7 @@ export function ProjectAssetDialog({
                             className="asset-preview-trigger"
                             aria-label={`预览${a.name}图片`}
                             onClick={() =>
-                              setImagePreview({
+                              !a.image && candidate ? setPreview(candidate) : setImagePreview({
                                 media: shownImage,
                                 name: a.name,
                               })
@@ -545,9 +558,10 @@ export function ProjectAssetDialog({
                                 />
                               </button>
                             )}
-                            <Button onClick={() => setPreview(candidate)}>
-                              {a.image ? '预览并替换图片' : '预览并应用图片'}
-                            </Button>
+                            <div className="actions">
+                              <Button variant="outline" onClick={() => setPreview(candidate)}>预览</Button>
+                              <Button onClick={() => applyImage(candidate)}>{a.image ? '替换' : '应用'}</Button>
+                            </div>
                           </div>
                         )}
                         {latest?.error && (
@@ -570,12 +584,13 @@ export function ProjectAssetDialog({
                           </Button>
                           <Button
                             variant="outline"
-                            disabled={!a.image}
-                            onClick={() => edit(a, { image: undefined })}
+                            disabled={!shownImage}
+                            onClick={() => edit(a, { image: undefined, dismissedImageId: completed?.media?.id || a.image?.id })}
                           >
                             清除
                           </Button>
                           <ImageFileButton
+                            onSelect={(media) => { edit(a, {image:media, dismissedImageId:completed?.media?.id || a.dismissedImageId}); setMessage('已应用所选图片，保存项目后永久保留。'); }}
                             media={shownImage}
                             projectId={project.id}
                             name={a.name}
@@ -584,9 +599,10 @@ export function ProjectAssetDialog({
                         {kind === '人物' && (
                           <label>
                             <Checkbox
-                              checked={a.attributes?.三视图 === '是'}
+                              checked={wantsThreeViews(a)}
                               onCheckedChange={(v) =>
                                 edit(a, {
+                                  ...(!v && selectedAssetImageSkill(project, a) === threeViewSkill ? { imageSkillId: 'none' } : {}),
                                   attributes: {
                                     ...a.attributes,
                                     三视图: v ? '是' : '否',
@@ -734,25 +750,7 @@ export function ProjectAssetDialog({
               />
             )}
             <Button
-              onClick={() => {
-                const asset = project.assets.find(
-                  (a) => a.id === preview?.targetId,
-                );
-                if (
-                  !asset ||
-                  !preview?.media ||
-                  preview.projectId !== project.id
-                ) {
-                  setMessage('原资产已删除或项目已切换，无法应用。');
-                  setPreview(null);
-                  return;
-                }
-                edit(asset, { image: preview.media });
-                setMessage(
-                  `${asset.name}的生成图片已应用，请点击“保存${label}”。`,
-                );
-                setPreview(null);
-              }}
+              onClick={() => preview && applyImage(preview)}
             >
               确认应用图片
             </Button>

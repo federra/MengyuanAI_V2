@@ -232,10 +232,10 @@ function Title({
     </div>
   );
 }
-async function api<T>(url: string, options?: RequestInit): Promise<T> {
+async function api<T>(url: string, options?: RequestInit, onAccepted?: (body: T) => void): Promise<T> {
   const headers = new Headers(options?.headers);
   headers.set('Accept', progressType);
-  return readApiResponse<T>(await fetch(url, { ...options, headers }));
+  return readApiResponse<T>(await fetch(url, { ...options, headers }), undefined, onAccepted);
 }
 export default function Home(){return <AccessGate>{state=><Workbench accessState={state}/>}</AccessGate>;}
 function Workbench({accessState}:{accessState:AccessState}) {
@@ -750,7 +750,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
     }
     setAiTask(task);
     await action('AI 正在创作', async () => {
-      const result = await api<{ text: string }>('/api/ai', {
+      const result = await api<{ text: string; phase?: string }>('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -795,7 +795,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
                   })
                 : task === 'story' ? JSON.stringify({brief: content, videoType: source.videoType, style: source.style, ratio: source.ratio, storyLength: source.storyLength || '500～1000字', creativeSkill: [...builtinSkills, ...(source.skills || [])].find(s => s.id === (source.creativeSkillId || 'idea'))}) : content),
         }),
-      });
+      }, progress => { if (progress.phase === 'storyboard-converting') setBusy('剧本格式转换中'); });
       if (task === 'storyOptions') {
         const plans = parseStoryPlans(result.text);
         if ((source.storyPlans?.length || 0) + plans.length > 12)
@@ -816,11 +816,19 @@ function Workbench({accessState}:{accessState:AccessState}) {
       setDialog('ai');
     });
   }
-  function applyAi() {
+  async function applyAi() {
+    if (lock.current) return;
+    lock.current = true;
+    setBusy('正在校验分镜格式');
     try {
       setUndo(structuredClone(project));
       if (aiTask === 'shots') {
-        const next = applyStoryboardImport(project, aiText, 'append');
+        const prepared = await api<{text: string; phase?: string}>('/api/storyboards/normalize', {
+          method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({source: aiText}),
+        }, progress => { if (progress.phase === 'storyboard-converting') setBusy('剧本格式转换中'); });
+        if (current.current.id !== project.id) throw Error('项目已切换，请重新应用。');
+        const next = applyStoryboardImport(project, prepared.text, 'append');
+        setAiText(prepared.text);
         edit({ shots: next.shots, assets: next.assets });
         setSelected(next.shots[project.shots.length].id);
         setStep('分镜');
@@ -831,7 +839,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
       setNotice('已应用 AI 建议，可撤销');
     } catch (e) {
       setError(e instanceof Error ? e.message : '应用失败');
-    }
+    } finally { lock.current = false; setBusy(''); }
   }
   function stageDone(s: Stage) {
     if (s === '创意') return !!project.brief.trim();
@@ -929,6 +937,8 @@ function Workbench({accessState}:{accessState:AccessState}) {
   const workflowStages = creativeMode ? creativeStages : stages;
   const inputStage = ['创意', '故事', '剧本', '分场'].includes(step);
   return (
+    <>
+    <Dialog open={busy === '剧本格式转换中'}><DialogContent showCloseButton={false}><DialogHeader><DialogTitle>剧本格式转换中</DialogTitle><DialogDescription>正在校验并适配分镜格式，请稍候。</DialogDescription></DialogHeader></DialogContent></Dialog>
     <SidebarProvider
       style={{ '--sidebar-width': '216px', '--sidebar-width-icon': '64px' } as React.CSSProperties}
     >
@@ -2318,6 +2328,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
               )}
               <textarea
                 aria-label="AI生成结果"
+                disabled={!!busy}
                 rows={16}
                 value={aiText}
                 onChange={(e) => setAiText(e.target.value)}
@@ -2326,12 +2337,12 @@ function Workbench({accessState}:{accessState:AccessState}) {
                 <p className="helper">
                   {aiStoryboard
                     ? `已识别${aiStoryboard.segments}个视频段，共${aiStoryboard.seconds}秒；内部子镜头保留在各段中，随附${aiStoryboard.assets}项项目资产。应用后追加到现有分镜。`
-                    : '当前结果尚未通过分镜结构校验。请检查JSON与各视频段的时间轴后再应用。'}
+                    : '当前结果尚未通过分镜结构校验，应用时将尝试一次AI格式转换；转换失败则保留原内容。'}
                 </p>
               )}
               <Button
                 onClick={applyAi}
-                disabled={aiTask === 'shots' && !aiStoryboard}
+                disabled={!!busy || !aiText.trim()}
               >
                 应用到项目
               </Button>
@@ -2426,5 +2437,6 @@ function Workbench({accessState}:{accessState:AccessState}) {
         onOpenChange={setDirectorySettingsOpen}
       />
     </SidebarProvider>
+    </>
   );
 }

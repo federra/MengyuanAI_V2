@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { Button } from './ui/button';
 import {
@@ -42,6 +42,7 @@ declare global {
       }) => Promise<{ ok: boolean }>;
       openDoubao?: () => Promise<{ ok: boolean }>;
       openDoubaoExtension?: () => Promise<{ ok: boolean }>;
+      chooseImage?: (input: {projectId:string;mediaId?:string;name:string}) => Promise<{canceled?:boolean;media?:Media}>;
       revealImage: (input: {
         projectId: string;
         mediaId: string;
@@ -55,26 +56,34 @@ export function ImageFileButton({
   media,
   projectId,
   name,
+  onSelect,
 }: {
+  onSelect?: (media:Media)=>void;
   media?: Media;
   projectId: string;
   name: string;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const selectRef = useRef(onSelect);
+  useEffect(() => { selectRef.current = onSelect; return () => { selectRef.current = undefined; }; }, [onSelect]);
   const desktop = typeof window !== 'undefined' && !!window.directorDesktop;
   async function open() {
-    if (!media || busy) return;
+    if (busy || (!media && !onSelect)) return;
     setBusy(true);
     setError('');
     try {
-      if (window.directorDesktop)
+      if (onSelect && window.directorDesktop) {
+        if (!window.directorDesktop.chooseImage) throw Error('请重启更新后的桌面程序再选择图片');
+        const result = await window.directorDesktop.chooseImage({projectId,mediaId:media?.id,name});
+        if (result.media) selectRef.current?.(result.media);
+      } else if (window.directorDesktop && media)
         await window.directorDesktop.revealImage({
           projectId,
           mediaId: media.id,
           name,
         });
-      else {
+      else if (media) {
         const response = await fetch(media.url);
         if (!response.ok) throw Error('图片下载失败，请稍后再试');
         const blob = await response.blob();
@@ -102,15 +111,29 @@ export function ImageFileButton({
     <div className="image-file-action">
       <Button
         variant="outline"
-        disabled={!media || busy}
-        onClick={open}
+        disabled={(!media && !onSelect) || busy}
+        onClick={() => {
+          if (onSelect && !desktop) {
+            const input = document.createElement('input'); input.type='file'; input.accept='image/png,image/jpeg,image/webp';
+            input.onchange=async()=>{
+              const file=input.files?.[0]; if(!file)return;
+              setBusy(true);setError('');
+              try {
+                const form=new FormData();form.append('file',file);
+                const response=await fetch('/api/media',{method:'POST',body:form});
+                if(!response.ok)throw Error('图片导入失败，请选择不超过50MB的PNG、JPG或WebP图片');
+                const selected = await response.json() as Media; selectRef.current?.(selected);
+              }catch(e){setError((e as Error).message);}finally{setBusy(false);}
+            };input.click();
+          } else void open();
+        }}
         title={
-          desktop
+          onSelect ? '选择历史图片并应用到当前资产' : desktop
             ? '导出到本机“图片 / AI短片导演”并选中该图片'
             : '网页版可下载图片，下载后在浏览器中打开所在文件夹'
         }
       >
-        {busy ? '正在处理…' : desktop ? '打开图片目录' : '下载图片'}
+        {busy ? '正在处理…' : onSelect || desktop ? '图片目录' : '下载图片'}
       </Button>
       {error && <small role="alert">{error}</small>}
     </div>
