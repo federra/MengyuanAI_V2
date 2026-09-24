@@ -1,4 +1,5 @@
 'use client';
+import { ProjectCard } from '@/components/project-card';
 import { recoverProject } from '@/lib/project-recovery';
 import { AdminConsole } from '@/components/admin-console';
 import {AccessGate,AccessProfile} from '@/components/access-gate';
@@ -59,7 +60,6 @@ import {
   Sparkles,
   Layers3,
   ListVideo,
-  Scissors,
   Settings2,
   Wrench,
   Blocks,
@@ -135,16 +135,25 @@ import {
 } from '@/lib/studio';
 import { download, exportKit, exportJianyingDraft } from '@/lib/export';
 import { DirectorySettings } from '@/components/directory-settings';
-const menus = [
-  { icon: FolderOpen, name: '项目中心' },
-  { icon: Clapperboard, name: '创作工作台' },
-  { icon: Layers3, name: '资产中心' },
-  { icon: Blocks, name: 'Skill 中心' },
-  { icon: ListVideo, name: '任务中心' },
-  { icon: Wallet, name: '收益中心' },
-  { icon: Users, name: '渠道代理' },
-  { icon: Scissors, name: '剪辑输出' },
-  { icon: Settings2, name: '模型设置' },
+const menuGroups = [
+  { label: '创作', items: [
+    { icon: FolderOpen, name: '项目中心' },
+    { icon: Clapperboard, name: '创作中心' },
+    { icon: ListVideo, name: '任务中心' },
+  ] },
+  { label: '知识', items: [
+    { icon: Layers3, name: '资产中心' },
+    { icon: Blocks, name: 'skill中心' },
+  ] },
+  { label: '设置', items: [
+    { icon: Settings2, name: '模型设置' },
+    { icon: Wrench, name: '系统设置' },
+  ] },
+  { label: '经营', items: [
+    { icon: Wallet, name: '收益中心' },
+    { icon: Users, name: '渠道代理' },
+    { icon: ShieldCheck, name: '管理后台' },
+  ] },
 ];
 function caption(s: Shot) {
   return (
@@ -243,13 +252,13 @@ function Workbench({accessState}:{accessState:AccessState}) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [step, setStep] = useState<Stage>('分镜');
   const [rowView, setRowView] = useState(true);
-  const [menu, setMenu] = useState('创作工作台');
+  const [menu, setMenu] = useState('创作中心');
   const lastWorkbench = useRef<{ projectId: string; stage: Stage }>({
     projectId: project.id,
     stage: '分镜',
   });
   useEffect(() => {
-    if (menu === '创作工作台') {
+    if (menu === '创作中心') {
       lastWorkbench.current = {
         projectId: project.id,
         stage: ['资产', '视频', '配音'].includes(step) ? '分镜' : step,
@@ -264,7 +273,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
     panel?: string;
     scope?: string;
   }>();
-  const businessMode = ['Skill 中心', '收益中心', '渠道代理'].includes(menu);
+  const businessMode = ['skill中心', '收益中心', '渠道代理'].includes(menu);
   const [selected, setSelected] = useState('');
   const [dirty, setDirty] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -278,6 +287,8 @@ function Workbench({accessState}:{accessState:AccessState}) {
   const [newName, setNewName] = useState('');
   const [assetKind, setAssetKind] = useState('人物');
   const [assetManagementKind, setAssetManagementKind] = useState('');
+  const [assetManagementShotIds, setAssetManagementShotIds] = useState<string[]>([]);
+  const [assetManagementBatchAction, setAssetManagementBatchAction] = useState<{ kind: 'audio' | 'blocking'; shotId: string; nonce: number }>();
   useEffect(() => {
     if (loading || !window.directorDesktop?.doubao) return;
     let disposed = false;
@@ -647,7 +658,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
       setUndo(null);
       setSelected(p.shots[0]?.id || '');
       setDirty(false);
-      setMenu('创作工作台');
+      setMenu('创作中心');
       setStep('创意');
     });
   }
@@ -656,7 +667,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
     edit({ shots: [...project.shots, s] });
     setSelected(s.id);
     setStep('分镜');
-    setMenu('创作工作台');
+    setMenu('创作中心');
   }
   function move(index: number, delta: number) {
     const shots = [...project.shots];
@@ -756,10 +767,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
         body: JSON.stringify({
           task,
           storyLength: source.storyLength || '500～1000字',
-          storyCount:
-            task === 'storyOptions'
-              ? source.storyVersionCount || 3
-              : undefined,
+          storyCount: task === 'storyOptions' ? 3 : undefined,
           content:
             context ||
             (task === 'script'
@@ -802,7 +810,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
           throw Error('故事方案超过12个，请先删除不再使用的候选');
         edit({ storyPlans: [...(source.storyPlans || []), ...plans] });
         setNotice(
-          `已生成${plans.length}个故事方案${plans.length !== (source.storyVersionCount || 3) ? `（模型未按要求返回${source.storyVersionCount || 3}个，已保留完整方案）` : ''}，请选择并保存项目。`,
+          `已生成${plans.length}个故事方案${plans.length !== 3 ? '（模型未按要求返回3个，已保留完整方案）' : ''}，请在故事工作区审阅并保存项目。`,
         );
         return;
       }
@@ -913,7 +921,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
           setProject((p) => ({ ...p, shots: [...p.shots, s] }));
           setDirty(true);
           setSelected(s.id);
-          setMenu('创作工作台');
+          setMenu('创作中心');
           setStep('分镜');
           return { id: s.id, status: 'unsaved' };
         },
@@ -928,7 +936,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
     });
     return () => lifecycle.abort();
   }, []);
-  const creativeMode = menu === '创作工作台' || menu === '剪辑输出';
+  const creativeMode = menu === '创作中心' || menu === '剪辑输出';
   const primaryStep = ['资产', '视频', '配音'].includes(step)
     ? '分镜'
     : step === '分场'
@@ -943,7 +951,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
       style={{ '--sidebar-width': '216px', '--sidebar-width-icon': '64px' } as React.CSSProperties}
     >
       <Sidebar collapsible="icon">
-        <SidebarHeader>
+        <SidebarHeader className="studio-sidebar-header">
           <div className="brand">
             <span className="brand-icon">
               <Clapperboard />
@@ -953,44 +961,47 @@ function Workbench({accessState}:{accessState:AccessState}) {
               <small>{desktopVersion ? `桌面版 v${desktopVersion}` : 'DIRECTOR STUDIO'}</small>
             </div>
           </div>
+          <SidebarTrigger className="studio-sidebar-toggle" />
         </SidebarHeader>
-        <SidebarContent>
-          <p className="nav-caption">工作空间</p>
-          <SidebarMenu>
-            {menus.map(({ icon: Icon, name }) => (
-              <SidebarMenuItem key={name}>
-                <SidebarMenuButton
-                  tooltip={name} aria-label={name}
-                  disabled={!!busy}
-                  isActive={menu === name}
-                  onClick={() => {
-                    setMenu(name);
-                    setSkillSelection(undefined);
-                    setAssetManagementKind('');
-                    if (name === '创作工作台') {
-                      const restored =
-                        lastWorkbench.current.projectId === project.id
-                          ? lastWorkbench.current.stage
-                          : '分镜';
-                      setStep(restored);
-                      if (restored === '分镜') setRowView(true);
-                    }
-                    if (name === '资产中心') setStep('资产');
-                    if (name === '剪辑输出') setStep('剪辑');
-                  }}
-                >
-                  <Icon />
-                  <span>{name}</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
-            <SidebarMenuItem>
-              <SidebarMenuButton tooltip="系统设置" aria-label="系统设置" onClick={()=>setDirectorySettingsOpen(true)}>
-                <Wrench /><span>系统设置</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            {accessState.user?.role === 'super_admin' && <SidebarMenuItem><SidebarMenuButton tooltip="管理员后台" aria-label="管理员后台" disabled={!!busy} isActive={menu === '管理员后台'} onClick={(event)=>{setMenu('管理员后台');event.currentTarget.scrollIntoView({block:'nearest'});}}><ShieldCheck /><span>管理员后台</span></SidebarMenuButton></SidebarMenuItem>}
-          </SidebarMenu>
+        <SidebarContent className="studio-navigation">
+          {menuGroups.map(({ label, items }) => (
+            <nav className="studio-nav-group" key={label} aria-label={label}>
+              <p className="nav-caption">{label}</p>
+              <SidebarMenu>
+                {items.filter(({ name }) => name !== '管理后台' || accessState.user?.role === 'super_admin').map(({ icon: Icon, name }) => (
+                  <SidebarMenuItem key={name}>
+                    <SidebarMenuButton
+                      tooltip={name}
+                      aria-label={name}
+                      aria-current={menu === name || (name === '创作中心' && menu === '剪辑输出') ? 'page' : undefined}
+                      disabled={name !== '系统设置' && !!busy}
+                      isActive={menu === name || (name === '创作中心' && menu === '剪辑输出')}
+                      onClick={(event) => {
+                        if (name === '系统设置') {
+                          setDirectorySettingsOpen(true);
+                          return;
+                        }
+                        setMenu(name);
+                        setSkillSelection(undefined);
+                        setAssetManagementKind('');
+                        if (name === '创作中心') {
+                          const restored = lastWorkbench.current.projectId === project.id
+                            ? lastWorkbench.current.stage : '分镜';
+                          setStep(restored);
+                          if (restored === '分镜') setRowView(true);
+                        }
+                        if (name === '资产中心') setStep('资产');
+                        event.currentTarget.scrollIntoView({ block: 'nearest' });
+                      }}
+                    >
+                      <Icon aria-hidden="true" />
+                      <span>{name}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </nav>
+          ))}
         </SidebarContent>
         <SidebarFooter>
           <div className="studio-note">
@@ -1006,9 +1017,35 @@ function Workbench({accessState}:{accessState:AccessState}) {
       >
         <header className="topbar">
           <div className="breadcrumb">
-            <SidebarTrigger />
+            <SidebarTrigger className="mobile-navigation-trigger" />
             <span>{menu}</span>
-            {creativeMode && <><ChevronRight size={15} /><b>{project.title}</b></>}
+            {creativeMode && <>
+              <ChevronRight size={15} />
+              <Select
+                value={project.id}
+                onValueChange={(id) => {
+                  if (id === '__rename__') {
+                    setNewName(project.title);
+                    setDialog('rename');
+                    return;
+                  }
+                  const next = projects.find((item) => item.id === id);
+                  if (next && next.id !== project.id) void choose(next);
+                }}
+                disabled={!!busy || loading}
+              >
+                <SelectTrigger className="project-switcher" aria-label="切换项目">
+                  <SelectValue>{project.title}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {[project, ...projects.filter((item) => item.id !== project.id)].map((item) => (
+                    <SelectItem key={item.id} value={item.id}>{item.title}</SelectItem>
+                  ))}
+                  <SelectItem value="__rename__">重命名当前项目…</SelectItem>
+                </SelectContent>
+              </Select>
+              <span className="tag project-context-tag">{project.ratio} · {project.style}</span>
+            </>}
           </div>
           <div className="topbar-tools">
           {creativeMode && <div className="save-state">
@@ -1028,74 +1065,29 @@ function Workbench({accessState}:{accessState:AccessState}) {
               </>
             )}
           </div>}
+          {creativeMode && <Button
+            variant="outline"
+            size="sm"
+            disabled={!!busy || loading}
+            onClick={() => action('保存项目', async () => { await save(); })}
+          ><Save />保存</Button>}
           <ThemeToggle />
           </div>
         </header>
-        {creativeMode && <div className="project-heading">
-          <div>
-            <div className="eyebrow">SHORT FILM PROJECT</div>
-            <h1>
-              {project.title}{' '}
-              <span className="tag">
-                {project.ratio} · {project.style}
-              </span>
-            </h1>
-            <p>{project.brief || '从一个想法开始，完成你的第一部短片。'}</p>
-          </div>
-          <div className="actions">
-            {undo && (
-              <Button
-                variant="outline"
-                disabled={!!busy}
-                onClick={() => {
-                  if (
-                    project.changeLog?.at(-1)?.id !==
-                      undo.changeLog?.at(-1)?.id &&
-                    project.changeLog?.length
-                  ) {
-                    try {
-                      setProject(undoLast(project));
-                      setDirty(true);
-                      setUndo(null);
-                    } catch (e) {
-                      setError(e instanceof Error ? e.message : '撤销失败');
-                    }
-                    return;
-                  }
-                  setProject({
-                    ...undo,
-                    revision: project.revision,
-                    updatedAt: project.updatedAt,
-                  });
-                  setDirty(true);
-                  setUndo(null);
-                }}
-              >
-                <RotateCcw />
-                撤销上次操作
-              </Button>
-            )}
-            <Button
-              variant="outline"
-              disabled={!!busy || loading}
-              onClick={() =>
-                action('保存项目', async () => {
-                  await save();
-                })
-              }
-            >
-              <Save />
-              保存
-            </Button>
-            <Button
-              disabled={!!busy || loading}
-              onClick={() => setDialog('export')}
-            >
-              <Download />
-              导出
-            </Button>
-          </div>
-        </div>}
+        {creativeMode && undo && <div className="creative-undo"><Button
+          variant="outline"
+          disabled={!!busy}
+          onClick={() => {
+            if (project.changeLog?.at(-1)?.id !== undo.changeLog?.at(-1)?.id && project.changeLog?.length) {
+              try { setProject(undoLast(project)); setDirty(true); setUndo(null); }
+              catch (e) { setError(e instanceof Error ? e.message : '撤销失败'); }
+              return;
+            }
+            setProject({ ...undo, revision: project.revision, updatedAt: project.updatedAt });
+            setDirty(true);
+            setUndo(null);
+          }}
+        ><RotateCcw />撤销上次操作</Button></div>}
         {(error || (creativeMode && notice)) && (
           <div
             className={error ? 'notice error' : 'notice'}
@@ -1119,7 +1111,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
           hidden
           onChange={(e) => fileChanged(e.target.files?.[0])}
         />
-        {menu === '管理员后台' && accessState.user?.role === 'super_admin' ? <AdminConsole/> : <fieldset
+        {menu === '管理后台' && accessState.user?.role === 'super_admin' ? <AdminConsole/> : <fieldset
           disabled={!!busy || loading}
           className={`studio-fieldset ${businessMode ? 'business-fieldset' : ''}`}
         >
@@ -1128,8 +1120,9 @@ function Workbench({accessState}:{accessState:AccessState}) {
               <button
                 key={s}
                 onClick={() => {
+                  setSkillLaunch(undefined);
                   setStep(s);
-                  setMenu('创作工作台');
+                  setMenu('创作中心');
                 }}
                 className={s === primaryStep && creativeMode ? 'active' : ''}
                 aria-current={s === primaryStep ? 'step' : undefined}
@@ -1188,8 +1181,10 @@ function Workbench({accessState}:{accessState:AccessState}) {
               </Button>
             </nav>
           )}
-          {creativeMode && <DirectorTools
+          {creativeMode && step !== '创意' && <DirectorTools
             key={`${project.id}-${skillLaunch?.nonce || 0}`}
+            hideToolbar={step === '故事' || step === '剧本'}
+            onCloseLaunch={() => setSkillLaunch(undefined)}
             launch={
               skillLaunch?.projectId === project.id ? skillLaunch : undefined
             }
@@ -1223,33 +1218,20 @@ function Workbench({accessState}:{accessState:AccessState}) {
                   秒
                 </p>
               </div>
-              <span className="sheet-save-state">
-                {dirty ? '● 有未保存修改' : `已保存 ${savedTime}`}
-              </span>
-              <Button
-                variant="outline"
-                onClick={() =>
-                  action('保存项目', async () => {
-                    await save();
-                  })
-                }
-              >
-                <Save />
-                保存
+              <Button variant="outline" onClick={() => setSkillLaunch({
+                nonce: Date.now(), projectId: project.id, skillId: 'shot', panel: 'import',
+              })}>
+                <Upload />
+                导入分镜
               </Button>
-              <Button variant="outline" onClick={() => setStep('剪辑')}>
-                <Film />
-                预览全片
-              </Button>
-              <Button onClick={() => setDialog('export')}>
+              <Button variant="outline" onClick={() => setDialog('export')}>
                 <Download />
                 导出分镜
-                <ChevronRight />
               </Button>
             </header>
           )}
           <div
-            className={`work-grid ${businessMode ? 'business-mode' : ''} ${(creativeMode && step === '资产') || menu === '资产中心' ? 'asset-mode' : ''} ${step === '分镜' && rowView && menu === '创作工作台' ? 'storyboard-mode' : ''}`}
+            className={`work-grid ${businessMode ? 'business-mode' : ''} ${(creativeMode && step === '资产') || menu === '资产中心' ? 'asset-mode' : ''} ${step === '分镜' && rowView && menu === '创作中心' ? 'storyboard-mode' : ''}`}
           >
             <div className="main-panels">
               <AssetSync
@@ -1257,7 +1239,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
                 ready={model.text}
                 enabled={!loading}
                 visible={
-                  creativeMode && (step === '剧本' || step === '资产')
+                  creativeMode && step === '资产'
                 }
                 onApply={(next) => {
                   setProject(next);
@@ -1273,7 +1255,8 @@ function Workbench({accessState}:{accessState:AccessState}) {
                   <Title
                     title="项目中心"
                     description="每个故事，拥有独立的创作空间"
-                  >
+                  />
+                  <div className="project-center-actions">
                     <Button
                       onClick={() => {
                         setNewName('');
@@ -1283,7 +1266,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
                       <Plus />
                       新建项目
                     </Button>
-                  </Title>
+                  </div>
                   <div className="project-cards">
                     {projects.length === 0 ? (
                       <div className="empty-note">
@@ -1293,25 +1276,12 @@ function Workbench({accessState}:{accessState:AccessState}) {
                       </div>
                     ) : (
                       projects.map((p) => (
-                        <button
-                          className="project-card"
-                          key={p.id}
-                          onClick={() => choose(p)}
-                        >
-                          <Clapperboard />
-                          <span className="tag">{p.ratio}</span>
-                          <h3>{p.title}</h3>
-                          <p>{p.brief || '尚未填写创意'}</p>
-                          <small>
-                            {p.shots.length} 个镜头 ·{' '}
-                            {new Date(p.updatedAt).toLocaleDateString('zh-CN')}
-                          </small>
-                        </button>
+                        <ProjectCard key={p.id} project={p} onOpen={() => choose(p)} />
                       ))
                     )}
                   </div>
                 </section>
-              ) : menu === 'Skill 中心' ? (
+              ) : menu === 'skill中心' ? (
                 <SkillCenter
                   key={project.id + (skillSelection?.field || '')}
                   selectionStage={skillSelection?.stage}
@@ -1319,7 +1289,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
                     skillSelection
                       ? () => {
                           setStep(skillSelection.returnStage);
-                          setMenu('创作工作台');
+                          setMenu('创作中心');
                           setSkillSelection(undefined);
                         }
                       : undefined
@@ -1337,20 +1307,20 @@ function Workbench({accessState}:{accessState:AccessState}) {
                         },
                       });
                       setStep('分镜');
-                      setMenu('创作工作台');
+                      setMenu('创作中心');
                       setAssetManagementKind('人物');
                       return;
                     }
                     if (skillSelection) {
                       edit({ [skillSelection.field]: skill.id });
                       setStep(skillSelection.returnStage);
-                      setMenu('创作工作台');
+                      setMenu('创作中心');
                       setSkillSelection(undefined);
                       return;
                     }
                     if ([...stages, '分场'].includes(skill.stage))
                       setStep(skill.stage as Stage);
-                    setMenu('创作工作台');
+                    setMenu('创作中心');
                     setSkillLaunch({
                       nonce: Date.now(),
                       skillId: skill.id,
@@ -1403,7 +1373,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
                         shotSkillId: '分镜',
                       }[field],
                     });
-                    setMenu('Skill 中心');
+                    setMenu('skill中心');
                   }}
                   key={`${project.id}-${step}`}
                   project={project}
@@ -1412,6 +1382,12 @@ function Workbench({accessState}:{accessState:AccessState}) {
                   onEdit={edit}
                   onGenerate={generate}
                   onStage={setStep}
+                  onImportText={() => setSkillLaunch({
+                    projectId: project.id,
+                    skillId: '',
+                    panel: 'import',
+                    nonce: Date.now(),
+                  })}
                 />
               ) : step === '剪辑' || menu === '剪辑输出' ? (
                 <>
@@ -1429,7 +1405,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
                     onExport={() => setDialog('export')}
                     onEditShot={(id) => {
                       setSelected(id);
-                      setMenu('创作工作台');
+                      setMenu('创作中心');
                       setStep('分镜');
                     }}
                   />
@@ -1634,16 +1610,9 @@ function Workbench({accessState}:{accessState:AccessState}) {
                       </div>
                     ) : step === '分镜' && rowView ? (
                       <StoryboardRows
+                        batchAction={assetManagementBatchAction}
                         onJob={recordGeneration}
                         generationJobs={generationState.jobs}
-                        onImport={() =>
-                          setSkillLaunch({
-                            nonce: Date.now(),
-                            projectId: project.id,
-                            skillId: 'shot',
-                            panel: 'import',
-                          })
-                        }
                         onOptimize={(target) => {
                           setSelected(target);
                           setSkillLaunch({
@@ -1657,8 +1626,9 @@ function Workbench({accessState}:{accessState:AccessState}) {
                         }}
                         project={project}
                         onGenerate={setGenerationTarget}
-                        onManageAssets={(kind) => {
-                          setAssetManagementKind(kind);
+                        onManageAssets={(shotIds) => {
+                          setAssetManagementShotIds(shotIds);
+                          setAssetManagementKind('人物');
                         }}
                         onApplyFrame={applyCapturedFrame}
                         onModelSettings={() => setMenu('模型设置')}
@@ -2202,6 +2172,12 @@ function Workbench({accessState}:{accessState:AccessState}) {
           key={project.id + assetManagementKind}
           open={!generationTarget}
           kind={assetManagementKind}
+          selectedShotIds={assetManagementShotIds}
+          onKindChange={setAssetManagementKind}
+          onBatchShotAction={(kind, shotId) => {
+            setAssetManagementKind('');
+            setAssetManagementBatchAction({ kind, shotId, nonce: Date.now() });
+          }}
           generationJobs={generationState.jobs}
           onBatch={(request) => {
             imageBatches.start(request);
@@ -2240,6 +2216,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
                 (
                   {
                     project: '新建短片项目',
+                    rename: '重命名项目',
                     asset: '新增创作资产',
                     export: '导出项目',
                     ai: '审阅 AI 结果',
@@ -2267,7 +2244,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
                     const p = await save(newProject(newName.trim()));
                     setProject(p);
                     setStep('创意');
-                    setMenu('创作工作台');
+                    setMenu('创作中心');
                     setSelected('');
                     setDialog('');
                   })
@@ -2275,6 +2252,18 @@ function Workbench({accessState}:{accessState:AccessState}) {
               >
                 创建项目
               </Button>
+            </>
+          )}
+          {dialog === 'rename' && (
+            <>
+              <Field label="项目名称" value={newName} onChange={setNewName} />
+              <Button
+                disabled={!!busy || !newName.trim()}
+                onClick={() => {
+                  edit({ title: newName.trim() });
+                  setDialog('');
+                }}
+              >确认改名</Button>
             </>
           )}
           {dialog === 'asset' && (

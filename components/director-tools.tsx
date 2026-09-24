@@ -90,12 +90,16 @@ export function DirectorTools({
   disabled,
   onApply,
   launch,
+  hideToolbar = false,
+  onCloseLaunch,
 }: {
   project: Project;
   stage: Stage;
   shotId?: string;
   disabled: boolean;
   onApply: (p: Project, message: string) => void;
+  hideToolbar?: boolean;
+  onCloseLaunch?: () => void;
   launch?: {
     panel?: string;
     nonce: number;
@@ -107,6 +111,9 @@ export function DirectorTools({
   const [dialog, setDialog] = useState(
     launch?.panel || (launch ? 'assistant' : ''),
   );
+  useEffect(() => {
+    if (!dialog && launch) onCloseLaunch?.();
+  }, [dialog, launch, onCloseLaunch]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const requestLock = useRef(false);
@@ -129,7 +136,9 @@ export function DirectorTools({
   const importProject = useRef(project.id);
   useEffect(() => { importProject.current = project.id; }, [project.id]);
   const [importMode, setImportMode] = useState('append');
-  const [importKind, setImportKind] = useState('shots');
+  const [importKind, setImportKind] = useState(
+    launch?.panel === 'import' ? textKeys[stage] || 'shots' : 'shots',
+  );
   const [importReady, setImportReady] = useState(false);
   const [storyboardPreview, setStoryboardPreview] = useState<ReturnType<
     typeof parseStoryboardImport
@@ -354,7 +363,7 @@ export function DirectorTools({
   const last = project.changeLog?.at(-1);
   return (
     <>
-      <div className="director-toolbar">
+      {!hideToolbar && <div className="director-toolbar">
         <div>
           <span className="tag">{stage}</span>
           <span>自主编辑 · Skill 辅助 · 关联修改</span>
@@ -388,7 +397,7 @@ export function DirectorTools({
             修改记录
           </Button>
         </div>
-      </div>
+      </div>}
       <Dialog
         open={!!dialog}
         onOpenChange={(v) => {

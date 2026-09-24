@@ -122,7 +122,7 @@ async function request<T>(
   input: Record<string, unknown> = {},
 ): Promise<T> {
   if (!window.directorDesktop?.admin)
-    throw Error('请在最新版桌面软件中打开管理员后台。');
+    throw Error('请在最新版桌面软件中打开管理后台。');
   const response = await window.directorDesktop.admin(action, input);
   if (response.error)
     throw Error(errors[response.error] ?? '操作未完成，请刷新后重试。');
@@ -698,7 +698,7 @@ export function AdminConsole() {
       <div className="heading">
         <div>
           <div className="eyebrow">ADMINISTRATION</div>
-          <h1>管理员后台</h1>
+          <h1>管理后台</h1>
           <p className="subtitle">
             管理用户授权，了解创作使用情况，每次操作都有记录。
           </p>

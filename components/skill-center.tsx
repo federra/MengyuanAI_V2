@@ -84,7 +84,7 @@ export function BusinessSelect({
       </Select>
       {onOpenCenter && (
         <Button type="button" variant="outline" onClick={onOpenCenter}>
-          Skill 中心
+          skill中心
         </Button>
       )}
     </div>
@@ -279,7 +279,7 @@ export function SkillCenter({
           <Blocks />
         </div>
         <div>
-          <h1>Skill 中心</h1>
+          <h1>skill中心</h1>
           <p>把创作经验变成可复用技能，随时交给导演助手执行。</p>
         </div>
         <div className="actions">

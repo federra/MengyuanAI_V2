@@ -48,9 +48,15 @@ export function ProjectAssetDialog({
   onTasks,
   generationJobs,
   onBatch,
+  selectedShotIds = [],
+  onKindChange,
+  onBatchShotAction,
 }: {
   generationJobs: GenerationJob[];
   onBatch: (request: ImageBatchRequest) => void;
+  selectedShotIds?: string[];
+  onKindChange?: (kind: string) => void;
+  onBatchShotAction?: (kind: 'audio' | 'blocking', shotId: string) => void;
   open: boolean;
   kind: string;
   project: Project;
@@ -64,6 +70,8 @@ export function ProjectAssetDialog({
   onTasks: () => void;
 }) {
   const label = kind === '人物' ? '角色' : kind;
+  const batchKind = kind === '批量配音' ? 'audio' : kind === '批量站位图' ? 'blocking' : null;
+  const selectedShots = project.shots.filter((shot) => selectedShotIds.includes(shot.id));
   const assets = project.assets.filter((a) => a.kind === kind);
   const [message, setMessage] = useState('');
   const [library, setLibrary] = useState(false);
@@ -204,12 +212,32 @@ export function ProjectAssetDialog({
     >
       <DialogContent className="project-assets-dialog">
         <DialogHeader>
-          <DialogTitle>{label}设置</DialogTitle>
+          <DialogTitle>资产管理 · {label}</DialogTitle>
           <DialogDescription>
             {project.title} ·
             默认仅保存在当前项目，点击“添加到资产中心”后才可跨项目复用。
           </DialogDescription>
         </DialogHeader>
+        {onKindChange && <nav className="project-asset-tabs" aria-label="资产管理分类">
+          {(['人物', '场景', '道具', '批量配音', '批量站位图'] as const).map((tab) => (
+            <Button key={tab} type="button" variant={kind === tab ? 'default' : 'outline'} aria-current={kind === tab ? 'page' : undefined} onClick={() => onKindChange(tab)}>
+              {tab === '人物' ? '角色管理' : tab === '场景' ? '场景管理' : tab === '道具' ? '道具管理' : tab}
+            </Button>
+          ))}
+        </nav>}
+        {batchKind ? <section className="project-asset-batch-panel">
+          <p>{batchKind === 'audio' ? '逐条台词仍可使用麦克风生成配音；这里可为已选分镜逐镜导入已有配音。' : '选择分镜后逐镜确认模型、参考图和生成参数；这里不会直接提交收费任务。'}</p>
+          <p>已选 {selectedShots.length} 个分镜</p>
+          {!selectedShots.length && <p>请返回分镜表格，先勾选需要处理的分镜。</p>}
+          <div className="sheet-batch-list">
+            {selectedShots.map((shot) => <div key={shot.id}>
+              <span>{shot.title}<small>{batchKind === 'blocking' ? shot.blockingImage ? '已有站位图' : '待生成' : shot.audio ? '已有配音' : '待上传'}</small></span>
+              <Button variant="outline" disabled={disabled} onClick={() => onBatchShotAction?.(batchKind, shot.id)}>
+                {batchKind === 'blocking' ? '确认生成' : '上传配音'}
+              </Button>
+            </div>)}
+          </div>
+        </section> : <>
         <fieldset disabled={disabled || preparing}>
           <div className="project-assets-toolbar">
             <Button
@@ -756,6 +784,7 @@ export function ProjectAssetDialog({
             </Button>
           </DialogContent>
         </Dialog>
+        </>}
       </DialogContent>
     </Dialog>
   );

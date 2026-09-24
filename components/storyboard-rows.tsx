@@ -44,8 +44,6 @@ import {
   ImageIcon,
   Sparkles,
   Users,
-  Box,
-  Shirt,
   Mic,
   Grid2X2,
   X,
@@ -123,12 +121,12 @@ export function StoryboardRows({
   onModelSettings,
   onApplyFrame,
   onGenerate,
-  onImport,
   onOptimize,
   onManageAssets,
+  batchAction,
 }: {
-  onManageAssets: (kind: string) => void;
-  onImport: () => void;
+  onManageAssets: (shotIds: string[]) => void;
+  batchAction?: { kind: 'audio' | 'blocking'; shotId: string; nonce: number };
   onOptimize: (shotId: string) => void;
   onGenerate: (target: GenerationTarget) => void;
   project: Project;
@@ -193,6 +191,16 @@ export function StoryboardRows({
   const [previewId, setPreviewId] = useState('');
   const [checked, setChecked] = useState<string[]>([]);
   const [batch, setBatch] = useState('');
+  const handledBatchAction = useRef(0);
+  useEffect(() => {
+    if (!batchAction || handledBatchAction.current === batchAction.nonce) return;
+    handledBatchAction.current = batchAction.nonce;
+    queueMicrotask(() => {
+      onActivate(batchAction.shotId);
+      if (batchAction.kind === 'blocking') setBlockingId(batchAction.shotId);
+      else onUpload('audio', batchAction.shotId);
+    });
+  }, [batchAction, onActivate, onUpload]);
   const [dubbing, setDubbing] = useState<{
     shotId: string;
     lineId: string;
@@ -256,32 +264,9 @@ export function StoryboardRows({
     <div className="storyboard-rows">
       {doubaoPreview.dialog}
       <div className="sheet-toolbar">
-        <Button variant="outline" onClick={onImport}>
-          <Upload />
-          导入分镜
-        </Button>
-        {[
-          { kind: '人物', label: '角色管理', Icon: Users },
-          { kind: '场景', label: '场景管理', Icon: Shirt },
-          { kind: '道具', label: '道具管理', Icon: Box },
-        ].map(({ kind, label, Icon }) => (
-          <Button
-            key={kind}
-            variant="outline"
-            disabled={disabled}
-            onClick={() => onManageAssets(kind)}
-          >
-            <Icon />
-            {label}
-          </Button>
-        ))}
-        <Button variant="outline" onClick={() => setBatch('audio')}>
-          <Mic />
-          批量配音
-        </Button>
-        <Button variant="outline" onClick={() => setBatch('blocking')}>
-          <ImageIcon />
-          批量站位图
+        <Button variant="outline" disabled={disabled} onClick={() => onManageAssets(checkedShots.map((shot) => shot.id))}>
+          <Users />
+          资产管理
         </Button>
         <Button variant="outline" onClick={() => setBatch('doubao')}>
           <Grid2X2 />

@@ -1090,8 +1090,8 @@
   color: #9eacc1;
 }
 :root.dark .sheet-heading > button:last-child {
-  background: linear-gradient(120deg, #27374e, #356dd5);
-  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.21);
+  background: #182231;
+  box-shadow: none;
 }
 :root.dark .sheet-toolbar {
   border: 1px solid #35445b;

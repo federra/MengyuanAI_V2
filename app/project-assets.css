@@ -9,6 +9,7 @@
 @media(max-width:650px){.director-island{right:12px;bottom:12px}.project-assets-dialog{padding:16px!important}}
 .project-assets-dialog .project-asset-actions .asset-generate-button{display:inline-flex!important;visibility:visible!important;opacity:1!important;background:#216bff!important;color:#fff!important;border:1px solid #216bff!important;min-width:100px;min-height:38px!important;order:-1}
 .project-assets-dialog .project-asset-actions{display:grid;grid-template-columns:1fr;gap:8px}
+.project-asset-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 18px;padding-bottom:12px;border-bottom:1px solid #dae7fb}.project-asset-tabs button{min-height:34px}.project-asset-batch-panel{display:grid;gap:12px}.project-asset-batch-panel>p{margin:0;color:#657b9f;font-size:14px}
 .asset-returned-image{display:grid;gap:8px;margin-top:8px;max-width:180px;padding:10px;background:#edf6ff;border:1px solid #cee3fb;border-radius:10px}
 .asset-returned-image>span{font-size:13px;color:#2366b4;font-weight:600}
 .asset-result-dialog{width:min(900px,calc(100vw - 40px))!important;max-width:900px!important;max-height:90dvh;overflow:auto}

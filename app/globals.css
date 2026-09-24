@@ -1138,3 +1138,52 @@ audio {
 .studio-note p { grid-column:1 / -1; }
 .studio-note > svg { grid-row:1; }
 .access-card .access-remember { display:flex; align-items:center; gap:8px; font-weight:400; }
+
+/* Grouped navigation: layout and type only; existing light/dark colors are retained. */
+.studio-sidebar-header { position:relative; padding-top:28px; }
+.studio-sidebar-header .brand { padding:12px 10px 18px; }
+.studio-sidebar-toggle { position:absolute; top:4px; right:8px; }
+.studio-navigation { padding:4px 0 12px; overflow-y:auto !important; }
+.studio-nav-group + .studio-nav-group { margin-top:20px; }
+.studio-nav-group .nav-caption { margin:0; padding:0 22px 8px; font-size:12px; line-height:18px; font-weight:400; }
+.studio-nav-group [data-slot='sidebar-menu'] { gap:2px; }
+.studio-nav-group [data-slot='sidebar-menu-button'] { height:38px; padding-left:25px; font-size:15px; }
+.studio-nav-group [data-slot='sidebar-menu-button'] > svg { display:none; }
+[data-collapsible='icon'] .studio-sidebar-header { padding-top:40px; }
+[data-collapsible='icon'] .studio-sidebar-header .brand { padding:4px 0 14px; }
+[data-collapsible='icon'] .studio-sidebar-toggle { right:16px; }
+[data-collapsible='icon'] .studio-nav-group + .studio-nav-group { margin-top:14px; }
+[data-collapsible='icon'] .studio-nav-group [data-slot='sidebar-menu'] { padding:0; gap:6px; }
+[data-collapsible='icon'] .studio-nav-group [data-slot='sidebar-menu-button'] > svg { display:block; }
+
+/* Project-center refinement, retaining existing theme tokens. */
+:root .studio-navigation .studio-nav-group .nav-caption {
+  color:color-mix(in srgb, var(--sidebar-foreground) 65%, var(--foreground));
+  font-weight:600;
+}
+.mobile-navigation-trigger { display:none; }
+.project-center-actions { display:flex; justify-content:flex-start; padding:0 22px 20px; }
+.project-cards { grid-template-columns:repeat(auto-fill,minmax(240px,280px)); }
+.project-card-with-cover { padding:0; overflow:hidden; display:flex; flex-direction:column; }
+.project-card-cover { position:relative; aspect-ratio:16 / 9; width:100%; display:grid; place-items:center; overflow:hidden; }
+.project-card-cover img, .project-card-cover video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+.project-cover-placeholder { width:32px; height:32px; color:var(--sidebar-primary); }
+.project-card-body { padding:18px 22px 22px; width:100%; flex:1; display:flex; flex-direction:column; }
+.project-card-labels { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.project-card-body h3 { overflow-wrap:anywhere; }
+.project-card-body p { min-height:44px; }
+.project-card-body small { margin-top:auto; padding-top:18px; }
+.project-status { font-weight:500; }
+@media(max-width:767px) {
+  .mobile-navigation-trigger { display:inline-flex; }
+  .project-cards { grid-template-columns:repeat(auto-fill,minmax(min(240px,100%),1fr)); }
+}
+
+/* Project identity and save action share the creative topbar. */
+.creative-mode .breadcrumb { min-width: 0; }
+.creative-mode .topbar-tools { flex-shrink: 0; }
+@media (max-width: 767px) {
+  .creative-mode .topbar { gap: 8px; }
+  .creative-mode .project-switcher { max-width: 140px; }
+  .creative-mode .save-state { display: none; }
+}

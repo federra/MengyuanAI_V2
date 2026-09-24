@@ -9,7 +9,6 @@ import {
   Lightbulb,
   FileText,
   Plus,
-  Save,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,7 +21,7 @@ import {
 import { BusinessSelect } from '@/components/skill-center';
 import { builtinSkills } from '@/lib/director';
 import { chooseStory, customStylePatch, storyLengths } from '@/lib/creative';
-import { id, type Project, type Stage } from '@/lib/studio';
+import { type Project, type Stage } from '@/lib/studio';
 const keys = {
   创意: 'brief',
   故事: 'story',
@@ -38,6 +37,7 @@ export function CreativeWorkspace({
   onGenerate,
   onStage,
   onOpenSkills,
+  onImportText,
 }: {
   onOpenSkills: (
     field: 'creativeSkillId' | 'storySkillId' | 'scriptSkillId' | 'shotSkillId',
@@ -48,6 +48,7 @@ export function CreativeWorkspace({
   onEdit: (p: Partial<Project>) => void;
   onGenerate: (task: string, context?: string, source?: Project) => void;
   onStage: (s: Stage) => void;
+  onImportText?: () => void;
 }) {
   const [error, setError] = useState('');
   const [dialog, setDialog] = useState('');
@@ -58,7 +59,16 @@ export function CreativeWorkspace({
     '',
   );
   const [customValue, setCustomValue] = useState('');
-  const versionCount = project.storyVersionCount || 3;
+  const versionCount = 3;
+  const [storyWidth, setStoryWidth] = useState(340);
+  const [scriptEditing, setScriptEditing] = useState(false);
+  const storyColumns = useRef<HTMLDivElement>(null);
+  const scriptInput = useRef<HTMLTextAreaElement>(null);
+  function resizeStoryColumn(clientX: number) {
+    if (!storyColumns.current) return;
+    const rect = storyColumns.current.getBoundingClientRect();
+    setStoryWidth(Math.max(260, Math.min(700, Math.min(rect.width * 0.6, clientX - rect.left))));
+  }
   const file = useRef<HTMLInputElement>(null);
   const briefInput = useRef<HTMLTextAreaElement>(null);
   const skills = [...builtinSkills, ...(project.skills || [])];
@@ -98,6 +108,7 @@ export function CreativeWorkspace({
         versionCount,
       }),
     );
+    if (stage === '创意') onStage('故事');
   }
   function openCustom(field: 'videoType' | 'style') {
     setError('');
@@ -188,7 +199,7 @@ export function CreativeWorkspace({
     );
   }
   return (
-    <section className="creative-text-workspace">
+    <section className={`creative-text-workspace ${stage === '创意' ? 'idea-stage' : stage === '故事' ? 'story-stage' : stage === '剧本' ? 'script-stage' : ''}`}>
       <header className="creative-title">
         <span className="creative-icon">
           {stage === '创意' ? <Lightbulb /> : <FileText />}
@@ -203,7 +214,13 @@ export function CreativeWorkspace({
                 : '编辑、导入、优化正文，再进入下一步制作。'}
           </p>
         </div>
-        {stage !== '创意' && (
+        {(stage === '故事' || stage === '剧本') && (
+          <Button variant="outline" onClick={onImportText} disabled={disabled}>
+            <Upload />
+            导入文本
+          </Button>
+        )}
+        {stage !== '创意' && stage !== '故事' && stage !== '剧本' && (
           <div className="actions">
             <Button variant="outline" onClick={() => file.current?.click()}>
               <Upload />
@@ -233,15 +250,9 @@ export function CreativeWorkspace({
       />
       {stage === '创意' ? (
         <>
-          <div className="creative-settings">
-            <label>
-              项目名称
-              <input
-                value={project.title}
-                maxLength={150}
-                onChange={(e) => onEdit({ title: e.target.value })}
-              />
-            </label>
+          <div className="creative-card creative-idea-card">
+            <div className="creative-idea-layout">
+              <div className="creative-settings">
             <label htmlFor="creative-type">
               视频类型
               <BusinessSelect
@@ -325,9 +336,9 @@ export function CreativeWorkspace({
                 onChange={(storyLength) => onEdit({ storyLength })}
               />
             </label>
-          </div>
-          <div className="creative-card">
-            <div className="creative-card-heading">
+              </div>
+              <div className="creative-idea-editor">
+                <div className="creative-card-heading">
               <h2>
                 <Lightbulb />
                 一句话创作
@@ -350,17 +361,18 @@ export function CreativeWorkspace({
                 试试示例
               </Button>
             </div>
-            <textarea
+                <textarea
               data-stage-field="brief"
               ref={briefInput}
-              aria-describedby="idea-generation-help"
               aria-label="一句话创意"
               rows={4}
               value={project.brief}
               maxLength={100000}
               placeholder="谁，在什么情境下，遇到了什么冲突，作出了什么选择？"
               onChange={(e) => onEdit({ brief: e.target.value })}
-            />
+                />
+              </div>
+            </div>
             <div className="creative-editor-footer">
               <small>{project.brief.length} 字</small>
               <div className="actions">
@@ -383,25 +395,9 @@ export function CreativeWorkspace({
                       .map((s) => ({ value: s.id, label: s.name }))}
                   />
                 </label>
-                <label
-                  className="story-count-choice"
-                  htmlFor="story-version-count"
-                >
-                  <span>版本个数</span>
-                  <BusinessSelect
-                    id="story-version-count"
-                    label="故事版本个数"
-                    value={String(versionCount)}
-                    onChange={(v) => onEdit({ storyVersionCount: Number(v) })}
-                    options={[1, 2, 3, 4].map((n) => ({
-                      value: String(n),
-                      label: `${n} 个`,
-                    }))}
-                  />
-                </label>
                 <Button disabled={disabled} onClick={generatePlans}>
                   <Sparkles />
-                  AI 生成 {versionCount} 个故事方案
+                  AI 生成 3 个故事方案
                 </Button>
                 <Button variant="outline" onClick={() => onStage('故事')}>
                   已有故事，直接编写 / 导入
@@ -409,62 +405,60 @@ export function CreativeWorkspace({
                 </Button>
               </div>
             </div>
-            <p
-              id="idea-generation-help"
-              className="helper"
-              role={error ? 'alert' : undefined}
-            >
-              {error ||
-                (!project.brief.trim()
-                  ? '先填写一句话创意，或点击“试试示例”，再生成故事方案。'
-                  : '')}
-            </p>
-          </div>
-          <div className="creative-card">
-            <div className="creative-card-heading">
-              <h2>
-                <BookOpen />
-                故事方案 <small>{plans.length} 个候选</small>
-              </h2>
-              {plans.length > 0 && (
-                <Button
-                  variant="outline"
-                  disabled={disabled || plans.length + versionCount > 12}
-                  onClick={generatePlans}
-                >
-                  再生成 {versionCount} 个
-                </Button>
-              )}
-            </div>
-            {plans.length ? (
-              <div className="creative-plans-grid">{plans.map(planCard)}</div>
-            ) : (
-              <div className="creative-empty">
-                <BookOpen />
-                <h3>让创意生长出不同的可能</h3>
-                <p>
-                  生成后在这里比较方案，选定后再进入故事编辑。不会自动覆盖现有故事。
-                </p>
-              </div>
-            )}
           </div>
         </>
       ) : (
-        <div className={stage === '故事' ? 'creative-story-columns' : ''}>
+        <div
+          ref={storyColumns}
+          className={stage === '故事' ? 'creative-story-columns' : ''}
+          style={stage === '故事' ? { '--story-list-width': `${storyWidth}px` } as React.CSSProperties : undefined}
+        >
           {stage === '故事' && (
             <aside className="creative-card creative-plan-list">
               <h2>故事版本</h2>
-              <Button variant="outline" onClick={() => onStage('创意')}>
-                <Plus />
-                回到创意生成方案
+              <div className="story-plan-scroll" aria-label="故事版本列表">
+                {plans.map(planCard)}
+                {!plans.length && (
+                  <p className="helper">
+                    还没有候选方案。你也可以直接在右侧编辑或导入故事。
+                  </p>
+                )}
+              </div>
+              <Button
+                variant="outline"
+                disabled={disabled || plans.length + versionCount > 12}
+                onClick={generatePlans}
+              >
+                <Sparkles />
+                AI 再来 {versionCount} 个
               </Button>
-              {plans.map(planCard)}
-              {!plans.length && (
-                <p className="helper">
-                  还没有候选方案。你也可以直接在右侧编辑或导入故事。
-                </p>
-              )}
             </aside>
+          )}
+          {stage === '故事' && (
+            <button
+              type="button"
+              className="story-column-resizer"
+              aria-label={`拖动调整故事版本栏宽度，当前 ${storyWidth} 像素；方向键可微调`}
+              onPointerDown={(e) => {
+                e.currentTarget.setPointerCapture(e.pointerId);
+                e.currentTarget.classList.add('dragging');
+              }}
+              onPointerMove={(e) => {
+                if (e.currentTarget.hasPointerCapture(e.pointerId)) resizeStoryColumn(e.clientX);
+              }}
+              onPointerUp={(e) => {
+                resizeStoryColumn(e.clientX);
+                e.currentTarget.releasePointerCapture(e.pointerId);
+                e.currentTarget.classList.remove('dragging');
+              }}
+              onLostPointerCapture={(e) => e.currentTarget.classList.remove('dragging')}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                  e.preventDefault();
+                  setStoryWidth((width) => Math.max(260, Math.min(700, width + (e.key === 'ArrowRight' ? 20 : -20))));
+                }
+              }}
+            />
           )}
           <div className="creative-card creative-editor">
             <div className="creative-card-heading">
@@ -501,7 +495,25 @@ export function CreativeWorkspace({
                   当前正文已在所选方案基础上修改，原方案仍保留。
                 </p>
               )}
+            {stage === '剧本' && !scriptEditing && (
+              <button
+                type="button"
+                className="formatted-script"
+                aria-label="点击编辑剧本正文"
+                onClick={() => { setScriptEditing(true); requestAnimationFrame(() => scriptInput.current?.focus()); }}
+              >
+                {text.split('\n').map((line, index) => {
+                  const scene = /^\s*(?:第[一二三四五六七八九十百千0-9]+场|场景\s*[0-9一二三四五六七八九十]+)/.test(line);
+                  const dialogue = /^\s*([^：:\s]{1,12})[：:](.*)$/.exec(line);
+                  return <span key={index} className={scene ? 'script-scene' : dialogue ? 'script-dialogue' : 'script-line'}>
+                    {dialogue ? <><strong>{dialogue[1]}：</strong>{dialogue[2]}</> : line || '\u00a0'}
+                  </span>;
+                })}
+              </button>
+            )}
             <textarea
+              ref={scriptInput}
+              className={stage === '剧本' && !scriptEditing ? 'script-input-hidden' : undefined}
               data-stage-field={key}
               aria-label={`${stage}正文`}
               rows={20}
@@ -510,55 +522,22 @@ export function CreativeWorkspace({
               maxLength={100000}
               placeholder={`在这里编写${stage}，或通过上方导入TXT / MD正文。`}
               onChange={(e) => onEdit({ [key]: e.target.value })}
+              onBlur={() => { if (stage === '剧本') setScriptEditing(false); }}
             />
             <div
               className={`creative-editor-footer${stage === '故事' ? ' creative-story-footer' : ''}`}
             >
-              <div className="actions">
+              {stage !== '故事' && <div className="actions">
                 {(stage !== '剧本' || !project.script.trim()) && (
                   <Button
                     variant="outline"
                     disabled={disabled}
                     onClick={() =>
-                      onGenerate(
-                        stage === '故事'
-                          ? 'story'
-                          : stage === '剧本'
-                            ? 'script'
-                            : 'scenes',
-                      )
+                      onGenerate(stage === '剧本' ? 'script' : 'scenes')
                     }
                   >
                     <Sparkles />
                     AI {stage === '分场' ? '提取分场' : '生成' + stage}
-                  </Button>
-                )}
-                {stage === '故事' && (
-                  <Button
-                    variant="outline"
-                    disabled={!!preview || !text.trim() || plans.length >= 12}
-                    onClick={() => {
-                      const plan = {
-                        id: id(),
-                        title: `${project.title.slice(0, 130)} · 版本${plans.length + 1}`,
-                        summary: text.slice(0, 120),
-                        content: text,
-                        tags: ['自定义'],
-                      };
-                      if (text.length > 30000) {
-                        setError(
-                          '故事方案最多3万字，请精简后保存；当前正文未修改。',
-                        );
-                        return;
-                      }
-                      onEdit({
-                        storyPlans: [...plans, plan],
-                        selectedStoryId: plan.id,
-                      });
-                    }}
-                  >
-                    <Save />
-                    另存故事方案
                   </Button>
                 )}
                 {stage === '剧本' && (
@@ -566,7 +545,7 @@ export function CreativeWorkspace({
                     分场编辑（可选）
                   </Button>
                 )}
-              </div>
+              </div>}
               <div className="actions">
                 {stage === '故事' && (
                   <label

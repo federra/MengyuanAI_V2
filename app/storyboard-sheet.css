@@ -8,15 +8,17 @@
   display: none;
 }
 .shot-sheet-mode .workflow {
-  margin-top: 8px;
-  margin-bottom: 20px;
-  border-radius: 0;
+  margin-top: 12px;
+  margin-bottom: 16px;
+  border-radius: 12px;
   background: white;
-  padding: 20px 12px;
+  padding: 9px 16px;
+  z-index: 30;
 }
 .shot-sheet-mode .workflow button > span {
-  width: 38px;
-  height: 38px;
+  width: 28px;
+  height: 28px;
+  font-size: 13px;
   border: 1px solid #dce8fb;
   box-shadow: 0 0 0 4px #f1f6ff;
   color: #7790b1;
@@ -37,10 +39,10 @@
 }
 .shot-sheet-mode .workflow button small {
   display: block;
-  font-size: 0.8rem;
+  font-size: 0.7rem;
 }
 .shot-sheet-mode .workflow button b {
-  font-size: 0.95rem;
+  font-size: 0.85rem;
 }
 .sheet-heading {
   display: flex;
@@ -54,7 +56,7 @@
   flex: 1;
 }
 .sheet-heading h1 {
-  font-size: 1.9rem;
+  font-size: 1.25rem;
   font-weight: 750;
   color: #102553;
   margin: 0;
@@ -69,12 +71,12 @@
   color: #8b9dba;
 }
 .sheet-heading > button {
-  height: 42px;
-  padding: 0 16px;
+  height: 36px;
+  padding: 0 12px;
 }
 .sheet-heading > button:last-child {
-  background: linear-gradient(120deg, #6a9eff, #0860ff);
-  box-shadow: 0 5px 12px #317cff20;
+  background: #fff;
+  box-shadow: none;
 }
 .shot-sheet-mode .work-grid.storyboard-mode {
   display: grid !important;
@@ -116,8 +118,8 @@
   flex-wrap: wrap;
 }
 .sheet-toolbar button {
-  height: 44px;
-  min-height: 44px;
+  height: 36px;
+  min-height: 36px;
   padding: 0 13px;
   flex-shrink: 0;
   font-size: 0.875rem;
@@ -127,8 +129,8 @@
   border-radius: 8px;
 }
 .sheet-toolbar button svg {
-  width: 22px;
-  height: 22px;
+  width: 17px;
+  height: 17px;
   color: #347bff;
 }
 .sheet-scroll {
@@ -880,7 +882,7 @@
 .doubao-helper dd { overflow-wrap:anywhere; margin:0; }
 @media(max-width:700px){.doubao-settings-grid{grid-template-columns:1fr}.doubao-tabs{align-items:stretch}.doubao-helper>div{grid-template-columns:1fr}}
 
-.sheet-head-sticky { position:sticky; top:0; z-index:20; }
+.sheet-head-sticky { position:sticky; top:68px; z-index:20; }
 .sheet-head-scroll { overflow:hidden; }
 .sheet-column-head > span { text-align:center; }
 .sheet-column-head > :first-child { justify-self:center; }
