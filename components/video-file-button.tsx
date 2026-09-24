@@ -8,10 +8,12 @@ export function VideoFileButton({
   media,
   projectId,
   name,
+  iconOnly = false,
 }: {
   media: Media;
   projectId: string;
   name: string;
+  iconOnly?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -57,6 +59,8 @@ export function VideoFileButton({
     <div className="video-file-action">
       <Button
         variant="outline"
+        data-tooltip={desktop ? '打开保存目录' : '下载视频'}
+        aria-label={busy ? '正在保存视频' : desktop ? '打开保存目录' : '下载视频'}
         disabled={busy}
         onClick={() => void open()}
         title={
@@ -66,7 +70,7 @@ export function VideoFileButton({
         }
       >
         {desktop ? <FolderOpen /> : <Download />}
-        {busy ? '正在保存…' : desktop ? '打开保存目录' : '下载视频'}
+        {!iconOnly && (busy ? '正在保存…' : desktop ? '打开保存目录' : '下载视频')}
       </Button>
       {error && <small role="alert">{error}</small>}
     </div>

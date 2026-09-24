@@ -38,6 +38,7 @@ import {
 } from '@/lib/models';
 export type GenerationTarget = {
   modelConfigId?: string;
+  autoSubmit?: boolean;
   id: string;
   kind: GenerationInput['target'];
   prompt?: string;
@@ -77,6 +78,8 @@ export function GenerationDialog({
     target.modelConfigId || (video ? shot?.videoModelId : '') || '',
   );
   const [models, setModels] = useState<ModelConfig[]>([]);
+  const [modelsLoaded, setModelsLoaded] = useState(false);
+  const autoStarted = useRef(false);
   const [mode, setMode] = useState(video ? 'all' : 'none');
   const [refs, setRefs] = useState<string[]>([]);
   const [size, setSize] = useState('video');
@@ -88,12 +91,14 @@ export function GenerationDialog({
   const [job, setJob] = useState<GenerationJob>();
   const requestId = useRef(crypto.randomUUID());
   const lock = useRef(false);
+  const submitRef = useRef<() => Promise<void>>(async () => {});
   useEffect(() => {
     modelApi<ModelConfig[]>('/api/models')
       .then((x) => {
         setModels(x);
+        setModelsLoaded(true);
       })
-      .catch((e) => setMessage(e.message));
+      .catch((e) => {setMessage(e.message); setModelsLoaded(true);});
   }, []);
   const model = models.find(
     (m) =>
@@ -275,13 +280,24 @@ export function GenerationDialog({
         (e as Error).message + (submissionStarted
           ? '。请先到任务中心核对记录，避免重复提交。'
           : ' 本次未提交生成任务，请先处理项目保存问题。');
-      if (returned) onNotice(`${label}：${error}`);
+      if (returned || target.autoSubmit) onNotice(`${label}：${error}`);
       else setMessage(error);
+      if (target.autoSubmit && !returned) onClose();
     } finally {
       if (!returned) setBusy(false);
       lock.current = false;
     }
   }
+  useEffect(() => { submitRef.current = submit; });
+  useEffect(() => {
+    if (!target.autoSubmit || !modelsLoaded || autoStarted.current) return;
+    autoStarted.current = true;
+    queueMicrotask(() => {
+      if (message) { onNotice(message); onClose(); }
+      else void submitRef.current();
+    });
+  }, [target.autoSubmit, modelsLoaded, message, onNotice, onClose]);
+  if (target.autoSubmit) return null;
   return (
     <Dialog open onOpenChange={(open) => !open && !busy && onClose()}>
       <DialogContent className="generation-dialog">

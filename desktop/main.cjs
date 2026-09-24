@@ -1,4 +1,4 @@
-const {app, BrowserWindow, Menu, dialog, shell, session, safeStorage, ipcMain, Notification} = require('electron');
+const {app, BrowserWindow, Menu, dialog, shell, session, screen, safeStorage, ipcMain, Notification} = require('electron');
 const {exportImage,chooseImage} = require('./image-files.cjs');
 const {exportVideo} = require('./video-files.cjs');
 const {exportJianying} = require('./jianying-export.cjs');
@@ -290,7 +290,11 @@ else {
       return {ok: true};
     });
     await log(`Desktop started. Version=${app.getVersion()} PID=${process.pid}`);
-    window = new BrowserWindow({width:1500,height:960,minWidth:1024,minHeight:700,show:!smoke,
+    const workArea = screen.getPrimaryDisplay().workAreaSize;
+    window = new BrowserWindow({
+      width:Math.min(1450,Math.max(760,workArea.width-40)),
+      height:Math.min(820,Math.max(560,workArea.height-80)),
+      minWidth:760,minHeight:560,resizable:true,show:!smoke,
       title:'AI短片导演 · 本地测试版',backgroundColor:'#f4f7fd',icon:path.join(__dirname,'icon.ico'),
       webPreferences:{backgroundThrottling:false,preload:path.join(__dirname,'preload.cjs'),nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true,partition:'persist:director-desktop'},
     });

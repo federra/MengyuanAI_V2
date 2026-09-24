@@ -7,5 +7,13 @@ module.exports={
   toolsets:{nsis:'1.2.1'},
   publish:[{provider:'generic',url:'https://121.199.40.214/updates/windows/'}],
   win:{target:[{target:'nsis',arch:['x64']}],artifactName:'MengyuanAI-Setup-${version}-${arch}.${ext}',icon:'icon.ico'},
-  nsis:{oneClick:true,perMachine:false,runAfterFinish:true,deleteAppDataOnUninstall:false,include:'build/installer.nsh'},
+  nsis:{
+    oneClick:false,
+    allowToChangeInstallationDirectory:true,
+    createDesktopShortcut:true,
+    perMachine:false,
+    runAfterFinish:true,
+    deleteAppDataOnUninstall:false,
+    include:'build/installer.nsh',
+  },
 };

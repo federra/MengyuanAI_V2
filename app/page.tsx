@@ -251,7 +251,6 @@ function Workbench({accessState}:{accessState:AccessState}) {
   const [project, setProject] = useState<Project>(() => exampleProject());
   const [projects, setProjects] = useState<Project[]>([]);
   const [step, setStep] = useState<Stage>('分镜');
-  const [rowView, setRowView] = useState(true);
   const [menu, setMenu] = useState('创作中心');
   const lastWorkbench = useRef<{ projectId: string; stage: Stage }>({
     projectId: project.id,
@@ -371,6 +370,8 @@ function Workbench({accessState}:{accessState:AccessState}) {
     useState<GenerationTarget | null>(null);
   const [aiText, setAiText] = useState('');
   const [aiTask, setAiTask] = useState('');
+  const [aiGenerating, setAiGenerating] = useState('');
+  const aiGenerationLock = useRef(false);
   const aiStoryboard = useMemo(() => {
     if (aiTask !== 'shots' || !aiText.trim()) return null;
     try {
@@ -416,7 +417,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
     return()=>{clearTimeout(timer);void window.directorDesktop?.auth?.('recovery-write',snapshot);};
   },[project,dirty,loading]);
   useEffect(()=>{
-    const guard=(event:Event)=>{if(lock.current||batchesActive.current)(event as CustomEvent<{blocked:boolean}>).detail.blocked=true;};
+    const guard=(event:Event)=>{if(lock.current||aiGenerationLock.current||batchesActive.current)(event as CustomEvent<{blocked:boolean}>).detail.blocked=true;};
     window.addEventListener('director-before-logout',guard);return()=>window.removeEventListener('director-before-logout',guard);
   },[]);
   useEffect(() => {
@@ -759,8 +760,12 @@ function Workbench({accessState}:{accessState:AccessState}) {
       setError('请先填写上一步内容');
       return;
     }
+    if (aiGenerationLock.current) return;
+    aiGenerationLock.current = true;
     setAiTask(task);
-    await action('AI 正在创作', async () => {
+    setAiGenerating(task);
+    setError('');
+    try {
       const result = await api<{ text: string; phase?: string }>('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -795,20 +800,27 @@ function Workbench({accessState}:{accessState:AccessState}) {
                           s.id === (source.shotSkillId || 'shot') &&
                           ['分镜', '全项目'].includes(s.stage),
                       ) || builtinSkills.find((s) => s.id === 'shot'),
-                    assets: source.assets.map((a) => ({
+                    assets: source.assets.filter((a) => a.name && content.includes(a.name)).map((a) => ({
                       kind: a.kind,
                       name: a.name,
-                      description: a.description,
+                      description: a.description.slice(0, 260),
                     })),
                   })
                 : task === 'story' ? JSON.stringify({brief: content, videoType: source.videoType, style: source.style, ratio: source.ratio, storyLength: source.storyLength || '500～1000字', creativeSkill: [...builtinSkills, ...(source.skills || [])].find(s => s.id === (source.creativeSkillId || 'idea'))}) : content),
         }),
-      }, progress => { if (progress.phase === 'storyboard-converting') setBusy('剧本格式转换中'); });
+      });
+      if (current.current.id !== source.id) {
+        setNotice('原项目的 AI 结果已返回；请切换回原项目重新发起生成。');
+        return;
+      }
       if (task === 'storyOptions') {
         const plans = parseStoryPlans(result.text);
         if ((source.storyPlans?.length || 0) + plans.length > 12)
           throw Error('故事方案超过12个，请先删除不再使用的候选');
-        edit({ storyPlans: [...(source.storyPlans || []), ...plans] });
+        setProject(currentProject => currentProject.id === source.id
+          ? {...currentProject, storyPlans: [...(currentProject.storyPlans || []), ...plans]}
+          : currentProject);
+        setDirty(true);
         setNotice(
           `已生成${plans.length}个故事方案${plans.length !== 3 ? '（模型未按要求返回3个，已保留完整方案）' : ''}，请在故事工作区审阅并保存项目。`,
         );
@@ -822,7 +834,12 @@ function Workbench({accessState}:{accessState:AccessState}) {
       }
       setAiText(result.text);
       setDialog('ai');
-    });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'AI 生成失败');
+    } finally {
+      aiGenerationLock.current = false;
+      setAiGenerating('');
+    }
   }
   async function applyAi() {
     if (lock.current) return;
@@ -988,7 +1005,6 @@ function Workbench({accessState}:{accessState:AccessState}) {
                           const restored = lastWorkbench.current.projectId === project.id
                             ? lastWorkbench.current.stage : '分镜';
                           setStep(restored);
-                          if (restored === '分镜') setRowView(true);
                         }
                         if (name === '资产中心') setStep('资产');
                         event.currentTarget.scrollIntoView({ block: 'nearest' });
@@ -1013,7 +1029,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
         </SidebarFooter>
       </Sidebar>
       <main
-        className={`workspace ${businessMode ? 'business-workspace' : ''} ${creativeMode ? 'creative-mode' : 'management-workspace'} ${creativeMode && step === '分镜' && rowView ? 'shot-sheet-mode' : ''}`}
+        className={`workspace ${businessMode ? 'business-workspace' : ''} ${creativeMode ? 'creative-mode' : 'management-workspace'} ${creativeMode && step === '分镜' ? 'shot-sheet-mode' : ''}`}
       >
         <header className="topbar">
           <div className="breadcrumb">
@@ -1032,7 +1048,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
                   const next = projects.find((item) => item.id === id);
                   if (next && next.id !== project.id) void choose(next);
                 }}
-                disabled={!!busy || loading}
+                disabled={!!busy || !!aiGenerating || loading}
               >
                 <SelectTrigger className="project-switcher" aria-label="切换项目">
                   <SelectValue>{project.title}</SelectValue>
@@ -1105,6 +1121,11 @@ function Workbench({accessState}:{accessState:AccessState}) {
             </button>
           </div>
         )}
+        {aiGenerating && <output className="ai-generation-indicator" aria-live="polite">
+          <span className="ai-generation-orbit" aria-hidden="true"><Sparkles size={20}/></span>
+          <strong>AI努力生成中</strong>
+          <small>可继续切换页面和处理其他内容</small>
+        </output>}
         <input
           ref={fileInput}
           type="file"
@@ -1203,7 +1224,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
               setError('');
             }}
           />}
-          {creativeMode && step === '分镜' && rowView && (
+          {creativeMode && step === '分镜' && (
             <header className="sheet-heading">
               <div>
                 <h1>分镜工作区</h1>
@@ -1231,7 +1252,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
             </header>
           )}
           <div
-            className={`work-grid ${businessMode ? 'business-mode' : ''} ${(creativeMode && step === '资产') || menu === '资产中心' ? 'asset-mode' : ''} ${step === '分镜' && rowView && menu === '创作中心' ? 'storyboard-mode' : ''}`}
+            className={`work-grid ${businessMode ? 'business-mode' : ''} ${(creativeMode && step === '资产') || menu === '资产中心' ? 'asset-mode' : ''} ${step === '分镜' && menu === '创作中心' ? 'storyboard-mode' : ''}`}
           >
             <div className="main-panels">
               <AssetSync
@@ -1581,14 +1602,6 @@ function Workbench({accessState}:{accessState:AccessState}) {
                       description={`${project.shots.length} 个镜头 · 预计 ${total.toFixed(1)} 秒`}
                     >
                       <div className="actions">
-                        {step === '分镜' && (
-                          <Button
-                            variant="outline"
-                            onClick={() => setRowView(!rowView)}
-                          >
-                            {rowView ? '切换表格视图' : '切换组合视图'}
-                          </Button>
-                        )}
                         <Button
                           variant="outline"
                           onClick={() => generate('shots')}
@@ -1602,13 +1615,13 @@ function Workbench({accessState}:{accessState:AccessState}) {
                         </Button>
                       </div>
                     </Title>
-                    {!project.shots.length && !(step === '分镜' && rowView) ? (
+                    {!project.shots.length && step !== '分镜' ? (
                       <div className="empty-note">
                         <Film />
                         <h3>从第一个镜头开始</h3>
                         <p>手动新增镜头，或从剧本生成分镜。</p>
                       </div>
-                    ) : step === '分镜' && rowView ? (
+                    ) : step === '分镜' ? (
                       <StoryboardRows
                         batchAction={assetManagementBatchAction}
                         onJob={recordGeneration}
@@ -1639,7 +1652,12 @@ function Workbench({accessState}:{accessState:AccessState}) {
                           setSelected(target);
                           editShot(patch, target);
                         }}
-                        onMove={move}
+                        onReorder={(from, to) => {
+                          const shots = [...project.shots];
+                          const [moved] = shots.splice(from, 1);
+                          shots.splice(to > from ? to - 1 : to, 0, moved);
+                          edit({ shots });
+                        }}
                         onInsert={(i) => {
                           const next = newShot();
                           const shots = [...project.shots];
@@ -1647,17 +1665,13 @@ function Workbench({accessState}:{accessState:AccessState}) {
                           edit({ shots });
                           setSelected(next.id);
                         }}
-                        onDelete={(target) => {
+                        onDelete={(targets) => {
                           const before = structuredClone(project);
                           edit({
-                            shots: project.shots.filter((s) => s.id !== target),
+                            shots: project.shots.filter((s) => !targets.includes(s.id)),
                           });
                           setUndo(before);
-                          setNotice('镜头已删除，可撤销；素材文件仍保留');
-                        }}
-                        onSelect={(target) => {
-                          setSelected(target);
-                          setRowView(false);
+                          setNotice(`已删除 ${targets.length} 条分镜，可撤销；素材文件仍保留`);
                         }}
                         onUpload={upload}
                       />
@@ -1715,7 +1729,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
                       </Table>
                     )}
                   </section>
-                  {shot && !(step === '分镜' && rowView) && (
+                  {shot && step !== '分镜' && (
                     <section className="panel">
                       <Title
                         title={`当前镜头 · SHOT_${String(shotIndex + 1).padStart(3, '0')}`}

@@ -21,7 +21,6 @@ import type { GenerationTarget } from './generation-tools';
 import { useState, useEffect, useRef } from 'react';
 import { doubaoCommand, doubaoJobPaused, type DoubaoSnapshot } from '@/lib/doubao-manager';
 import { doubaoModels, doubaoRatios } from '@/lib/doubao';
-import { ShotAssetThumbnails } from './shot-asset-thumbnails';
 import { AssetImagePreview } from './asset-image-preview';
 import { SpeechControls } from './speech-controls';
 import { DoubaoControls } from './doubao-controls';
@@ -37,8 +36,8 @@ import {
   LoaderCircle,
   Pause,
   Plus,
-  ArrowUp,
-  ArrowDown,
+  GripVertical,
+  Trash2,
   Upload,
   Copy,
   ImageIcon,
@@ -65,7 +64,7 @@ import {
 } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { type Project, type Shot, shotVisualText } from '@/lib/studio';
-import { assetKinds, matchShotAssets } from '@/lib/assets';
+import { matchShotAssets } from '@/lib/assets';
 import {
   dialogueLines,
   dialogueText,
@@ -111,10 +110,9 @@ export function StoryboardRows({
   onJob,
   disabled,
   onEdit,
-  onMove,
+  onReorder,
   onInsert,
   onDelete,
-  onSelect,
   onActivate,
   selectedId,
   onUpload,
@@ -134,10 +132,9 @@ export function StoryboardRows({
   onJob: (job: GenerationJob) => void;
   disabled: boolean;
   onEdit: (patch: Partial<Shot>, shotId: string) => void;
-  onMove: (index: number, delta: number) => void;
+  onReorder: (from: number, to: number) => void;
   onInsert: (index: number) => void;
-  onDelete: (id: string) => void;
-  onSelect: (id: string) => void;
+  onDelete: (ids: string[]) => void;
   onActivate: (id: string) => void;
   selectedId?: string;
   onUpload: (
@@ -151,6 +148,7 @@ export function StoryboardRows({
     shotId: string;
     kind: string;
   } | null>(null);
+  const [settingsId, setSettingsId] = useState('');
   const [message, setMessage] = useState('');
   const [models, setModels] = useState<ModelConfig[]>([]);
   const [doubao, setDoubao] = useState<DoubaoSnapshot>();
@@ -190,6 +188,10 @@ export function StoryboardRows({
   const [blockingPreview, setBlockingPreview] = useState(false);
   const [previewId, setPreviewId] = useState('');
   const [checked, setChecked] = useState<string[]>([]);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
+  const pointerDrag = useRef<{ from: number; startY: number; active: boolean } | null>(null);
   const [batch, setBatch] = useState('');
   const handledBatchAction = useRef(0);
   useEffect(() => {
@@ -224,6 +226,36 @@ export function StoryboardRows({
         : a.id === dubbingRole?.attributes?.声音资产),
   );
   const checkedShots = project.shots.filter((s) => checked.includes(s.id));
+  const checkedIds = checkedShots.map((s) => s.id);
+  function nearestInsertion(y: number) {
+    const points = document.querySelectorAll<HTMLElement>('.storyboard-rows .sheet-insertion');
+    let nearest = 0;
+    let distance = Infinity;
+    points.forEach((point) => {
+      const rect = point.getBoundingClientRect();
+      const next = Math.abs(y - (rect.top + rect.bottom) / 2);
+      if (next < distance) { distance = next; nearest = Number(point.dataset.index); }
+    });
+    return nearest;
+  }
+  function finishDrag(y: number) {
+    const drag = pointerDrag.current;
+    if (drag && Math.abs(y - drag.startY) >= 6) {
+      const to = nearestInsertion(y);
+      if (to !== drag.from && to !== drag.from + 1) onReorder(drag.from, to);
+    }
+    pointerDrag.current = null;
+    setDraggingIndex(null);
+    setDropIndex(null);
+  }
+  function insertionPoint(index: number) {
+    return <div className={`sheet-insertion ${dropIndex === index ? 'is-drop-target' : ''}`}
+      data-index={index}>
+      <button type="button" disabled={disabled || project.shots.length >= 200}
+        aria-label={`在${index === 0 ? '第一条分镜前' : index === project.shots.length ? '最后一条分镜后' : `第${index}和第${index + 1}条分镜之间`}添加分镜`}
+        title="在此添加分镜" onClick={() => onInsert(index - 1)}><Plus size={15} /></button>
+    </div>;
+  }
 
   const blockingShot = project.shots.find((s) => s.id === blockingId);
   const blockingJob = latestBlockingJob(generationJobs, project.id, blockingId);
@@ -242,6 +274,7 @@ export function StoryboardRows({
       .join('；')}`.slice(0, 10000);
   }
   const target = project.shots.find((s) => s.id === assetDialog?.shotId);
+  const settingsShot = project.shots.find((s) => s.id === settingsId);
   function updateLines(s: Shot, lines: DialogueLine[]) {
     if (dialogueText(lines).length > 10000) {
       setMessage('每镜台词最多10000字');
@@ -261,9 +294,11 @@ export function StoryboardRows({
     );
   }
   return (
-    <div className="storyboard-rows">
+    <div className={`storyboard-rows ${draggingIndex !== null ? 'is-dragging' : ''}`}>
       {doubaoPreview.dialog}
       <div className="sheet-toolbar">
+        {checkedShots.length > 0 && <Button variant="outline" className="sheet-bulk-delete" disabled={disabled}
+          onClick={() => setDeleteConfirmOpen(true)}><Trash2 />删除分镜（{checkedShots.length}）</Button>}
         <Button variant="outline" disabled={disabled} onClick={() => onManageAssets(checkedShots.map((shot) => shot.id))}>
           <Users />
           资产管理
@@ -286,15 +321,16 @@ export function StoryboardRows({
             }
           />
           <span>分镜序号</span>
-          <span>台词</span>
-          <span>角色/道具/场景/站位图</span>
-          <span>提示词</span>
           <span>视频</span>
-          <span>操作</span>
+          <span>提示词</span>
+          <span>台词</span>
+          <span>资产绑定</span>
+          <span>模型生成</span>
         </div>
       </div></div>
       <div className="sheet-scroll" onScroll={event=>{if(sheetHead.current)sheetHead.current.scrollLeft=event.currentTarget.scrollLeft;}}>
         {message && <output className="row-message">{message}</output>}
+        {insertionPoint(0)}
         {project.shots.map((s, i) => {
           const job = latestBlockingJob(generationJobs, project.id, s.id);
           const generatingBlocking = blockingJobActive(job);
@@ -316,10 +352,9 @@ export function StoryboardRows({
           const refs = project.assets.filter((a) =>
             s.references.includes(a.id),
           );
-          return (
+          return (<div key={s.id} className="sheet-row-wrap">
             <article
               className={`storyboard-row ${selectedId === s.id ? 'is-selected' : ''}`}
-              key={s.id}
               aria-label={`分镜${i + 1}`}
             >
               <fieldset disabled={disabled} className="storyboard-row-body">
@@ -338,12 +373,37 @@ export function StoryboardRows({
                 </div>
                 <button
                   className="sheet-shot-name"
-                  onClick={() => onSelect(s.id)}
+                  onClick={() => { onActivate(s.id); setSettingsId(s.id); }}
                   title={s.title}
                 >
-                  分镜{i + 1}
+                  #{String(i + 1).padStart(2, '0')}
                   <small>{s.reviewRequired ? '待复核' : ''}</small>
                 </button>
+                <button type="button" className="sheet-drag-handle"
+                  aria-label={`拖动分镜${i + 1}调整顺序`} title="拖动调整分镜顺序"
+                  onPointerDown={event => {
+                    if (disabled || event.button !== 0) return;
+                    pointerDrag.current = { from: i, startY: event.clientY, active: false };
+                    event.currentTarget.setPointerCapture(event.pointerId);
+                  }}
+                  onMouseDown={event => {
+                    if (disabled || event.button !== 0) return;
+                    if (!pointerDrag.current) pointerDrag.current = {from: i, startY: event.clientY, active: false};
+                    window.addEventListener('mouseup', up => finishDrag(up.clientY), {once: true});
+                  }}
+                  onPointerMove={event => {
+                    const drag = pointerDrag.current;
+                    if (!drag || Math.abs(event.clientY - drag.startY) < 6) return;
+                    if (!drag.active) { drag.active = true; setDraggingIndex(drag.from); }
+                    setDropIndex(nearestInsertion(event.clientY));
+                  }}
+                  onPointerUp={event => finishDrag(event.clientY)}
+                  onPointerCancel={() => { pointerDrag.current = null; setDraggingIndex(null); setDropIndex(null); }}
+                  onKeyDown={event => {
+                    if (event.key === 'ArrowUp' && i > 0) { event.preventDefault(); onReorder(i, i - 1); }
+                    if (event.key === 'ArrowDown' && i < project.shots.length - 1) { event.preventDefault(); onReorder(i, i + 2); }
+                  }}
+                  ><GripVertical size={15} /></button>
                 <div className="dialogue-column">
                   <div className="row-column-heading">
                     台词与声音 <span>{lines.length} 条</span>
@@ -506,78 +566,32 @@ export function StoryboardRows({
                     添加台词
                   </Button>
                 </div>
-                <div className="asset-rail">
-                  <div className="row-column-heading">资产</div>
-                  {assetKinds
-                    .filter((k) => ['人物', '场景', '道具'].includes(k))
-                    .map((kind) => {
-                      const assets = refs.filter((a) => a.kind === kind);
-                      return (
-                        <ShotAssetThumbnails
-                          key={kind}
-                          kind={kind}
-                          assets={assets}
-                          onPick={() => setAssetDialog({ shotId: s.id, kind })}
-                          onRemove={(id) =>
-                            onEdit(
-                              {
-                                references: s.references.filter(
-                                  (ref) => ref !== id,
-                                ),
-                              },
-                              s.id,
-                            )
-                          }
-                          onPreview={(media, name) =>
-                            setAssetPreview({ media, name })
-                          }
-                        />
-                      );
+                <div className="asset-rail" aria-label={`分镜${i + 1}资产绑定`}>
+                  <div className="shot-asset-tag-group">
+                    {refs.filter((asset) => ['人物', '道具', '场景', '服饰', '声音'].includes(asset.kind)).map((asset) => {
+                      const media = asset.image || asset.referenceImage;
+                      return <button key={asset.id} type="button" className="shot-asset-tag" data-kind={asset.kind}
+                        title={media ? `预览${asset.name}图片` : `${asset.name}尚无图片，点击管理绑定`}
+                        onClick={() => media ? setAssetPreview({ media, name: asset.name }) : setAssetDialog({ shotId: s.id, kind: asset.kind })}>
+                        {asset.kind === '人物' ? '角色' : asset.kind} · {asset.name}{media ? ' ✓' : ''}
+                      </button>;
                     })}
-                  <button
-                    className="asset-rail-item"
-                    onClick={() => {
-                      onActivate(s.id);
-                      setBlockingId(s.id);
-                    }}
-                    aria-label={`镜头${i + 1}站位图`}
-                    title="查看本镜头站位图与生成要求"
-                  >
-                    {s.blockingImage ? (
-                      <Image
-                        unoptimized
-                        src={s.blockingImage.url}
-                        width={58}
-                        height={48}
-                        alt="站位图"
-                      />
-                    ) : (
-                      <ImageIcon size={22} />
-                    )}
-                    <span>
-                      <b>站位图</b>
-                      <small aria-live="polite">
-                        {generatingBlocking
-                          ? '生成中…'
-                          : job?.status === 'attention'
-                            ? '生成失败 · 点击查看'
-                            : s.blockingImage
-                              ? '1 张图片'
-                              : '待生成'}
-                      </small>
-                    </span>
+                  </div>
+                  <button type="button" className="shot-asset-tag" data-kind="站位图" onClick={() => {
+                    onActivate(s.id);
+                    if (s.blockingImage) setAssetPreview({ media: s.blockingImage, name: `分镜${i + 1}站位图` });
+                    else setBlockingId(s.id);
+                  }}
+                    aria-label={`镜头${i + 1}站位图`} title={s.blockingImage ? '预览站位图' : '打开站位图生成设置'}>
+                    站位图 · {generatingBlocking ? '生成中' : job?.status === 'attention' ? '失败' : s.blockingImage ? '已生成' : '待生成'}
                   </button>
-                  <details className="sheet-extra-assets">
-                    <summary>服饰 / 声音</summary>
-                    {['服饰', '声音'].map((kind) => (
-                      <Button
-                        key={kind}
-                        variant="ghost"
-                        onClick={() => setAssetDialog({ shotId: s.id, kind })}
-                      >
-                        {kind} · {refs.filter((a) => a.kind === kind).length}
-                      </Button>
-                    ))}
+                  <details className="shot-asset-add-menu">
+                    <summary>+ 绑定资产</summary>
+                    <div>{(['人物', '道具', '场景', '服饰', '声音'] as const).map((kind) => (
+                      <button type="button" key={kind} onClick={() => setAssetDialog({ shotId: s.id, kind })}>
+                        {kind === '人物' ? '角色' : kind}
+                      </button>
+                    ))}</div>
                   </details>
                 </div>
                 <div className="row-prompt">
@@ -648,90 +662,6 @@ export function StoryboardRows({
                       s.firstFrameSource.videoId && (
                       <p className="helper">来源视频或顺序已变化，请复核首帧</p>
                     )}
-                  <div className="row-generation">
-                    <small className="sheet-model-caption">
-                      选择模型　　比例　　时长
-                    </small>
-                    <ModelPicker
-                      models={models}
-                      kind="video"
-                      channels={[{ id: 'doubao', label: '豆包插件 · 分组轮询' }]}
-                      value={s.videoModelId}
-                      onChange={(id) =>
-                        onEdit({ videoModelId: id || undefined }, s.id)
-                      }
-                      onSettings={onModelSettings}
-                    />
-                    <span>{s.videoModelId === 'doubao' ? s.doubaoRatio || project.ratio || doubao?.settings.ratio : project.ratio}</span>
-                    <label>
-                      <input
-                        type="number"
-                        aria-label={`镜头${i + 1}时长`}
-                        min={0.1}
-                        max={120}
-                        step={0.1}
-                        value={s.duration}
-                        onChange={(e) => {
-                          const n = Number(e.target.value);
-                          if (Number.isFinite(n))
-                            onEdit(
-                              { duration: Math.min(120, Math.max(0.1, n)) },
-                              s.id,
-                            );
-                        }}
-                      />
-                      秒
-                    </label>
-                    <Button
-                      className="video-submit"
-                      size={generatingVideo || doubaoPaused || pluginFailed || pluginAttention ? 'default' : 'icon'}
-                      disabled={generatingVideo && !canResumeDoubao}
-                      aria-label={
-                        canResumeDoubao ? '恢复豆包生成任务' : generatingVideo
-                          ? `镜头${i + 1}视频${videoStatus}`
-                          : pluginAttention ? '重新获取原任务结果' : `${pluginFailed ? '重新生成' : '生成'}镜头${i + 1}视频`
-                      }
-                      title={canResumeDoubao ? '点击恢复豆包任务，继续原有等待任务，不重复提交' : generatingVideo ? videoStatus : '生成视频'}
-                      onClick={() => {
-                        onActivate(s.id);
-                        if (pluginAttention) {
-                          if(pluginJob?.submittedAt) void doubaoCommand('resume', {id: pluginJob.id}).then(setDoubao).catch(e => setMessage(e.message));
-                          else setBatch('doubao');
-                          return;
-                        }
-                        if (canResumeDoubao) {
-                          void doubaoCommand('pause', { paused: false }).then(setDoubao).catch(e => setMessage(e.message));
-                          return;
-                        }
-                        if (s.videoModelId === 'doubao') { void submitDoubao(s); return; }
-                        onGenerate({
-                          id: s.id,
-                          kind: 'video',
-                          modelConfigId: s.videoModelId,
-                        });
-                      }}
-                    >
-                      {canResumeDoubao ? '恢复生成' : generatingVideo ? (
-                        <>
-                          <LoaderCircle className="animate-spin" />
-                          {videoStatus}
-                        </>
-                      ) : pluginAttention ? (pluginJob?.submittedAt ? '重新获取' : '核对任务') : pluginFailed ? '重新生成' : (
-                        <Sparkles />
-                      )}
-                    </Button>
-                  </div>
-                  {s.videoModelId === 'doubao' && (
-                    <div className="actions" style={{ marginTop: 8 }}>
-                      <label className="helper">豆包分组 <select aria-label={`镜头${i + 1}豆包分组`} value={s.doubaoGroup || ''} onChange={e => onEdit({ doubaoGroup: e.target.value }, s.id)}>
-                        <option value="">{doubaoGroups.length?'请选择账号分组':'请先勾选调用的账号'}</option>
-                        {[...new Set([...(s.doubaoGroup ? [s.doubaoGroup] : []), ...doubaoGroups])].map(g => <option key={g} value={g}>{g}</option>)}
-                      </select></label>
-                      <label className="helper">豆包模型 <select aria-label={`镜头${i + 1}豆包模型`} value={s.doubaoModel || ''} onChange={e => onEdit({ doubaoModel: e.target.value }, s.id)}><option value="">插件默认</option>{[...new Set([...doubaoModels, ...(s.doubaoModel ? [s.doubaoModel] : [])])].map(m => <option key={m} value={m}>{m}</option>)}</select></label>
-                      <label className="helper">豆包画幅 <select aria-label={`镜头${i + 1}豆包画幅`} value={s.doubaoRatio || ''} onChange={e => onEdit({ doubaoRatio: e.target.value }, s.id)}><option value="">项目画幅 · {project.ratio || doubao?.settings.ratio}</option>{doubaoRatios.map(r => <option key={r} value={r}>{r}</option>)}</select></label>
-                      <Button variant="ghost" onClick={() => setBatch('doubao')}>管理豆包账号</Button>
-                    </div>
-                  )}
                 </div>
                 <div className="row-media">
                   <div className="row-column-heading">画面预览</div>
@@ -807,47 +737,36 @@ export function StoryboardRows({
                       </span>
                     </div>
                   )}
-                  <button
-                    className="sheet-preview-label"
-                    disabled={!s.video}
-                    onClick={() => {
-                      onActivate(s.id);
-                      setPreviewId(s.id);
-                    }}
-                  >
-                    视频预览
-                  </button>
-                  {s.video && (
-                    <VideoFileButton
-                      media={s.video}
-                      projectId={project.id}
-                      name={s.title}
-                    />
-                  )}
-                  <div className="sheet-upload-line">
+                  {s.firstFrameSource && s.firstFrame && <button type="button"
+                    className="sheet-previous-frame-tag"
+                    onClick={() => setAssetPreview({media: s.firstFrame!, name: '引用上一视频尾帧'})}>
+                    引用上一视频尾帧
+                  </button>}
+                  <div className="sheet-video-actions">
+                    {s.video && <VideoFileButton iconOnly media={s.video} projectId={project.id} name={s.title}/>}
                     <Button
                       variant="outline"
+                      size="icon"
+                      data-tooltip={s.video ? '上传替换视频' : '上传视频'}
+                      aria-label={s.video ? '上传替换视频' : '上传视频'}
+                      title={s.video ? '上传替换视频' : '上传视频'}
                       onClick={() => onUpload('video', s.id)}
                     >
                       <Upload />
-                      {s.video ? '上传替换' : '上传'}
                     </Button>
+                    {s.video && (
+                      <Button variant="outline" className="remove-current-video" size="icon"
+                        data-tooltip="删除当前视频" aria-label="删除当前视频" title="删除当前视频"
+                        onClick={() => onEdit(manualVideoPatch(), s.id)}><X /></Button>
+                    )}
                     <details className="sheet-more">
-                      <summary>更多⌄</summary>
+                      <summary data-tooltip="更多视频操作" aria-label="更多视频操作" title="更多视频操作">•••</summary>
                       <div>
                         <Button
                           variant="outline"
-                          disabled={!i}
-                          onClick={() => onMove(i, -1)}
+                          onClick={() => { onActivate(s.id); setSettingsId(s.id); }}
                         >
-                          <ArrowUp />
-                          上移
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={() => onSelect(s.id)}
-                        >
-                          详细参数 / 镜头名称
+                          分镜参数 / 镜头名称
                         </Button>
                         <Button
                           variant="outline"
@@ -910,68 +829,116 @@ export function StoryboardRows({
                       </div>
                     </details>
                   </div>
-                  {s.video && (
-                    <Button
-                      variant="outline"
-                      className="remove-current-video"
-                      onClick={() => onEdit(manualVideoPatch(), s.id)}
-                    >
-                      删除当前视频
-                    </Button>
-                  )}
                 </div>
-                <div className="row-operations">
-                  <Button
-                    variant="outline"
-                    disabled={i === project.shots.length - 1}
-                    onClick={() => onMove(i, 1)}
-                  >
-                    <ArrowDown />
-                    下移
-                  </Button>
-                  <Button
-                    variant="outline"
-                    disabled={project.shots.length >= 200}
-                    onClick={() => onInsert(i)}
-                  >
-                    <Plus />
-                    向下添加
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    className="generate-blocking"
-                    disabled={disabled || generatingBlocking}
-                    aria-busy={generatingBlocking}
-                    onClick={() => {
-                      onActivate(s.id);
-                      setBlockingId(s.id);
-                    }}
-                  >
-                    {generatingBlocking ? (
-                      <LoaderCircle className="animate-spin" />
-                    ) : (
-                      <Sparkles />
-                    )}
-                    {generatingBlocking
-                      ? '生成中…'
-                      : s.blockingImage
-                        ? '重新生成站位图'
-                        : '生成站位图'}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="delete-shot"
-                    onClick={() => onDelete(s.id)}
-                  >
-                    删除分镜
-                  </Button>
+                <div className="row-model-generation">
+                  <div className="shot-video-settings">
+                    <div className="row-column-heading">模型与生成设置</div>
+                  <div className="row-generation">
+                    <div className="sheet-model-field sheet-model-choice"><small>选择模型</small><ModelPicker
+                      models={models}
+                      kind="video"
+                      channels={[{ id: 'doubao', label: '豆包插件 · 分组轮询' }]}
+                      value={s.videoModelId}
+                      onChange={(id) =>
+                        onEdit({ videoModelId: id || undefined }, s.id)
+                      }
+                      onSettings={onModelSettings}
+                    /></div>
+                    <label className="sheet-model-field sheet-model-duration"><small>时长</small><span>
+                      <input
+                        type="number"
+                        aria-label={`镜头${i + 1}时长`}
+                        min={0.1}
+                        max={120}
+                        step={0.1}
+                        value={s.duration}
+                        onChange={(e) => {
+                          const n = Number(e.target.value);
+                          if (Number.isFinite(n))
+                            onEdit(
+                              { duration: Math.min(120, Math.max(0.1, n)) },
+                              s.id,
+                            );
+                        }}
+                      />
+                      秒
+                    </span></label>
+                    <Button
+                      className={`video-submit ${generatingVideo || doubaoPaused || pluginFailed || pluginAttention ? 'is-long' : ''}`}
+                      size={generatingVideo || doubaoPaused || pluginFailed || pluginAttention ? 'default' : 'icon'}
+                      disabled={generatingVideo && !canResumeDoubao}
+                      aria-label={
+                        canResumeDoubao ? '恢复豆包生成任务' : generatingVideo
+                          ? `镜头${i + 1}视频${videoStatus}`
+                          : pluginAttention ? '重新获取原任务结果' : `${pluginFailed ? '重新生成' : '生成'}镜头${i + 1}视频`
+                      }
+                      title={canResumeDoubao ? '点击恢复豆包任务，继续原有等待任务，不重复提交' : generatingVideo ? videoStatus : '生成视频'}
+                      onClick={() => {
+                        onActivate(s.id);
+                        if (pluginAttention) {
+                          if(pluginJob?.submittedAt) void doubaoCommand('resume', {id: pluginJob.id}).then(setDoubao).catch(e => setMessage(e.message));
+                          else setBatch('doubao');
+                          return;
+                        }
+                        if (canResumeDoubao) {
+                          void doubaoCommand('pause', { paused: false }).then(setDoubao).catch(e => setMessage(e.message));
+                          return;
+                        }
+                        if (s.videoModelId === 'doubao') { void submitDoubao(s); return; }
+                        onGenerate({
+                          id: s.id,
+                          kind: 'video',
+                          modelConfigId: s.videoModelId,
+                          autoSubmit: true,
+                        });
+                      }}
+                    >
+                      {canResumeDoubao ? '恢复生成' : generatingVideo ? (
+                        <>
+                          <LoaderCircle className="animate-spin" />
+                          {videoStatus}
+                        </>
+                      ) : pluginAttention ? (pluginJob?.submittedAt ? '重新获取' : '核对任务') : pluginFailed ? '重新生成' : (
+                        <Sparkles />
+                      )}
+                    </Button>
+                    <Button type="button" variant="outline" className="sheet-generation-details"
+                      onClick={() => onGenerate({id: s.id, kind: 'video', modelConfigId: s.videoModelId})}>
+                      详情
+                    </Button>
+                  </div>
+                  {s.videoModelId === 'doubao' && (
+                    <div className="actions" style={{ marginTop: 8 }}>
+                      <label className="helper">豆包分组 <select aria-label={`镜头${i + 1}豆包分组`} value={s.doubaoGroup || ''} onChange={e => onEdit({ doubaoGroup: e.target.value }, s.id)}>
+                        <option value="">{doubaoGroups.length?'请选择账号分组':'请先勾选调用的账号'}</option>
+                        {[...new Set([...(s.doubaoGroup ? [s.doubaoGroup] : []), ...doubaoGroups])].map(g => <option key={g} value={g}>{g}</option>)}
+                      </select></label>
+                      <label className="helper">豆包模型 <select aria-label={`镜头${i + 1}豆包模型`} value={s.doubaoModel || ''} onChange={e => onEdit({ doubaoModel: e.target.value }, s.id)}><option value="">插件默认</option>{[...new Set([...doubaoModels, ...(s.doubaoModel ? [s.doubaoModel] : [])])].map(m => <option key={m} value={m}>{m}</option>)}</select></label>
+                      <label className="helper">豆包画幅 <select aria-label={`镜头${i + 1}豆包画幅`} value={s.doubaoRatio || ''} onChange={e => onEdit({ doubaoRatio: e.target.value }, s.id)}><option value="">项目画幅 · {project.ratio || doubao?.settings.ratio}</option>{doubaoRatios.map(r => <option key={r} value={r}>{r}</option>)}</select></label>
+                      <Button variant="ghost" onClick={() => setBatch('doubao')}>管理豆包账号</Button>
+                    </div>
+                  )}
+                  </div>
                 </div>
               </fieldset>
-            </article>
+            </article>{insertionPoint(i + 1)}</div>
           );
         })}
       </div>
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>删除分镜</DialogTitle>
+            <DialogDescription>是否删除选中的{checkedShots.length}条分镜？</DialogDescription></DialogHeader>
+          <div className="sheet-delete-confirm-actions">
+            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>取消</Button>
+            <Button variant="destructive" disabled={disabled || !checkedShots.length} onClick={() => {
+              onDelete(checkedIds);
+              setChecked([]);
+              setDeleteConfirmOpen(false);
+            }}>确认删除</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <Dialog open={!!batch} onOpenChange={(v) => !v && setBatch('')}>
         <DialogContent
           className={batch === 'doubao' ? 'doubao-dialog' : undefined}
@@ -1059,6 +1026,29 @@ export function StoryboardRows({
           returnLabel="返回分镜"
         />
       )}
+      <Dialog open={!!settingsShot} onOpenChange={(open) => !open && setSettingsId('')}>
+        <DialogContent className="shot-settings-dialog">
+          <DialogHeader>
+            <DialogTitle>分镜参数 · {settingsShot?.title}</DialogTitle>
+            <DialogDescription>修改当前分镜的标题、画面与镜头设定。</DialogDescription>
+          </DialogHeader>
+          {settingsShot && <div className="shot-settings-fields">
+            <label>镜头标题<input aria-label="镜头标题" value={settingsShot.title} onChange={(event) => onEdit({ title: event.target.value }, settingsShot.id)} /></label>
+            <label>画面描述<textarea aria-label="画面描述" rows={3} value={settingsShot.description} onChange={(event) => onEdit({ description: event.target.value }, settingsShot.id)} /></label>
+            <label>景别<select aria-label="景别" value={settingsShot.size} onChange={(event) => onEdit({ size: event.target.value }, settingsShot.id)}>
+              {[settingsShot.size, '远景', '全景', '中景', '近景', '特写'].filter((value, index, list) => list.indexOf(value) === index).map((value) => <option key={value} value={value}>{value}</option>)}
+            </select></label>
+            <label>机位 / 运镜<input aria-label="机位或运镜" value={settingsShot.camera} onChange={(event) => onEdit({ camera: event.target.value }, settingsShot.id)} /></label>
+            <label>人物<input aria-label="人物" value={settingsShot.character} onChange={(event) => onEdit({ character: event.target.value }, settingsShot.id)} /></label>
+            <label>场景<input aria-label="场景" value={settingsShot.scene} onChange={(event) => onEdit({ scene: event.target.value }, settingsShot.id)} /></label>
+            {settingsShot.reviewRequired && <p className="shot-review-note">{settingsShot.reviewRequired}</p>}
+            <div className="actions">
+              <Button variant="outline" onClick={() => onEdit(matchShotAssets(settingsShot, project.assets), settingsShot.id)}>按镜头内容匹配资产</Button>
+              {settingsShot.reviewRequired && <Button variant="outline" onClick={() => onEdit({ reviewRequired: undefined }, settingsShot.id)}>已人工复核</Button>}
+            </div>
+          </div>}
+        </DialogContent>
+      </Dialog>
       <Dialog
         open={!!target}
         onOpenChange={(open) => {

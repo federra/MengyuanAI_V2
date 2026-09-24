@@ -1187,3 +1187,31 @@ audio {
   .creative-mode .project-switcher { max-width: 140px; }
   .creative-mode .save-state { display: none; }
 }
+.ai-generation-indicator {
+  position: fixed;
+  z-index: 60;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  min-width: 188px;
+  padding: 18px 23px;
+  border: 1px solid #c9daf7;
+  border-radius: 16px;
+  background: color-mix(in srgb, #fff 82%, transparent);
+  color: #234e91;
+  box-shadow: 0 15px 45px #163c7226;
+  backdrop-filter: blur(10px);
+  pointer-events: none;
+}
+.ai-generation-indicator strong { font-size: 16px; }
+.ai-generation-indicator small { color: #627b9f; font-size: 11px; }
+.ai-generation-orbit { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: #e8f1ff; animation: ai-generation-pulse 1.7s ease-in-out infinite; }
+.dark .ai-generation-indicator { border-color: #365a88; background: color-mix(in srgb, #152642 85%, transparent); color: #dbeaff; }
+.dark .ai-generation-indicator small { color: #a7bedb; }
+.dark .ai-generation-orbit { background: #26436c; }
+@keyframes ai-generation-pulse { 50% { transform: scale(1.12); box-shadow: 0 0 0 9px #e8f1ff76; } }
+@media (prefers-reduced-motion: reduce) { .ai-generation-orbit { animation: none; } }

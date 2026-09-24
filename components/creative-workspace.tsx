@@ -540,11 +540,6 @@ export function CreativeWorkspace({
                     AI {stage === '分场' ? '提取分场' : '生成' + stage}
                   </Button>
                 )}
-                {stage === '剧本' && (
-                  <Button variant="outline" onClick={() => onStage('分场')}>
-                    分场编辑（可选）
-                  </Button>
-                )}
               </div>}
               <div className="actions">
                 {stage === '故事' && (

@@ -10,6 +10,7 @@ for (const [file, name] of [
   ['app/api/ai/route.ts', 'route'],
   ['lib/api-response.ts', 'api-response'],
   ['lib/storyboard-conversion-server.ts', 'storyboard-conversion-server'],
+  ['lib/storyboard-generation-input.ts', 'storyboard-generation-input'],
   ['app/api/storyboards/normalize/route.ts', 'normalize-route'],
 ]) {
   const code = ts
@@ -21,6 +22,7 @@ for (const [file, name] of [
     })
     .outputText.replaceAll("'@/lib/creative'", "'../test/creative.mjs'")
     .replaceAll("'@/lib/storyboard-conversion-server'", "'./storyboard-conversion-server.mjs'")
+    .replaceAll("'@/lib/storyboard-generation-input'", "'./storyboard-generation-input.mjs'")
     .replaceAll("'./model-server'", "'./fake.mjs'")
     .replaceAll("'./storyboard-contract'", "'../test/storyboard-contract.mjs'")
     .replaceAll("'./storyboard-normalize'", "'../test/storyboard-normalize.mjs'")
@@ -75,7 +77,7 @@ const request = () =>
       },
       body: JSON.stringify({
         task: 'shots',
-        content: '将当前完整剧本按26段、每段10秒制作分镜。',
+        content: JSON.stringify({script:'将当前完整剧本按26段、每段10秒制作分镜。'}),
       }),
     }),
   );
@@ -89,7 +91,7 @@ assert.deepEqual(result.storyboard, {
   subshots: 52,
   assets: 3,
 });
-assert.equal(JSON.parse(result.text).episodes.length, 26);
+assert.equal(JSON.parse(result.text).shots.length, 26);
 assert.ok(
   requests[0].messages[0].content.includes('视频段（工作台的一行分镜）'),
 );
@@ -98,7 +100,7 @@ assert.ok(requests[0].max_tokens > 5000);
 source.episodes[0].shots[1].time_start = 3;
 answer(source);
 r = await request();
-assert.equal(r.status, 422);
+assert.equal(r.status, 502);
 assert.match((await r.json()).error, /时间不连续/);
 answer({
   shots: [{ title: '兼容格式', duration: 10, description: '0—10秒：完整动作' }],
@@ -116,6 +118,22 @@ assert.equal(
 console.log(
   'PASS generation route: segment counts/timing, shared architecture, legacy compatibility, rejection of invalid/truncated output; fake model only.',
 );
+
+const postScript = script => POST(new Request('https://studio.example/api/ai', {
+  method:'POST', headers:{origin:'https://studio.example','Content-Type':'application/json'},
+  body:JSON.stringify({task:'shots',content:JSON.stringify({script})}),
+}));
+const oneShot = n => ({choices:[{finish_reason:'stop',message:{content:JSON.stringify({shots:[{title:`片段${n}`,duration:5,description:`片段${n}画面`}]})}}]});
+const longScript='剧本'.repeat(1700);
+respond([oneShot(1),oneShot(2),oneShot(3)]);
+r=await postScript(longScript);
+assert.equal(r.status,200);
+assert.equal((await r.json()).storyboard.segments,3);
+respond([{choices:[{finish_reason:'length',message:{content:'{"shots":['}}]},oneShot(4),oneShot(5)]);
+r=await postScript('剧本'.repeat(500));
+assert.equal(r.status,200);
+assert.equal((await r.json()).storyboard.segments,2);
+console.log('PASS long scripts split and length-limited chunks retry as smaller validated parts');
 
 answer({plans:[{title:'长故事',summary:'概要',content:'完整正文',tags:[]}]});
 const long=await POST(new Request('http://localhost/api/ai',{method:'POST',headers:{origin:'http://localhost','Content-Type':'application/json'},body:JSON.stringify({task:'storyOptions',content:'长篇测试',storyCount:4,storyLength:'5000字以上'})}));
