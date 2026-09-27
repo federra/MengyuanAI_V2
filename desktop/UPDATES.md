@@ -82,3 +82,7 @@ Windows、Mac Apple Silicon及Intel包已发布，三个包及blockmap服务器S
 ## 2026-09-22 Windows 0.1.76
 
 仅Windows发布0.1.76，Mac渠道保持0.1.75。安装包、blockmap及清单服务器大小/SHA-512验证通过，公开HTTPS清单一致及Range206通过。功能提交fcae0ef已推送main；Windows安装升级实机仍待验收。详见[发布记录](../docs/release-0.1.76.md)。
+
+## 2026-09-27 双端 0.1.103
+
+Windows x64 NSIS、Mac Apple Silicon 与 Intel 包已发布。三个包及 Windows blockmap 的服务器大小、SHA-512 与本地一致；公开 Windows `latest.yml` / `release.json`、Mac `release.json` 均为 0.1.103，三个包的匿名 HTTPS Range 下载返回 206。原清单已备份、旧包保留。源码提交 `48b1e0a` 已推送 main；Windows 安装/升级及 Intel Mac 实机尚待验收，详见[发布记录](../docs/release-0.1.103.md)。
