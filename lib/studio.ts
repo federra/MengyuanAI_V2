@@ -47,6 +47,7 @@ export type Asset = {
 export type Shot = {
   sourceMetadata?: string;
   videoModelId?: string;
+  videoResolution?: string;
   doubaoGroup?: string;
   doubaoModel?: string;
   doubaoRatio?: string;
@@ -519,6 +520,8 @@ export function validateProject(value: unknown): Project {
     )
       throw Error('镜头参数不正确');
     seen.add(s.id);
+    if (s.videoResolution !== undefined && !['480p', '720p', '768p', '1080p'].includes(s.videoResolution))
+      throw Error('镜头分辨率无效');
     for (const k of [
       'title',
       'description',

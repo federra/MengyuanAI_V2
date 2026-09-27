@@ -11,9 +11,9 @@ import {
   WorkflowAssistant,
 } from '@/components/creative-workspace';
 import { SequencePreview } from '@/components/sequence-preview';
-import { creativeStages, parseStoryPlans } from '@/lib/creative';
+import { creativeStages, customStylePatch, parseStoryPlans } from '@/lib/creative';
 import { BusinessCenter } from '@/components/business-center';
-import { SkillCenter } from '@/components/skill-center';
+import { BusinessSelect, SkillCenter } from '@/components/skill-center';
 import { AssetCenter } from '@/components/asset-center';
 import { ProjectAssetDialog } from '@/components/project-asset-dialog';
 import { useImageBatches } from '@/components/use-image-batches';
@@ -270,6 +270,8 @@ function Workbench({accessState}:{accessState:AccessState}) {
     projectId: string;
     instruction?: string;
     panel?: string;
+    importKind?: 'story' | 'script' | 'shots';
+    importMode?: 'append' | 'replace';
     scope?: string;
   }>();
   const businessMode = ['skill中心', '收益中心', '渠道代理'].includes(menu);
@@ -284,6 +286,11 @@ function Workbench({accessState}:{accessState:AccessState}) {
   const [desktopVersion,setDesktopVersion]=useState('');
   useEffect(()=>{let active=true;window.directorDesktop?.getVersion?.().then(version=>{if(active)setDesktopVersion(version);}).catch(()=>{});return()=>{active=false;};},[]);
   const [newName, setNewName] = useState('');
+  const [newVideoType, setNewVideoType] = useState('剧情短片');
+  const [newStyle, setNewStyle] = useState('电影质感');
+  const [newRatio, setNewRatio] = useState('16:9');
+  const [newCustomType, setNewCustomType] = useState('');
+  const [newCustomStyle, setNewCustomStyle] = useState('');
   const [assetKind, setAssetKind] = useState('人物');
   const [assetManagementKind, setAssetManagementKind] = useState('');
   const [assetManagementShotIds, setAssetManagementShotIds] = useState<string[]>([]);
@@ -1202,9 +1209,9 @@ function Workbench({accessState}:{accessState:AccessState}) {
               </Button>
             </nav>
           )}
-          {creativeMode && step !== '创意' && <DirectorTools
+          {creativeMode && step !== '剪辑' && <DirectorTools
             key={`${project.id}-${skillLaunch?.nonce || 0}`}
-            hideToolbar={step === '故事' || step === '剧本'}
+            hideToolbar={step === '创意' || step === '故事' || step === '剧本'}
             onCloseLaunch={() => setSkillLaunch(undefined)}
             launch={
               skillLaunch?.projectId === project.id ? skillLaunch : undefined
@@ -1226,6 +1233,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
           />}
           {creativeMode && step === '分镜' && (
             <header className="sheet-heading">
+              <span className="creative-icon" aria-hidden="true"><Clapperboard /></span>
               <div>
                 <h1>分镜工作区</h1>
                 <p>
@@ -1281,6 +1289,11 @@ function Workbench({accessState}:{accessState:AccessState}) {
                     <Button
                       onClick={() => {
                         setNewName('');
+                        setNewVideoType('剧情短片');
+                        setNewStyle('电影质感');
+                        setNewRatio('16:9');
+                        setNewCustomType('');
+                        setNewCustomStyle('');
                         setDialog('project');
                       }}
                     >
@@ -1403,10 +1416,12 @@ function Workbench({accessState}:{accessState:AccessState}) {
                   onEdit={edit}
                   onGenerate={generate}
                   onStage={setStep}
-                  onImportText={() => setSkillLaunch({
+                  onImportText={(importKind) => setSkillLaunch({
                     projectId: project.id,
                     skillId: '',
                     panel: 'import',
+                    importKind,
+                    importMode: importKind ? 'replace' : undefined,
                     nonce: Date.now(),
                   })}
                 />
@@ -2250,12 +2265,30 @@ function Workbench({accessState}:{accessState:AccessState}) {
           {dialog === 'project' && (
             <>
               <Field label="项目名称" value={newName} onChange={setNewName} />
+              <div className="new-project-options">
+                <label htmlFor="new-project-video-type">视频类型
+                  <BusinessSelect id="new-project-video-type" label="视频类型" value={newVideoType} onChange={setNewVideoType}
+                    options={['剧情短片', '产品广告', '知识科普', '音乐短片', '生活记录', '自定义'].map(value => ({ value, label: value }))} />
+                  {newVideoType === '自定义' && <input aria-label="自定义视频类型" maxLength={80} value={newCustomType} onChange={event => setNewCustomType(event.target.value)} placeholder="填写视频类型" />}
+                </label>
+                <label htmlFor="new-project-style">视频风格
+                  <BusinessSelect id="new-project-style" label="视频风格" value={newStyle} onChange={setNewStyle}
+                    options={['电影质感', '3D 动画', '国漫水墨', '日系动画', '写实广告', '定格动画', '自定义'].map(value => ({ value, label: value }))} />
+                  {newStyle === '自定义' && <input aria-label="自定义视频风格" maxLength={150} value={newCustomStyle} onChange={event => setNewCustomStyle(event.target.value)} placeholder="填写视频风格" />}
+                </label>
+                <label htmlFor="new-project-ratio">视频尺寸
+                  <BusinessSelect id="new-project-ratio" label="视频尺寸" value={newRatio} onChange={setNewRatio}
+                    options={['9:16', '16:9', '1:1', '4:3', '3:4', '21:9'].map(value => ({ value, label: value }))} />
+                </label>
+              </div>
               <Button
-                disabled={!!busy || !newName.trim()}
+                disabled={!!busy || !newName.trim() || (newVideoType === '自定义' && !newCustomType.trim()) || (newStyle === '自定义' && !newCustomStyle.trim())}
                 onClick={() =>
                   action('创建项目', async () => {
                     if (dirty) await save();
-                    const p = await save(newProject(newName.trim()));
+                    const initial = newProject(newName.trim());
+                    const stylePatch = newStyle === '自定义' ? customStylePatch(initial, newCustomStyle) : { style: newStyle };
+                    const p = await save({ ...initial, ...stylePatch, videoType: newVideoType === '自定义' ? newCustomType.trim() : newVideoType, ratio: newRatio });
                     setProject(p);
                     setStep('创意');
                     setMenu('创作中心');

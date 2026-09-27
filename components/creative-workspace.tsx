@@ -8,7 +8,9 @@ import {
   Bot,
   Lightbulb,
   FileText,
+  PenLine,
   Plus,
+  ChevronDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,8 +21,9 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { BusinessSelect } from '@/components/skill-center';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { builtinSkills } from '@/lib/director';
-import { chooseStory, customStylePatch, storyLengths } from '@/lib/creative';
+import { chooseStory, storyLengths } from '@/lib/creative';
 import { type Project, type Stage } from '@/lib/studio';
 const keys = {
   创意: 'brief',
@@ -48,17 +51,13 @@ export function CreativeWorkspace({
   onEdit: (p: Partial<Project>) => void;
   onGenerate: (task: string, context?: string, source?: Project) => void;
   onStage: (s: Stage) => void;
-  onImportText?: () => void;
+  onImportText?: (kind?: 'story' | 'script' | 'shots') => void;
 }) {
   const [error, setError] = useState('');
   const [dialog, setDialog] = useState('');
   const [planId, setPlanId] = useState('');
   const [imported, setImported] = useState('');
   const [previewId, setPreviewId] = useState('');
-  const [customField, setCustomField] = useState<'videoType' | 'style' | ''>(
-    '',
-  );
-  const [customValue, setCustomValue] = useState('');
   const versionCount = 3;
   const [storyWidth, setStoryWidth] = useState(340);
   const [scriptEditing, setScriptEditing] = useState(false);
@@ -110,24 +109,6 @@ export function CreativeWorkspace({
     );
     if (stage === '创意') onStage('故事');
   }
-  function openCustom(field: 'videoType' | 'style') {
-    setError('');
-    setCustomField(field);
-    setCustomValue('');
-    setDialog('custom');
-  }
-  function saveCustom() {
-    try {
-      const value = customValue.trim();
-      if (!value) throw Error('请填写自定义内容');
-      if (customField === 'style') onEdit(customStylePatch(project, value));
-      else if (customField === 'videoType') onEdit({ videoType: value });
-      setError('');
-      setDialog('');
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '保存失败');
-    }
-  }
   async function importFile(f?: File) {
     if (!f) return;
     try {
@@ -174,26 +155,6 @@ export function CreativeWorkspace({
               </span>
             ))}
           </div>
-          <div className="actions">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setPlanId(p.id);
-                setDialog('plan');
-              }}
-            >
-              查看详情
-            </Button>
-            <Button
-              disabled={disabled}
-              onClick={() => {
-                setPlanId(p.id);
-                setDialog('choose');
-              }}
-            >
-              设为当前
-            </Button>
-          </div>
         </div>
       </article>
     );
@@ -202,7 +163,7 @@ export function CreativeWorkspace({
     <section className={`creative-text-workspace ${stage === '创意' ? 'idea-stage' : stage === '故事' ? 'story-stage' : stage === '剧本' ? 'script-stage' : ''}`}>
       <header className="creative-title">
         <span className="creative-icon">
-          {stage === '创意' ? <Lightbulb /> : <FileText />}
+          {stage === '创意' ? <Lightbulb /> : stage === '剧本' ? <PenLine /> : <FileText />}
         </span>
         <div>
           <h1>{stage}工作区</h1>
@@ -215,7 +176,7 @@ export function CreativeWorkspace({
           </p>
         </div>
         {(stage === '故事' || stage === '剧本') && (
-          <Button variant="outline" onClick={onImportText} disabled={disabled}>
+          <Button variant="outline" onClick={() => onImportText?.()} disabled={disabled}>
             <Upload />
             导入文本
           </Button>
@@ -233,6 +194,20 @@ export function CreativeWorkspace({
           </div>
         )}
       </header>
+      {stage === '创意' && <div className="creative-direct-import">
+        <span>已有故事/剧本/分镜？</span>
+        <DropdownMenu>
+          <DropdownMenuTrigger render={<Button variant="outline" disabled={disabled} />}>
+            <Upload />
+            直接编写/导入 <ChevronDown />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem onClick={() => onImportText?.('story')}>导入故事</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onImportText?.('script')}>导入剧本</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onImportText?.('shots')}>导入分镜脚本</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>}
       {error && (
         <p role="alert" className="biz-error">
           {error}
@@ -251,92 +226,6 @@ export function CreativeWorkspace({
       {stage === '创意' ? (
         <>
           <div className="creative-card creative-idea-card">
-            <div className="creative-idea-layout">
-              <div className="creative-settings">
-            <label htmlFor="creative-type">
-              视频类型
-              <BusinessSelect
-                id="creative-type"
-                label="视频类型"
-                value={project.videoType || '剧情短片'}
-                options={[
-                  { value: '__custom__', label: '自定义+' },
-                  ...[
-                    ...new Set([
-                      project.videoType || '剧情短片',
-                      '剧情短片',
-                      '产品广告',
-                      '知识科普',
-                      '音乐短片',
-                      '生活记录',
-                    ]),
-                  ].map((s) => ({ value: s, label: s })),
-                ]}
-                onChange={(videoType) =>
-                  videoType === '__custom__'
-                    ? openCustom('videoType')
-                    : onEdit({ videoType })
-                }
-              />
-            </label>
-            <label htmlFor="creative-style">
-              视频风格
-              <BusinessSelect
-                id="creative-style"
-                label="视频风格"
-                value={project.style}
-                options={[
-                  { value: '__custom__', label: '自定义+' },
-                  ...[
-                    ...new Set([
-                      project.style,
-                      ...project.assets
-                        .filter((a) => a.kind === '风格')
-                        .map((a) => a.name),
-                      '电影质感',
-                      '3D 动画',
-                      '国漫水墨',
-                      '日系动画',
-                      '写实广告',
-                      '定格动画',
-                    ]),
-                  ].map((s) => ({ value: s, label: s })),
-                ]}
-                onChange={(style) =>
-                  style === '__custom__'
-                    ? openCustom('style')
-                    : onEdit({ style })
-                }
-              />
-            </label>
-            <label htmlFor="creative-ratio">
-              视频尺寸
-              <BusinessSelect
-                id="creative-ratio"
-                label="视频尺寸"
-                value={project.ratio}
-                options={['9:16', '16:9', '1:1', '4:3', '3:4', '21:9'].map(
-                  (value) => ({ value, label: value }),
-                )}
-                onChange={(ratio) => onEdit({ ratio })}
-              />
-              {!['9:16', '16:9', '1:1', '4:3', '3:4', '21:9'].includes(
-                project.ratio,
-              ) && (
-                <small>原项目比例为 {project.ratio}，可从菜单重新选择。</small>
-              )}
-            </label>
-            <label htmlFor="creative-story-length">
-              故事篇幅
-              <BusinessSelect
-                id="creative-story-length"
-                label="故事篇幅"
-                value={project.storyLength || '500～1000字'}
-                options={storyLengths.map((value) => ({ value, label: value }))}
-                onChange={(storyLength) => onEdit({ storyLength })}
-              />
-            </label>
-              </div>
               <div className="creative-idea-editor">
                 <div className="creative-card-heading">
               <h2>
@@ -371,8 +260,17 @@ export function CreativeWorkspace({
               placeholder="谁，在什么情境下，遇到了什么冲突，作出了什么选择？"
               onChange={(e) => onEdit({ brief: e.target.value })}
                 />
+                <label className="creative-story-length" htmlFor="creative-story-length">
+                  故事篇幅
+                  <BusinessSelect
+                    id="creative-story-length"
+                    label="故事篇幅"
+                    value={project.storyLength || '500～1000字'}
+                    options={storyLengths.map((value) => ({ value, label: value }))}
+                    onChange={(storyLength) => onEdit({ storyLength })}
+                  />
+                </label>
               </div>
-            </div>
             <div className="creative-editor-footer">
               <small>{project.brief.length} 字</small>
               <div className="actions">
@@ -399,10 +297,6 @@ export function CreativeWorkspace({
                   <Sparkles />
                   AI 生成 3 个故事方案
                 </Button>
-                <Button variant="outline" onClick={() => onStage('故事')}>
-                  已有故事，直接编写 / 导入
-                  <ArrowRight />
-                </Button>
               </div>
             </div>
           </div>
@@ -425,7 +319,7 @@ export function CreativeWorkspace({
                 )}
               </div>
               <Button
-                variant="outline"
+                className="story-regenerate-button"
                 disabled={disabled || plans.length + versionCount > 12}
                 onClick={generatePlans}
               >
@@ -525,7 +419,7 @@ export function CreativeWorkspace({
               onBlur={() => { if (stage === '剧本') setScriptEditing(false); }}
             />
             <div
-              className={`creative-editor-footer${stage === '故事' ? ' creative-story-footer' : ''}`}
+              className={`creative-editor-footer${stage === '故事' ? ' creative-story-footer' : stage === '剧本' ? ' creative-script-footer' : ''}`}
             >
               {stage !== '故事' && <div className="actions">
                 {(stage !== '剧本' || !project.script.trim()) && (
@@ -619,9 +513,7 @@ export function CreativeWorkspace({
         <DialogContent className="creative-reading">
           <DialogHeader>
             <DialogTitle>
-              {dialog === 'custom'
-                ? `自定义${customField === 'videoType' ? '视频类型' : '视频风格'}`
-                : dialog === 'confirmScript'
+              {dialog === 'confirmScript'
                   ? '确认故事并生成剧本'
                   : dialog === 'choose'
                     ? '采用这个故事方案？'
@@ -632,25 +524,14 @@ export function CreativeWorkspace({
                         : `${stage}阅读预览`}
             </DialogTitle>
             <DialogDescription>
-              {dialog === 'custom'
-                ? customField === 'style'
-                  ? '保存后同步新增资产库风格模板，可继续补充设定。'
-                  : '填写需要的视频类型。'
-                : dialog === 'confirmScript'
+              {dialog === 'confirmScript'
                   ? '将使用右侧故事生成剧本；已有故事编辑请先另存方案，已有剧本会保留至你确认应用新结果。'
                   : dialog === 'choose'
                     ? '将替换当前故事正文。已有剧本保留，镜头标记为待复核；可通过导演助手提出关联修改。'
                     : '请审阅内容后决定是否应用。'}
             </DialogDescription>
           </DialogHeader>
-          {dialog === 'custom' ? (
-            <input
-              aria-label="自定义内容"
-              value={customValue}
-              maxLength={customField === 'style' ? 150 : 80}
-              onChange={(e) => setCustomValue(e.target.value)}
-            />
-          ) : (
+          {(
             <pre>
               {dialog === 'plan' || dialog === 'choose'
                 ? inspected?.content
@@ -665,7 +546,6 @@ export function CreativeWorkspace({
             </p>
           )}
           <div className="actions">
-            {dialog === 'custom' && <Button onClick={saveCustom}>保存</Button>}
             {dialog === 'confirmScript' && (
               <Button
                 disabled={disabled}

@@ -104,6 +104,8 @@ export function DirectorTools({
     panel?: string;
     nonce: number;
     skillId: string;
+    importKind?: 'story' | 'script' | 'shots';
+    importMode?: 'append' | 'replace';
     instruction?: string;
     scope?: string;
   };
@@ -135,9 +137,9 @@ export function DirectorTools({
   const importLock = useRef(false);
   const importProject = useRef(project.id);
   useEffect(() => { importProject.current = project.id; }, [project.id]);
-  const [importMode, setImportMode] = useState('append');
-  const [importKind, setImportKind] = useState(
-    launch?.panel === 'import' ? textKeys[stage] || 'shots' : 'shots',
+  const [importMode, setImportMode] = useState<string>(launch?.importMode || 'append');
+  const [importKind, setImportKind] = useState<string>(
+    launch?.panel === 'import' ? launch.importKind || textKeys[stage] || 'shots' : 'shots',
   );
   const [importReady, setImportReady] = useState(false);
   const [storyboardPreview, setStoryboardPreview] = useState<ReturnType<
@@ -581,7 +583,7 @@ export function DirectorTools({
                     { value: 'story', label: '故事' },
                     { value: 'script', label: '剧本' },
                     { value: 'scenes', label: '分场' },
-                    { value: 'shots', label: '分镜 JSON' },
+                    { value: 'shots', label: '分镜脚本' },
                   ]}
                   onChange={(v) => {
                     setImportKind(v);
@@ -608,7 +610,7 @@ export function DirectorTools({
                   onClick={() => importFile.current?.click()}
                 >
                   <Upload />
-                  选择 {importKind === 'shots' ? '.json' : '.txt / .md'} 文件
+                  选择 {importKind === 'shots' ? '.txt / .md / .json' : '.txt / .md'} 文件
                 </Button>
                 {importKind === 'shots' && (
                   <Button
@@ -629,7 +631,7 @@ export function DirectorTools({
                 hidden
                 ref={importFile}
                 type="file"
-                accept={importKind === 'shots' ? '.json' : '.txt,.md'}
+                accept={importKind === 'shots' ? '.txt,.md,.json' : '.txt,.md'}
                 onChange={(e) => {
                   void readFile(e.target.files?.[0]);
                   e.target.value = '';
@@ -646,7 +648,7 @@ export function DirectorTools({
                   }}
                   placeholder={
                     importKind === 'shots'
-                      ? JSON.stringify(shotTemplate, null, 2)
+                      ? '在这里粘贴分镜脚本或 JSON，或选择本地文件。'
                       : '在这里粘贴文本，或选择本地文件。'
                   }
                 />

@@ -1035,8 +1035,26 @@
 :root.dark .script-skill-choice {
   color: #b4c0d2;
 }
+:root.dark .story-stage .creative-plan-list > .story-regenerate-button,
+:root.dark .story-stage .creative-plan-list > .story-regenerate-button:hover {
+  background: linear-gradient(130deg, #27374e, #356dd5);
+  color: #fff;
+}
 :root.dark .story-count-choice {
   color: #b4c0d2;
+}
+:root.dark .creative-direct-import,
+:root.dark .creative-story-length,
+:root.dark .new-project-options > label { color: #b4c0d2; }
+:root.dark .creative-direct-import button,
+:root.dark .creative-direct-import button:hover { color: #e2e8f2; background: #182231; border-color: #35445b; }
+:root.dark .creative-direct-import button svg { color: #91b7ff; }
+:root.dark .creative-story-length [data-slot='select-trigger'],
+:root.dark .new-project-options [data-slot='select-trigger'],
+:root.dark .new-project-options input {
+  background: #182231;
+  border-color: #35445b;
+  color: #e2e8f2;
 }
 :root.dark .sequence-tracks .bounded-track {
   background: #182231;
@@ -1184,10 +1202,6 @@
 :root.dark .shot-sheet-mode .row-prompt {
   border: 1px solid #35445b;
   background: #182231;
-}
-:root.dark .shot-sheet-mode .row-prompt > .row-column-heading {
-  color: #91b7ff;
-  background: #1d2a3c;
 }
 :root.dark .shot-sheet-mode .prompt-rich-editor {
   color: #e2e8f2;

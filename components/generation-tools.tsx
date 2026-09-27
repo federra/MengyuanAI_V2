@@ -35,6 +35,8 @@ import {
   imageSizeOptions,
   type GenerationJob,
   type ModelConfig,
+  videoResolutionOptions,
+  videoResolutionForModel,
 } from '@/lib/models';
 export type GenerationTarget = {
   modelConfigId?: string;
@@ -83,7 +85,7 @@ export function GenerationDialog({
   const [mode, setMode] = useState(video ? 'all' : 'none');
   const [refs, setRefs] = useState<string[]>([]);
   const [size, setSize] = useState('video');
-  const [selectedResolution, setResolution] = useState('');
+  const [selectedResolution, setResolution] = useState(shot?.videoResolution || '');
   const [mediaUrls, setMediaUrls] = useState<Record<string, string>>({});
   const [duration, setDuration] = useState(Math.round(shot?.duration || 5));
   const [busy, setBusy] = useState(false);
@@ -113,12 +115,8 @@ export function GenerationDialog({
   const effectiveSize = selectedSize === 'video' ? ratioSize : selectedSize;
   const sizeLabel = model?.protocol === 'images' ? '按画幅选择兼容尺寸' : '与视频比例一致';
   const minimax = model?.protocol === 'heima-minimax';
-  const resolutions = minimax ? ['480p', '768p'] : ['480p', '720p', '1080p'];
-  const resolution = resolutions.includes(selectedResolution)
-    ? selectedResolution
-    : minimax
-      ? '768p'
-      : '720p';
+  const resolutions = videoResolutionOptions(model);
+  const resolution = videoResolutionForModel(selectedResolution, model);
   const candidates = [
     ...(asset?.referenceImage
       ? [{ id: asset.referenceImage.id, name: asset.name + ' · 参考图' }]

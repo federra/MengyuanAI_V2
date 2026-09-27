@@ -28,7 +28,11 @@ else throw Error(sql);return {meta:{changes:1}};}}}};}
 export function files(){return {async head(id){return blobs.get(id)||null},async get(id){return blobs.get(id)||null},async put(id,stream,meta){const b=await new Response(stream).arrayBuffer();blobs.set(id,{size:b.byteLength,httpMetadata:meta.httpMetadata,arrayBuffer:async()=>b});}};}
 `);
 const imp=n=>import(pathToFileURL(path.resolve(dir,n+'.mjs')).href);
-const {modelDefaults,validateModel,videoBody,publicHttps,normalizeModelBase,imageSizeForRatio,validImageSize}=await imp('models');
+const {modelDefaults,validateModel,videoBody,publicHttps,normalizeModelBase,imageSizeForRatio,validImageSize,videoResolutionOptions,videoResolutionForModel}=await imp('models');
+assert.deepEqual(videoResolutionOptions({protocol:'heima-minimax',model:'minimax_h3'}),['480p','768p']);
+assert.equal(videoResolutionForModel('1080p',{protocol:'heima-minimax',model:'minimax_h3'}),'768p');
+assert.deepEqual(videoResolutionOptions({protocol:'heima-video',model:'grok'}),['720p','1080p']);
+assert.deepEqual(videoResolutionOptions({protocol:'chat-video',model:'firefly-veo31-5s-16x9-1080p'}),['1080p']);
 for(const ratio of ['16:9','9:16','1:1','4:3','3:4','21:9']) {
  const [w,h]=imageSizeForRatio(ratio).split('x').map(Number),[rw,rh]=ratio.split(':').map(Number);
  assert.equal(w*rh,h*rw); assert(validImageSize(imageSizeForRatio(ratio)));

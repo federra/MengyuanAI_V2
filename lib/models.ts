@@ -83,6 +83,19 @@ export type ModelConfig = {
   speechFormat?: 'mp3' | 'wav';
   speechInstructions?: boolean;
 };
+export function videoResolutionOptions(model?: Pick<ModelConfig, 'protocol' | 'model'>) {
+  if (model?.protocol === 'heima-minimax') return ['480p', '768p'];
+  if (model?.protocol === 'heima-video') return ['720p', '1080p'];
+  if (model?.protocol === 'chat-video' && model.model.startsWith('firefly-veo31-')) {
+    const fixed = model.model.match(/-(480p|720p|1080p)$/)?.[1];
+    if (fixed) return [fixed];
+  }
+  return ['480p', '720p', '1080p'];
+}
+export function videoResolutionForModel(value: string | undefined, model?: Pick<ModelConfig, 'protocol' | 'model'>) {
+  const options = videoResolutionOptions(model);
+  return value && options.includes(value) ? value : model?.protocol === 'heima-minimax' ? '768p' : options.includes('720p') ? '720p' : options[0];
+}
 export const modelDefaults: ModelConfig[] = [
   // Keep text first: the environment-provided text configuration uses index zero.
   {

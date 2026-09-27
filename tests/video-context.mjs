@@ -20,7 +20,7 @@ const scene={id:'scene-a',kind:'场景',name:'卧室',description:'木床在左'
 const prop={id:'prop-a',kind:'道具',name:'帽子',description:'红帽',image:image('prop-image')};
 const clothing={id:'clothing-a',kind:'服饰',name:'西装',description:'灰色儿童西装',referenceImage:image('clothing-image'),attributes:{所属角色:'石头'}};
 p.assets=[role,scene,prop,clothing,{id:'voice-a',kind:'声音',name:'清亮童声',description:'童声'}, {id:'other',kind:'人物',name:'无关人物',description:'不可带入本镜头',image:image('other-image')}];
-const s=newShot();s.title='穿衣出门';s.scene='卧室';s.character='石头';s.references=['role-a','scene-a','prop-a','clothing-a'];s.blockingImage=image('blocking-image');
+const s=newShot();s.title='穿衣出门';s.scene='卧室';s.character='石头';s.size='中景';s.camera='缓慢推进';s.references=['role-a','scene-a','prop-a','clothing-a'];s.blockingImage=image('blocking-image');
 s.lines=[{id:'line-1',kind:'台词',speaker:'石头',emotion:'开心',voiceName:'',text:'我准备好了。'},{id:'line-2',kind:'旁白',speaker:'旁白',emotion:'平静',voiceName:'叙述音色',text:'他推开门。'}];s.dialogue=s.lines.map(l=>l.text).join('\n');
 p.shots=[s];
 const refs=videoReferences(p,s);
@@ -29,7 +29,7 @@ assert.match(refs[3].label,/所属角色：石头/);
 assert(!JSON.stringify(refs).includes('other-image'));
 const make=(rs=refs,settings={ratio:'9:16',resolution:'1080p',duration:10})=>({projectId:p.id,targetId:s.id,target:'video',prompt:composeVideoContext(p,s,'抬手拿帽子，推门走出卧室。',settings),...settings,size:'2K',referenceIds:rs.map(r=>r.mediaId),referenceBindings:rs.map(({mediaId,label})=>({mediaId,label}))});
 const input=make();input.voiceBindings=videoVoiceBindings(p,s);const prompt=finalVideoPrompt(input,{kind:'video',protocol:'ark-video',model:'doubao-seedance-1-5-pro-251215'});
-for(const part of ['写实电影','9:16','1080p','1080x1920','10秒','黑发男孩','木床在左','红帽','灰色儿童西装','说话人：石头（@图1）','音色设定：清亮童声','我准备好了。','旁白｜说话人：旁白','站位约束'])assert(prompt.includes(part),part);
+for(const part of ['写实电影','景别：中景','运镜：缓慢推进','9:16','1080p','1080x1920','10秒','黑发男孩','木床在左','红帽','灰色儿童西装','说话人：石头（@图1）','音色设定：清亮童声','我准备好了。','旁白｜说话人：旁白','站位约束'])assert(prompt.includes(part),part);
 refs.forEach((r,i)=>assert(prompt.includes(`@图${i+1}（参考图${i+1}）：`)));
 assert(!prompt.includes('不可带入本镜头'));
 const custom=[refs[4],refs[0]];
