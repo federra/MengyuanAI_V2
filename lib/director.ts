@@ -10,6 +10,7 @@ import { assetKinds, matchShotAssets } from './assets';
 import { normalizeEpisodes } from './storyboard-episodes';
 import { episodeTemplate } from './storyboard-contract';
 import { parseLines, dialogueText } from './dialogue';
+import adaptedSkills from './builtin-adapted-skills.json' with { type: 'json' };
 export type Skill = {
   id: string;
   name: string;
@@ -115,6 +116,9 @@ export const builtinSkills: Skill[] = [
       '根据本分镜正文与关联参考资产，生成一张清晰的单帧人物站位参考图。优先呈现本段开头或用户指定时刻的关键站位，不把多个时间点拼成连续漫画。准确表现实际出场人物的左右位置、朝向、视线、彼此距离，以及关键道具的持有者和摆放位置。遵循镜头指定景别、机位与空间关系；人物外观、服装、场景布局、光照和道具状态沿用参考设定。前景与背景层次清楚，不遮挡关键动作，不添加无关人物，不改成人物三视图、角色设定集或多格分镜。原文未明确的空间细节按动作可执行性合理安排，不改变剧情和人物关系。沿用项目画幅与画风，最终只交付站位图片。',
   },
 ];
+// These platform-adapted texts are bundled with the desktop runtime, so every
+// account can select them without importing files into an individual project.
+builtinSkills.push(...adaptedSkills);
 export const projectFields = [
   'brief',
   'story',

@@ -109,7 +109,7 @@ console.log(
   'PASS: combined visual text preserves existing content, avoids duplication, blocking image persistence/type validation',
 );
 
-const { promptParts } = await import('../work/test/prompt-rich.mjs');
+const { promptParts, insertAssetMention } = await import('../work/test/prompt-rich.mjs');
 const taggedAssets = [
   { id: id(), kind: '人物', name: '小猫', description: '' },
   { id: id(), kind: '场景', name: '雨夜(车内)', description: '' },
@@ -130,6 +130,31 @@ assert.equal(
   ),
   false,
 );
+assert.deepEqual(insertAssetMention('小猫看向@，天亮了', 5, '钟楼'), {
+  text: '小猫看向钟楼，天亮了',
+  caret: 6,
+});
+assert.deepEqual(insertAssetMention('第一行\n@继续', 5, '雨夜(车内)'), {
+  text: '第一行\n雨夜(车内)继续',
+  caret: 10,
+});
+assert.equal(insertAssetMention('小猫看向@', 3, '钟楼'), null);
 console.log(
   'PASS: inline asset names preserve prompt text/newlines, escape regex characters, and avoid ambiguous names',
 );
+
+const { assetDisplayImage } = await import('../work/test/asset-image-state.mjs');
+const pendingAsset = { id: id(), kind: '人物', name: '妻子', description: '' };
+const generatedImage = { id: id(), name: '妻子.png', type: 'image/png', url: '/media/generated' };
+const referenceImage = { id: id(), name: '参考.png', type: 'image/png', url: '/media/reference' };
+const imageJob = { id: id(), projectId: 'project-1', targetId: pendingAsset.id, target: 'asset', status: 'succeeded', createdAt: '2026-09-30T01:00:00Z', media: generatedImage };
+assert.equal(assetDisplayImage(pendingAsset, [], 'project-1').source, 'none');
+assert.deepEqual(assetDisplayImage(pendingAsset, [imageJob], 'project-1'), { media: generatedImage, source: 'generated' });
+assert.equal(assetDisplayImage({ ...pendingAsset, dismissedImageId: generatedImage.id }, [imageJob], 'project-1').source, 'none');
+const olderImage = { ...generatedImage, id: id(), url: '/media/older' };
+const olderJob = { ...imageJob, id: id(), createdAt: '2026-09-29T01:00:00Z', media: olderImage };
+assert.equal(assetDisplayImage({ ...pendingAsset, dismissedImageId: generatedImage.id }, [olderJob, imageJob], 'project-1').source, 'none');
+assert.equal(assetDisplayImage({ ...pendingAsset, referenceImage }, [imageJob], 'project-1').source, 'generated');
+assert.equal(assetDisplayImage({ ...pendingAsset, image: referenceImage }, [imageJob], 'project-1').source, 'applied');
+assert.equal(assetDisplayImage(pendingAsset, [{ ...imageJob, projectId: 'other' }], 'project-1').source, 'none');
+console.log('PASS: generated asset images appear before application, dismissed results stay hidden, applied images take priority');

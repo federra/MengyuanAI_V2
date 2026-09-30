@@ -361,6 +361,11 @@
 :root.dark .row-asset-picker label {
   border: 1px solid #35445b;
 }
+:root.dark .row-asset-picker label > .row-asset-picker-image {
+  border-color: #405064;
+  background: #293341;
+  color: #a2adbc;
+}
 :root.dark .row-asset-picker label>span:not([data-slot]),
 :root.dark .row-asset-picker audio {
   color: #b4c0d2;
@@ -396,6 +401,21 @@
 }
 :root.dark .inline-asset-token {
   background: #1d2a3c;
+  color: #91b7ff;
+}
+:root.dark .shot-asset-tag[data-image-state='pending'] {
+  background: #293341;
+  border-color: #405064;
+  color: #a2adbc;
+}
+:root.dark .prompt-mention-menu {
+  background: #1b2839;
+  border-color: #405064;
+  color: #e2e8f2;
+}
+:root.dark .prompt-mention-menu button:hover,
+:root.dark .prompt-mention-menu button.active {
+  background: #243d60;
   color: #91b7ff;
 }
 :root.dark .row-generation>.video-submit {

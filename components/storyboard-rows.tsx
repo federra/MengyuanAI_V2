@@ -27,6 +27,7 @@ import { DoubaoControls } from './doubao-controls';
 import { useDoubaoTaskPreview } from './doubao-task-preview';
 import type { Media } from '@/lib/studio';
 import { PromptEditor } from '@/components/prompt-editor';
+import { assetDisplayImage } from '@/lib/asset-image-state';
 import { captureVideoTailFrame } from '@/lib/frame-capture-client';
 import { ShotVideoPreview } from '@/components/shot-video-preview';
 import { VideoFileButton } from './video-file-button';
@@ -726,21 +727,24 @@ export function StoryboardRows({
                 <div className={`asset-rail ${visibleFields.includes('assets') ? '' : 'sheet-column-hidden'}`} aria-label={`分镜${i + 1}资产绑定`}>
                   <div className="shot-asset-tag-group">
                     {refs.filter((asset) => ['人物', '道具', '场景', '服饰', '声音'].includes(asset.kind)).map((asset) => {
-                      const media = asset.image || asset.referenceImage;
+                      const image = assetDisplayImage(asset, generationJobs, project.id);
+                      const media = image.media;
+                      const pendingImage = asset.kind !== '声音' && !media;
                       return <button key={asset.id} type="button" className="shot-asset-tag" data-kind={asset.kind}
-                        title={media ? `预览${asset.name}图片` : `${asset.name}尚无图片，点击管理绑定`}
-                        onClick={() => media ? setAssetPreview({ media, name: asset.name }) : setAssetDialog({ shotId: s.id, kind: asset.kind })}>
-                        {asset.kind === '人物' ? '角色' : asset.kind} · {asset.name}{media ? ' ✓' : ''}
+                        data-image-state={pendingImage ? 'pending' : 'ready'}
+                        title={image.source === 'generated' ? `${asset.name}已生成图片、待应用；点击管理绑定` : media ? `点击管理${asset.name}绑定` : `${asset.name}尚无图片，点击管理绑定`}
+                        onClick={() => setAssetDialog({ shotId: s.id, kind: asset.kind })}>
+                        {asset.kind === '人物' ? '角色' : asset.kind} · {asset.name}{pendingImage ? '（待生成）' : media ? ' ✓' : ''}
                       </button>;
                     })}
                   </div>
-                  <button type="button" className="shot-asset-tag" data-kind="站位图" onClick={() => {
+                  <button type="button" className="shot-asset-tag" data-kind="站位图" data-image-state={s.blockingImage ? 'ready' : 'pending'} onClick={() => {
                     onActivate(s.id);
                     if (s.blockingImage) setAssetPreview({ media: s.blockingImage, name: `分镜${i + 1}站位图` });
                     else setBlockingId(s.id);
                   }}
                     aria-label={`镜头${i + 1}站位图`} title={s.blockingImage ? '预览站位图' : '打开站位图生成设置'}>
-                    站位图 · {generatingBlocking ? '生成中' : job?.status === 'attention' ? '失败' : s.blockingImage ? '已生成' : '待生成'}
+                    站位图{generatingBlocking ? ' · 生成中' : job?.status === 'attention' ? ' · 失败' : s.blockingImage ? ' · 已生成' : '（待生成）'}
                   </button>
                   {visibleFields.includes('assets') && frameActions}
                   <details className="shot-asset-add-menu">
@@ -756,6 +760,7 @@ export function StoryboardRows({
                   <PromptEditor
                     value={shotVisualText(s)}
                     assets={refs}
+                    availableAssets={project.assets}
                     disabled={disabled}
                     label={`镜头${i + 1}提示词`}
                     onChange={(text) =>
@@ -763,6 +768,9 @@ export function StoryboardRows({
                     }
                     onAsset={(asset) =>
                       setAssetDialog({ shotId: s.id, kind: asset.kind })
+                    }
+                    onInsertAsset={(text, asset) =>
+                      onEdit({ description: text, prompt: text, references: [...new Set([...s.references, asset.id])] }, s.id)
                     }
                   />
                   <div className="sheet-prompt-footer">
@@ -1196,7 +1204,9 @@ export function StoryboardRows({
               <div className="row-asset-picker">
                 {project.assets
                   .filter((a) => a.kind === assetDialog?.kind)
-                  .map((a) => (
+                  .map((a) => {
+                    const image = assetDisplayImage(a, generationJobs, project.id);
+                    return (
                     <label key={a.id}>
                       <Checkbox
                         disabled={disabled}
@@ -1216,6 +1226,14 @@ export function StoryboardRows({
                       />
                       <strong>{a.name}</strong>
                       <span>{a.description || '尚未填写设定'}</span>
+                      <div className="row-asset-picker-image" title={image.source === 'generated' ? '已生成，待到资产管理应用' : image.source === 'reference' ? '参考图' : undefined}>
+                        {image.media ? (
+                          <>
+                            <Image unoptimized src={image.media.url} alt={`${a.name}图片`} width={60} height={60} />
+                            {image.source === 'generated' && <small>待应用</small>}
+                          </>
+                        ) : '未生成'}
+                      </div>
                       {a.kind === '声音' && a.audio && (
                         <audio controls src={a.audio.url}>
                           <track
@@ -1226,7 +1244,7 @@ export function StoryboardRows({
                         </audio>
                       )}
                     </label>
-                  ))}
+                  );})}
                 {!project.assets.some((a) => a.kind === assetDialog?.kind) && (
                   <p className="helper">
                     该分类还没有资产，请到资产中心添加，或在剧本中补充后重新整理。

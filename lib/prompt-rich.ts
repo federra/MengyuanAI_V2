@@ -1,5 +1,12 @@
 import type { Asset } from './studio';
 export type PromptPart = { text: string; asset?: Asset };
+export function insertAssetMention(text: string, caret: number, name: string) {
+  const label = name.trim();
+  if (!label || caret < 1 || caret > text.length || text[caret - 1] !== '@') return null;
+  const next = text.slice(0, caret - 1) + label + text.slice(caret);
+  if (next.length > 10000) return null;
+  return { text: next, caret: caret - 1 + label.length };
+}
 export function promptParts(text: string, assets: Asset[]): PromptPart[] {
   const names = new Map<string, Asset>();
   for (const a of assets)

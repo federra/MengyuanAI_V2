@@ -5,6 +5,7 @@ import ts from 'typescript';
 import path from 'node:path';
 const root = process.cwd();
 await fs.mkdir('work/test', { recursive: true });
+await fs.copyFile('lib/builtin-adapted-skills.json', 'work/test/builtin-adapted-skills.json');
 for (const name of [
   'studio',
   'creative',
@@ -14,6 +15,7 @@ for (const name of [
   'assets',
   'dialogue',
   'prompt-rich',
+  'asset-image-state',
   'frame-reference',
   'storyboard-episodes',
   'storyboard-contract',

@@ -437,6 +437,12 @@ export function SkillCenter({
                 <h3>{skill.name}</h3>
                 <small>
                   {name} · v{skill.version}
+                  {skill.id.startsWith('arcreel-') && (
+                    <> · <a href="https://github.com/ArcReel/ArcReel" target="_blank" rel="noreferrer">Powered by ArcReel（改编来源）</a></>
+                  )}
+                  {skill.id === 'yingce-script-to-storyboard' && (
+                    <> · <a href="https://github.com/ddcat-ai/open-ai-canvas" target="_blank" rel="noreferrer">改编来源：影策</a></>
+                  )}
                 </small>
                 <p>{skill.content}</p>
                 <div className="actions">
