@@ -86,3 +86,7 @@ Windows、Mac Apple Silicon及Intel包已发布，三个包及blockmap服务器S
 ## 2026-09-27 双端 0.1.103
 
 Windows x64 NSIS、Mac Apple Silicon 与 Intel 包已发布。三个包及 Windows blockmap 的服务器大小、SHA-512 与本地一致；公开 Windows `latest.yml` / `release.json`、Mac `release.json` 均为 0.1.103，三个包的匿名 HTTPS Range 下载返回 206。原清单已备份、旧包保留。源码提交 `48b1e0a` 已推送 main；Windows 安装/升级及 Intel Mac 实机尚待验收，详见[发布记录](../docs/release-0.1.103.md)。
+
+## 2026-09-30 双端 0.1.104
+
+Skill 中心新增三项适配 Skill，分镜资产提示词与图片状态修复随版发布。Windows x64 NSIS、Mac arm64/x64 ZIP 及 Windows blockmap 已上传；服务器大小与 SHA-512 和本地一致，公开 Windows `latest.yml`/`release.json`、Mac `release.json` 均为 0.1.104，三个包 Range 下载返回 206。旧清单备份与旧包保留；Windows 安装/升级及 Intel Mac 实机仍待验收。详见[发布记录](../docs/release-0.1.104.md)。
