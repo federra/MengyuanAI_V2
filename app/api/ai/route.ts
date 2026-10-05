@@ -7,6 +7,7 @@ import {
 import { textRequest, config } from '@/lib/model-server';
 import { json, sameOrigin } from '@/lib/server';
 import { withProgress } from '@/lib/api-response';
+import { videoDurationOptions, videoDurationError } from '@/lib/video-duration';
 import { storyboardRules } from '@/lib/storyboard-contract';
 import { prepareStoryboard } from '@/lib/storyboard-conversion-server';
 import { splitStoryboardScript, storyboardPart, type StoryboardGenerationInput } from '@/lib/storyboard-generation-input';
@@ -17,41 +18,57 @@ async function generateStoryboard(content: string, prompt: string, accepted: (bo
   catch { return json({error: '分镜请求格式不正确，原项目未修改。'}, 400); }
   if (typeof input.script !== 'string' || !input.script.trim())
     return json({error: '剧本为空，原项目未修改。'}, 400);
+  const videoModel = await config('video');
+  const durations = videoDurationOptions(videoModel);
+  const timingInstruction = `单条视频最多15秒；当前默认视频渠道允许时长：${durations.join('、')}秒。每个视频段的total_duration（兼容格式duration）必须取允许的值。长场次、动作或对白按可表演时间拆成更多视频段，每段时间轴从0开始；完整保留剧情、关键对白与先后顺序，不能缩短数字却保留原来的长段内容，不能加速台词或删剧情来凑时长。剧本场次时长不是单条视频时长；Skill的时长要求也必须满足渠道限制。`;
+  prompt = prompt.replace('0.1至120的秒数', '2至15的整数秒数') + '\n' + timingInstruction;
   const chunks = splitStoryboardScript(input.script);
   const shots: unknown[] = [];
   let subshots = 0;
   const assets = new Map<string, {kind: string; name: string; description: string}>();
   let converted = false;
-  async function generatePart(script: string, index: number, depth = 0): Promise<void> {
+  async function generatePart(script: string, index: number, depth = 0, timingRepair = false): Promise<void> {
     accepted({phase: 'storyboard-generating', index: index + 1, total: chunks.length});
     const upstream = await textRequest({
       messages: [
-        {role: 'system', content: `${prompt}\n当前只处理剧本的这一段。完整覆盖本段，保持段内顺序；不要补写其他段落或重复前后段。`},
+        {role: 'system', content: `${prompt}${timingRepair ? '\n上次输出存在不支持的分镜时长，请根据原剧本重新拆段；逐段检查时长并完整保留动作、对白和资产。只允许这一次时长修正。' : ''}\n当前只处理剧本的这一段。完整覆盖本段，保持段内顺序；不要补写其他段落或重复前后段。`},
         {role: 'user', content: storyboardPart(input, script)},
       ],
       max_tokens: 12000,
       stream: false,
       response_format: {type: 'json_object'},
-    });
+    }, {allowEmptyTruncated: true});
     if (!upstream.ok) throw Error(`第${index + 1}段模型服务返回 ${upstream.status}，原项目未修改。`);
     const data = await upstream.json() as {choices?: {finish_reason?: string; message?: {content?: string}}[]};
     const choice = data.choices?.[0];
-    if (choice?.finish_reason === 'length' && script.length > 450 && depth < 3) {
+    if (choice?.finish_reason === 'length' && choice.message?.content?.trim() && script.length > 450 && depth < 3) {
       const halves = splitStoryboardScript(script, Math.ceil(script.length / 2));
       if (halves.length > 1) {
-        for (const half of halves) await generatePart(half, index, depth + 1);
+        for (const half of halves) await generatePart(half, index, depth + 1, timingRepair);
         return;
       }
     }
     if (!choice?.message?.content?.trim() || choice.finish_reason !== 'stop')
-      throw Error(`第${index + 1}段模型输出${choice?.finish_reason === 'length' ? '达到长度限制' : `提前终止（${choice?.finish_reason || '空结果'}）`}，原项目未修改。`);
+      throw Error(`第${index + 1}段分镜${choice?.finish_reason === 'length'
+        ? `生成触发输出长度限制${choice.message?.content?.trim() ? '，JSON尚未完整返回' : '，尚未返回正文，推理可能已占用生成预算'}。这不等于剧本输入字数超限；请检查模型输出预算、思考模式或服务商限制后重试`
+        : `提前终止（${choice?.finish_reason || '空结果'}）`}，原项目未修改。`);
     const prepared = await prepareStoryboard(choice.message.content, () => accepted({phase: 'storyboard-converting'}));
+    const invalidTiming = prepared.storyboard.shots.find(shot => videoDurationError(shot.duration, videoModel));
+    if (invalidTiming) {
+      if (timingRepair) throw Error(`分镜时长修正后仍不符合渠道限制：${videoDurationError(invalidTiming.duration, videoModel)} 原项目未修改。`);
+      accepted({phase: 'storyboard-retiming', index: index + 1, total: chunks.length});
+      await generatePart(script, index, depth, true);
+      return;
+    }
     converted ||= prepared.converted;
     shots.push(...prepared.storyboard.shots);
     subshots += prepared.storyboard.subshotCount;
     for (const asset of prepared.storyboard.assets) {
       const key = `${asset.kind}:${asset.name}`;
-      if (!assets.has(key)) assets.set(key, {kind: asset.kind, name: asset.name, description: asset.description});
+      const existing = assets.get(key);
+      if (!existing) assets.set(key, {kind: asset.kind, name: asset.name, description: asset.description});
+      else if (!existing.description.trim() && asset.description.trim())
+        existing.description = asset.description;
     }
     if (shots.length > 200 || assets.size > 200)
       throw Error('生成结果超过单项目200条分镜或200项资产限制，原项目未修改。');

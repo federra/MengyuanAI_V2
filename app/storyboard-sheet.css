@@ -93,16 +93,16 @@
   gap: 14px;
   align-items: start;
 }
-.shot-sheet-mode .main-panels > .panel {
+.shot-sheet-mode .main-panels > .storyboard-list-panel {
   border: 0;
   background: transparent;
   box-shadow: none;
   overflow: visible;
 }
-.shot-sheet-mode .main-panels > .panel > .section-title {
+.shot-sheet-mode .main-panels > .storyboard-list-panel > .section-title {
   display: none;
 }
-.shot-sheet-mode .main-panels > .panel ~ .panel {
+.shot-sheet-mode .main-panels > .storyboard-timeline-panel {
   display: none;
 }
 .shot-sheet-mode .storyboard-rows {
@@ -213,6 +213,9 @@
   display: none;
 }
 .shot-sheet-mode .dialogue-stack {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
   gap: 12px;
   max-height: 440px;
   overflow: auto;
@@ -220,6 +223,7 @@
   scrollbar-color: #c9d9ef transparent;
 }
 .shot-sheet-mode .dialogue-card {
+  flex: 0 0 auto;
   border: 1px solid #e0eafa;
   border-radius: 12px;
   padding: 0;
@@ -304,6 +308,7 @@
   color: #233857;
   resize: vertical;
 }
+.dialogue-speaker-note { display: block; padding: 3px 6px; color: var(--muted-foreground); font-size: 11px; }
 .shot-sheet-mode .line-voice {
   font-size: 0.75rem;
   margin: 0;
@@ -887,7 +892,7 @@
 .sheet-head-scroll { overflow:hidden; }
 .sheet-column-head > span { text-align:center; }
 .sheet-column-head > :first-child { justify-self:center; }
-.shot-sheet-mode .main-panels > .panel { overflow:visible; }
+.shot-sheet-mode .main-panels > .storyboard-list-panel { overflow:visible; }
 
 /* One-screen storyboard overview; detailed controls remain inside each row. */
 .shot-sheet-mode {

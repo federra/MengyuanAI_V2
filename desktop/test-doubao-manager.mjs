@@ -25,6 +25,9 @@ try{
  assert.equal((await fetch(pair.url+'/next',{headers:{Authorization:'Bearer '+pair.token,Origin:'https://evil.example'}})).status,403);
  const request=body=>fetch(pair.url+'/event',{method:'POST',headers:{Authorization:'Bearer '+pair.token,'Content-Type':'application/json'},body:JSON.stringify(body)});
  const bundle={format:'director-doubao-task',version:1,projectId:'p1',tasks:[{id:'s1',title:'第一镜',prompt:'严格原台词',duration:10,ratio:'16:9',references:[]}],media:[]};
+ const invalidBundle={...bundle,tasks:[bundle.tasks[0],{...bundle.tasks[0],id:'oversized',duration:22}]};
+ await assert.rejects(manager.command('enqueue',{bundle:invalidBundle,accountIds:[a.id]}),/时长.*重新拆分/);
+ assert.equal(manager.state.jobs.length,0,'invalid batch duration cannot partially enqueue');
  await manager.command('enqueue',{bundle,accountIds:[a.id]});
  assert.equal((await manager.claim(a)).job,null,'unconfirmed login must not claim');
  await manager.command('loginStatus',{id:a.id,loggedIn:true});

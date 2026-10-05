@@ -1215,3 +1215,25 @@ audio {
 .dark .ai-generation-orbit { background: #26436c; }
 @keyframes ai-generation-pulse { 50% { transform: scale(1.12); box-shadow: 0 0 0 9px #e8f1ff76; } }
 @media (prefers-reduced-motion: reduce) { .ai-generation-orbit { animation: none; } }
+
+/* Project cards keep navigation and the action menu as separate buttons. */
+.project-card-shell {position:relative;min-width:0;}
+.project-card-shell>.project-card {width:100%;height:100%;}
+.project-card-menu {position:absolute;top:10px;right:10px;z-index:1;width:34px;height:34px;display:grid;place-items:center;border:1px solid var(--border);border-radius:9px;background:var(--background);color:var(--foreground);box-shadow:0 2px 8px #0001;}
+.project-card-menu svg {width:20px;height:20px;}
+.project-card-menu:hover {background:var(--accent);}
+.project-trash-section {border-top:1px solid var(--border);padding:22px;}
+.project-trash-heading {display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.project-trash-heading h3 {display:flex;align-items:center;gap:9px;font-weight:650;}
+.project-trash-heading h3 svg {width:18px;height:18px;}
+.project-trash-heading h3 small,.project-trash-heading p,.project-card-footer p {font-size:13px;color:var(--muted-foreground);}
+.project-trash-heading p {margin:10px 0 18px;line-height:1.6;}
+.project-trash-list {display:grid;grid-template-columns:repeat(auto-fill,minmax(min(240px,100%),280px));grid-auto-rows:max-content;gap:16px;max-height:min(640px,65vh);overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding:4px 8px 4px 4px;scroll-padding:4px;}
+.project-trash-list:focus-within {outline:2px solid var(--ring);outline-offset:3px;border-radius:10px;}
+.project-trash-item {display:flex;flex-direction:column;border:1px solid var(--border);background:var(--card);border-radius:10px;overflow:hidden;}
+.project-trash-item>.project-card {height:auto;flex:1;border:0;border-radius:0;}
+.project-trash-item .project-card-body {padding-bottom:12px;}
+.project-card-footer {padding:0 22px 18px;}
+.project-card-footer p {line-height:1.6;margin:0 0 12px;overflow-wrap:anywhere;}
+.project-card-footer button {width:100%;}
+.project-trash-error {color:var(--destructive);margin:0 22px 16px;}

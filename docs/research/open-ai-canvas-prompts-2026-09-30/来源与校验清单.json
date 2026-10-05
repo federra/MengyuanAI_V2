@@ -1,0 +1,56 @@
+{
+  "commit": "d01e60d87ef720e61b32196426b128ed0650fb31",
+  "retrieved_on": "2026-09-30",
+  "files": [
+    {
+      "path": "originals/backend/internal/prompts/storyboard_default.go",
+      "sha256": "608eb8829c2f8633960b7cb678601cec7556c12563f37ecc1dbad98442b04241",
+      "source": "https://github.com/ddcat-ai/open-ai-canvas/blob/d01e60d87ef720e61b32196426b128ed0650fb31/backend/internal/prompts/storyboard_default.go"
+    },
+    {
+      "path": "originals/backend/internal/prompts/prompt_template_defaults.go",
+      "sha256": "d1ccd003750a1daecd9a1ee5e68a37fad96f2ae5cf518d3ffff3489c4736f56e",
+      "source": "https://github.com/ddcat-ai/open-ai-canvas/blob/d01e60d87ef720e61b32196426b128ed0650fb31/backend/internal/prompts/prompt_template_defaults.go"
+    },
+    {
+      "path": "originals/backend/internal/prompts/prompt_template.go",
+      "sha256": "72e84d37abfa8b46b385a4d524a0821ca1d7caad12c66366c15edc4384075f7b",
+      "source": "https://github.com/ddcat-ai/open-ai-canvas/blob/d01e60d87ef720e61b32196426b128ed0650fb31/backend/internal/prompts/prompt_template.go"
+    },
+    {
+      "path": "originals/backend/internal/app/prompts_bridge.go",
+      "sha256": "b843abca8c70c0f63cffce72c9096a9b033a57d1e8d750d9edc6437b50df460f",
+      "source": "https://github.com/ddcat-ai/open-ai-canvas/blob/d01e60d87ef720e61b32196426b128ed0650fb31/backend/internal/app/prompts_bridge.go"
+    },
+    {
+      "path": "originals/backend/internal/app/chapter_assets_prompt_test.go",
+      "sha256": "784704caf3eaf2043585ff5c4ad8193f6d363c78f2f543921512a2aadadffc48",
+      "source": "https://github.com/ddcat-ai/open-ai-canvas/blob/d01e60d87ef720e61b32196426b128ed0650fb31/backend/internal/app/chapter_assets_prompt_test.go"
+    },
+    {
+      "path": "originals/backend/builtin/影策短剧制作工作流/SKILL.md",
+      "sha256": "96e0345700ea5eb859a42f391aea225717260225d08cf93ec2dc26a63543eec3",
+      "source": "https://github.com/ddcat-ai/open-ai-canvas/blob/d01e60d87ef720e61b32196426b128ed0650fb31/backend/builtin/影策短剧制作工作流/SKILL.md"
+    },
+    {
+      "path": "originals/backend/builtin/影策短剧制作工作流/references/assets.md",
+      "sha256": "d899e0d524ae0b8f5aa7ff49a80f041416374357da6f0670db0ef444dd79f515",
+      "source": "https://github.com/ddcat-ai/open-ai-canvas/blob/d01e60d87ef720e61b32196426b128ed0650fb31/backend/builtin/影策短剧制作工作流/references/assets.md"
+    },
+    {
+      "path": "originals/backend/builtin/影策短剧制作工作流/references/continuity-rules.md",
+      "sha256": "924d0285ae2bbbda14746a8a5ce041af99e30e05a42a881d353e2e9112e8e7cf",
+      "source": "https://github.com/ddcat-ai/open-ai-canvas/blob/d01e60d87ef720e61b32196426b128ed0650fb31/backend/builtin/影策短剧制作工作流/references/continuity-rules.md"
+    },
+    {
+      "path": "originals/LICENSE",
+      "sha256": "f350bcca37351f706632e6ca140091e5e2b28b73f3c7eb3747e468ead61768d9",
+      "source": "https://github.com/ddcat-ai/open-ai-canvas/blob/d01e60d87ef720e61b32196426b128ed0650fb31/LICENSE"
+    },
+    {
+      "path": "originals/NOTICE",
+      "sha256": "2616393a8b7fc98fba5f3f4e0b1d0a2d6263ec8658acf2af291e1a16fb00ec4d",
+      "source": "https://github.com/ddcat-ai/open-ai-canvas/blob/d01e60d87ef720e61b32196426b128ed0650fb31/NOTICE"
+    }
+  ]
+}

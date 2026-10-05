@@ -90,3 +90,7 @@ Windows x64 NSIS、Mac Apple Silicon 与 Intel 包已发布。三个包及 Windo
 ## 2026-09-30 双端 0.1.104
 
 Skill 中心新增三项适配 Skill，分镜资产提示词与图片状态修复随版发布。Windows x64 NSIS、Mac arm64/x64 ZIP 及 Windows blockmap 已上传；服务器大小与 SHA-512 和本地一致，公开 Windows `latest.yml`/`release.json`、Mac `release.json` 均为 0.1.104，三个包 Range 下载返回 206。旧清单备份与旧包保留；Windows 安装/升级及 Intel Mac 实机仍待验收。详见[发布记录](../docs/release-0.1.104.md)。
+
+## 0.1.111 发布记录（2026-10-06）
+
+Windows x64 NSIS、Mac arm64/x64 ZIP与blockmap已上传并验证服务器大小和SHA-512；公开双端清单均0.1.111，三个包有效HTTPS Range206通过。源码汇总至main，服务器旧清单备份及历史包保留。用户授权清理本机69、103～109旧包约3.91GB，运行110和最新111保留；Windows/Intel实机仍待验收。见[发布及清理记录](../docs/release-0.1.111.md)。

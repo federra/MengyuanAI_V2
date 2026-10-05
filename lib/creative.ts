@@ -1,5 +1,13 @@
 import { id, type Project } from './studio';
 export const creativeStages = ['创意', '故事', '剧本', '分镜', '剪辑'] as const;
+export function generationTaskName(task: string) {
+  const names: Record<string, string> = {
+    storyOptions: '故事方案', story: '故事', script: '剧本', shots: '分镜',
+    scenes: '分场', prompt: '分镜提示词', assetDesign: '资产设定',
+    video: '视频', image: '图片', audio: '配音',
+  };
+  return names[task] || '内容';
+}
 export function parseStoryPlans(
   text: string,
 ): NonNullable<Project['storyPlans']> {

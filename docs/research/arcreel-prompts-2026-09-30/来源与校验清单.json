@@ -1,0 +1,937 @@
+{
+  "repository": "https://github.com/ArcReel/ArcReel",
+  "commit": "55595f73059b4d216bb586eb7271233cbc217094",
+  "retrieved_on": "2026-09-30",
+  "files": [
+    {
+      "path": "originals/LICENSE",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/LICENSE",
+      "sha256": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0"
+    },
+    {
+      "path": "originals/NOTICE",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/NOTICE",
+      "sha256": "56b57a491b97edddff8f447278749e41164ebe4841758533c315cfea9c691f08"
+    },
+    {
+      "path": "originals/agent_runtime_profile/.claude/agents/analyze-assets.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/agent_runtime_profile/.claude/agents/analyze-assets.md",
+      "sha256": "5412be35e8118644d8fee6dbd8e7387e6506b57258befb2ef3e6e6fbb70651b6"
+    },
+    {
+      "path": "originals/agent_runtime_profile/.claude/agents/create-episode-script.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/agent_runtime_profile/.claude/agents/create-episode-script.md",
+      "sha256": "3f244809a15caae29992228b4bc4318fa24fdd00f195d8eb3ca1272b1c6be514"
+    },
+    {
+      "path": "originals/agent_runtime_profile/.claude/agents/generate-assets.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/agent_runtime_profile/.claude/agents/generate-assets.md",
+      "sha256": "37c96b51296615aa1f4e11ef764b167c4a3944ff42e8ec75d2ccf3522cdb936a"
+    },
+    {
+      "path": "originals/agent_runtime_profile/.claude/agents/normalize-drama-script.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/agent_runtime_profile/.claude/agents/normalize-drama-script.md",
+      "sha256": "dc2c2e5312235a6a4b96364ee8b97729f308c42478de6651b2f45a064d3579f0"
+    },
+    {
+      "path": "originals/agent_runtime_profile/.claude/agents/split-narration-segments.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/agent_runtime_profile/.claude/agents/split-narration-segments.md",
+      "sha256": "badabb25161c3ff1040ca44f32c33bfe3999b6bb6956c6fcbcf5e34736e6aba8"
+    },
+    {
+      "path": "originals/agent_runtime_profile/.claude/agents/split-reference-video-units.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/agent_runtime_profile/.claude/agents/split-reference-video-units.md",
+      "sha256": "1ceca5fa02db63f86bebe89f30a6458dca59d99c6cc5b9f890126ce965ec530b"
+    },
+    {
+      "path": "originals/agent_runtime_profile/.claude/references/generation-modes.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/agent_runtime_profile/.claude/references/generation-modes.md",
+      "sha256": "c354220339ab7e87394c82444f0fe505c121db4aa2aa338201bbf07e80a2d8e9"
+    },
+    {
+      "path": "originals/agent_runtime_profile/.claude/references/generation-results.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/agent_runtime_profile/.claude/references/generation-results.md",
+      "sha256": "c601a5a518d25f35dbc1d7d25eeadda98555f2debb3712388e30617c58a68dc5"
+    },
+    {
+      "path": "originals/agent_runtime_profile/.claude/references/workflow-plan.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/agent_runtime_profile/.claude/references/workflow-plan.md",
+      "sha256": "3350cb354c311f3279302bc663ca3c63e004b6be071155086dcf7f925dd8e47b"
+    },
+    {
+      "path": "originals/agent_runtime_profile/.claude/skills/generate-assets/SKILL.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/agent_runtime_profile/.claude/skills/generate-assets/SKILL.md",
+      "sha256": "ba2af3eec66b6b9bb63ca34f9100f5b1e6ed8b257ebffdc808a84701bb762546"
+    },
+    {
+      "path": "originals/agent_runtime_profile/.claude/skills/generate-storyboard/SKILL.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/agent_runtime_profile/.claude/skills/generate-storyboard/SKILL.md",
+      "sha256": "f58e441246ae3316af8ec8ad4bd40cc87a0fde15f1d950cb6ac07d690837b036"
+    },
+    {
+      "path": "originals/agent_runtime_profile/.claude/skills/video-workflow/SKILL.drama.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/agent_runtime_profile/.claude/skills/video-workflow/SKILL.drama.md",
+      "sha256": "c06d37d39594940d4cfc93a9b27a10662f4165b6dfa3d8f38e4edeb0d22afb1f"
+    },
+    {
+      "path": "originals/agent_runtime_profile/.claude/skills/video-workflow/SKILL.narration.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/agent_runtime_profile/.claude/skills/video-workflow/SKILL.narration.md",
+      "sha256": "42b94b11deac968d36387d152a862acc2137cc42fbc34192f419689fca2cb321"
+    },
+    {
+      "path": "originals/agent_runtime_profile/CLAUDE.drama.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/agent_runtime_profile/CLAUDE.drama.md",
+      "sha256": "b9d18832c719bdc515a5671e448ba1adfe138be2e2e66a30e66dbf06a2961b8d"
+    },
+    {
+      "path": "originals/agent_runtime_profile/CLAUDE.narration.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/agent_runtime_profile/CLAUDE.narration.md",
+      "sha256": "8a509ebf44cf1243af82fd70c02d279e73baa76919263e26a04c4fbd6db69b02"
+    },
+    {
+      "path": "originals/docs/adr/0041-script-pipeline-script-plan-prompt-authoring-review-gate.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/docs/adr/0041-script-pipeline-script-plan-prompt-authoring-review-gate.md",
+      "sha256": "d313d49950e765f6a2bd111d5c6c13737b4b59cc22a939b7ffa5c305efc19bdf"
+    },
+    {
+      "path": "originals/docs/adr/0077-whole-prompt-templates-with-named-variant-partials.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/docs/adr/0077-whole-prompt-templates-with-named-variant-partials.md",
+      "sha256": "0d46503b0e3431dd116d11607dcbb57ca940da800cbd2129080ccac6fc08fcd8"
+    },
+    {
+      "path": "originals/docs/adr/0080-review-confirm-materializes-script-prompt-authoring-fills-pending.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/docs/adr/0080-review-confirm-materializes-script-prompt-authoring-fills-pending.md",
+      "sha256": "fccebd63fe73c58e554dffa4a4c30d1c8902818a4f3082e438aba55e25fe6da7"
+    },
+    {
+      "path": "originals/docs/adr/0092-asset-identification-folds-into-script-plan.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/docs/adr/0092-asset-identification-folds-into-script-plan.md",
+      "sha256": "2b4053e0c1701b9b9aa8c698e746f9ccf9327956aa5a08fd4f9d4b46cb209c7f"
+    },
+    {
+      "path": "originals/lib/episode/episode_planner.py",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/episode/episode_planner.py",
+      "sha256": "47304683cf641346c5c3174a0975b0cb16aaa1ac0377ea1b4dedcb68740bea59"
+    },
+    {
+      "path": "originals/lib/project/asset_inventory.py",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/project/asset_inventory.py",
+      "sha256": "d60f453e254c3f2f9e75a35a71530759410baed75669b0c4ec91d3284d323007"
+    },
+    {
+      "path": "originals/lib/prompts/__init__.py",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_builders.py",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_builders.py",
+      "sha256": "4be4ec609925f5462cc1482688baad84bdaae4002c9e13d7dfa062dc2a270aa8"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_builders_ad.py",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_builders_ad.py",
+      "sha256": "acb5c61704fdb87027a6e29531b9da05c23475fa897420119c70ea927b59e7cf"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_builders_reference.py",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_builders_reference.py",
+      "sha256": "3a0f2090ad6d7a4a3f830f61443e2f76f041aed5ab02cd5e463fcf58be27ad36"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_builders_script.py",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_builders_script.py",
+      "sha256": "cdbe1a26e2771e12016d6986178299301fb10f8ba7431522a6adea5faf02e8c2"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_rules/__init__.py",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_rules/__init__.py",
+      "sha256": "5147bc7aed1f8c8ebe3ff72a49ed667bf1f6e3e1bce82b9dc4e5a35a80bc7220"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_rules/asset_appearance.py",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_rules/asset_appearance.py",
+      "sha256": "62f99e80bf16abfd30d31e2c10f4c4e0fc31b62ad70c783518dc698df076331d"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_style.py",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_style.py",
+      "sha256": "9f4fa596a028e8abda425ec0f760fd07a31a85280ff57d89e1819589977663b6"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/__init__.py",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/__init__.py",
+      "sha256": "2946c5f4f190e61dd9ab0e94fa08dde0597364a8600f32c215ad06533c63a391"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/builtin.py",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/builtin.py",
+      "sha256": "a149fb401b75fd736c935bd321487cb67a188a68073937feeb85df2f2316fb25"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/engine.py",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/engine.py",
+      "sha256": "b11676f322b431ad87e9d8a03d3531018c9115b975a70b75db5494e3f7f20807"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/asset/sheet.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/asset/sheet.md",
+      "sha256": "b08888a378d2a859254769d695841872df67fba96aacc2520048d86628a44491"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/asset/sheet/exclusions/character.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/asset/sheet/exclusions/character.md",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/asset/sheet/exclusions/character_derivative.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/asset/sheet/exclusions/character_derivative.md",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/asset/sheet/exclusions/product.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/asset/sheet/exclusions/product.md",
+      "sha256": "46bf584446c53e4a74efbbb12f25a9c04c4b436a7b6e6dc064e9b40c44dde0fb"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/asset/sheet/exclusions/prop.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/asset/sheet/exclusions/prop.md",
+      "sha256": "46bf584446c53e4a74efbbb12f25a9c04c4b436a7b6e6dc064e9b40c44dde0fb"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/asset/sheet/exclusions/scene.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/asset/sheet/exclusions/scene.md",
+      "sha256": "46bf584446c53e4a74efbbb12f25a9c04c4b436a7b6e6dc064e9b40c44dde0fb"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/asset/sheet/guard/character.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/asset/sheet/guard/character.md",
+      "sha256": "5088a037a2d135db17ea4f8c577640e152eedd3d0b8ccd6fae223697b0620785"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/asset/sheet/guard/character_derivative.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/asset/sheet/guard/character_derivative.md",
+      "sha256": "df74ae794e24abd7b5a2214cccb88db641773d59d6b402555c02dfc47c35f028"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/asset/sheet/guard/product.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/asset/sheet/guard/product.md",
+      "sha256": "7d14e0c766a63746d60ea8deeb926b8de420119a9586fc6bee164b4a374f14c3"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/asset/sheet/guard/prop.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/asset/sheet/guard/prop.md",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/asset/sheet/guard/scene.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/asset/sheet/guard/scene.md",
+      "sha256": "cb756437bf822f49404795f85fe6dc213c39042a43c5f61ddcea67ad19399835"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/asset/sheet/layout/character.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/asset/sheet/layout/character.md",
+      "sha256": "e024ae9bb2e8a30fc54f52435e4a253141fcb2af24123105ae7e21af12d1a466"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/asset/sheet/layout/character_derivative.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/asset/sheet/layout/character_derivative.md",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/asset/sheet/layout/product.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/asset/sheet/layout/product.md",
+      "sha256": "067eb9ef24c40916b34e1271257fe1d305adf1cc2d45909561439672732c5925"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/asset/sheet/layout/prop.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/asset/sheet/layout/prop.md",
+      "sha256": "df95e81b93bf78db49f9a316b4fb2fdfccb3da4f4797d949e425cbac87e2ea95"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/asset/sheet/layout/scene.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/asset/sheet/layout/scene.md",
+      "sha256": "51e67cd0b0b3ec21dec80d8f2a6db1a9ed6edbe0f19b8ff9be680e7dd670b869"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/asset/sheet/style/character.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/asset/sheet/style/character.md",
+      "sha256": "df188df00e067c4a57dad6475f5a83d20aa6c26df4a6e4dd489e7ef711cdf804"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/asset/sheet/style/character_derivative.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/asset/sheet/style/character_derivative.md",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/asset/sheet/style/product.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/asset/sheet/style/product.md",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/asset/sheet/style/prop.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/asset/sheet/style/prop.md",
+      "sha256": "df188df00e067c4a57dad6475f5a83d20aa6c26df4a6e4dd489e7ef711cdf804"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/asset/sheet/style/scene.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/asset/sheet/style/scene.md",
+      "sha256": "df188df00e067c4a57dad6475f5a83d20aa6c26df4a6e4dd489e7ef711cdf804"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/asset/sheet/title/character.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/asset/sheet/title/character.md",
+      "sha256": "78bd27d7a04f673a7ef54bae1d8e8df75460bcce9b350b4313297be84fed7e07"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/asset/sheet/title/character_derivative.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/asset/sheet/title/character_derivative.md",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/asset/sheet/title/product.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/asset/sheet/title/product.md",
+      "sha256": "24aabf73ab0a9a8c470505ed0a8452af2fff498403a9bb0587b61e5856011bd4"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/asset/sheet/title/prop.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/asset/sheet/title/prop.md",
+      "sha256": "2a8437523ec8879887a2af304d48830df5acbc70206ce389aa0a17db3af1c44d"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/asset/sheet/title/scene.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/asset/sheet/title/scene.md",
+      "sha256": "c966c27aca72165a72c8b6fe021671875ba4b61dd5a4aa257165df0a64bf3393"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/reference_video/unit/avoid.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/reference_video/unit/avoid.md",
+      "sha256": "a6446a87948180937184b76142d278cd4c4ab26097bb7585e9ec213fd42ce58e"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/reference_video/unit/lists/products.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/reference_video/unit/lists/products.md",
+      "sha256": "456549250fceff71d905864cad71e1ec5c04faf98652e1ca97c3d5dd351a4286"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/shared/action_writing_guide.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/shared/action_writing_guide.md",
+      "sha256": "d79fcdfc250f8ff151b32b46c1fcdcf88d17141e47aea868ea6a3e09d9ae5b2d"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/shared/ad_pacing/allocation.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/shared/ad_pacing/allocation.md",
+      "sha256": "04eecedacdb8c9325d19605d9fe63393d1851e8043b2e646d5e6c4745ebdd7bc"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/shared/ad_pacing/tier/15.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/shared/ad_pacing/tier/15.md",
+      "sha256": "d86ffff30e7331908973500fbd577febf5804d417109a8981371f38842146ab9"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/shared/ad_pacing/tier/30.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/shared/ad_pacing/tier/30.md",
+      "sha256": "d3cb35874510c1c54da38f76a2740231fd04254a6a86408e5c0fb730a1c6c988"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/shared/ad_pacing/tier/60.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/shared/ad_pacing/tier/60.md",
+      "sha256": "6e3b3887247efe3f4473202d4f8b7dac6ddc28c8c659a49470c23ae929f4599f"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/shared/ad_pacing/tier/90.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/shared/ad_pacing/tier/90.md",
+      "sha256": "5dac3b509d5645787fb74abc208d4ae20554e0837b84fbfa98e8f7c92d1be1d8"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/shared/additional_instructions.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/shared/additional_instructions.md",
+      "sha256": "c0f7d43ec644261e1d777fa1f54dd7448f18814aae4bfd2d475250fe0b2e8fc1"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/shared/ambiance_audio_writing_guide.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/shared/ambiance_audio_writing_guide.md",
+      "sha256": "0e65ece18cf8b24d06c5f6edbe87045116905cb2ea48b8a53afa4683d56dccc9"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/shared/asset_appearance_note.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/shared/asset_appearance_note.md",
+      "sha256": "a3ac2dd6f911de5fa4839ec40cbac88ede1106eb5f15c32afa7005a08aae6db2"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/shared/asset_name_candidates.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/shared/asset_name_candidates.md",
+      "sha256": "437bbedd2f2442492b7a3c77e85d42c0f299eea83e995d01919a45daae98947d"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/shared/episode_target_duration_rule.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/shared/episode_target_duration_rule.md",
+      "sha256": "a4d7a839cc9a1c39ed8efd42f6aacf327089e3c41e715c98f2f280da825ab23a"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/shared/image_avoid.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/shared/image_avoid.md",
+      "sha256": "0da68c1281484a72577f099dff7f70030198f062d4bd7b284f04f7d41db52a47"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/shared/image_prompt_writing_guide.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/shared/image_prompt_writing_guide.md",
+      "sha256": "f0750ea6dd065a8644546afdbd5acc4e10d8492cb7aeddae9f239e29ae7f85e7"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/shared/lists/asset_appearance_blocks.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/shared/lists/asset_appearance_blocks.md",
+      "sha256": "30645be60ad2247e08419271f05ee10c8cdb58028efef329ddabb0605a76d3e6"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/shared/lists/asset_name_blocks.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/shared/lists/asset_name_blocks.md",
+      "sha256": "03a6b599c0877afd6311b6304523ddf72b4ec96b915f1df28d38e167dbc864c0"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/shared/lists/episode_outline_lines.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/shared/lists/episode_outline_lines.md",
+      "sha256": "3640cc9e8df5d8bec954bcc6fa3fe7067748510942b1db4c3c9a8b7c0c428e1c"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/shared/media_style.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/shared/media_style.md",
+      "sha256": "cfefaa6a24289114b8b4acb49dbc6266775f5f14e708466c90bf33db4f5b6413"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/shared/overview_block.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/shared/overview_block.md",
+      "sha256": "62b12c0ad3c6ce7101c7ea27296b516294e6271b70a3ee05ecf17facf3df2dd9"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/shared/pacing/drama.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/shared/pacing/drama.md",
+      "sha256": "d8f27fd5a969d9b1fd289d0234106aa4b006cb4c0c47ab8414a6baccc60393f6"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/shared/pacing/narration.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/shared/pacing/narration.md",
+      "sha256": "54895968893ccf45927209b4797ae82b316a15b49870f78fd9394a449a079068"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/shared/product_fidelity.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/shared/product_fidelity.md",
+      "sha256": "1f3c46ae577cb96613531d096abc08287e8ecdbb2e2792d4218055f5ceae0021"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/shared/text_style.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/shared/text_style.md",
+      "sha256": "7921c073a645a912372f88aa1f8f23cb82009b7580c063f1a9322709eff65b4f"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/shared/video_avoid.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/shared/video_avoid.md",
+      "sha256": "19d122906d24c47d0e75a48c022caece7d7f328716ea415bbd0afac016dc944c"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/shared/writing_syntax.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/shared/writing_syntax.md",
+      "sha256": "e54eb1347e0401991cb44e78e83f27aa8a15b0fc4f6073c40c337d64d57ab4fa"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/storyboard/grid/avoid.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/storyboard/grid/avoid.md",
+      "sha256": "dcebea1f8de51df05d181bd018b2d4003cb1ccb13d96a3cc18430485487ee16f"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/storyboard/grid/lists/cells.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/storyboard/grid/lists/cells.md",
+      "sha256": "c9c5fb4c3745f0bc2c4cd474c2be02ec488366002a0cb505bb452becd0ba2cde"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/storyboard/image/avoid.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/storyboard/image/avoid.md",
+      "sha256": "17cbe02b9ed32deb679e75cd42798a399e65331f30f3bfa9e571dbac08dab0da"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/storyboard/image/references.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/storyboard/image/references.md",
+      "sha256": "ad4e5de16630e0a2aa3d5ee6ad8dee294a2c40453168923a640270c917c65a64"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/storyboard/video/avoid.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/storyboard/video/avoid.md",
+      "sha256": "2366e554e558167b0da857dd80ba6d7f12097b7eb6bc0aeb000ca3f50ac046c9"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/text/drama_script_plan/break_rule/novel.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/text/drama_script_plan/break_rule/novel.md",
+      "sha256": "fdd7e2dc24da1c8ef48f716382497fcc68512bd88fdca464a5da02b63941f3b8"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/text/drama_script_plan/break_rule/screenplay.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/text/drama_script_plan/break_rule/screenplay.md",
+      "sha256": "0e129cd38b65f1dbf970cedd797110488b6fad9210c1e9b6769dd55316aa073c"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/text/drama_script_plan/language_rule/novel.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/text/drama_script_plan/language_rule/novel.md",
+      "sha256": "5249b433b6526d5ec715f9239e15701a9f09a78f6c3867037477ade22d89382f"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/text/drama_script_plan/language_rule/screenplay.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/text/drama_script_plan/language_rule/screenplay.md",
+      "sha256": "344aef3870f3ef9f66a5ccc57badea1be6c8c4491e38f6fc6b366ed7096404db"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/text/drama_script_plan/scene_rule/novel.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/text/drama_script_plan/scene_rule/novel.md",
+      "sha256": "57067bb928738ebfed0dc95a88e9f6f42ca0ef13aeeced72c867909bb8807a2c"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/text/drama_script_plan/scene_rule/screenplay.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/text/drama_script_plan/scene_rule/screenplay.md",
+      "sha256": "9aa55c8d9919eb40a277a839d565b69ffe32ac7010451177acce87ce03015d45"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/text/drama_script_plan/task/novel.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/text/drama_script_plan/task/novel.md",
+      "sha256": "fd68c0ade7091df92e425281baedc5eacf9973998c9484c32968de03c012b467"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/text/drama_script_plan/task/screenplay.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/text/drama_script_plan/task/screenplay.md",
+      "sha256": "55ad78f285ccc47a83a05773d2a6e6142fa44d7537bb92ef315ac895db5b543d"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/text/drama_script_plan/utterances_rule/novel.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/text/drama_script_plan/utterances_rule/novel.md",
+      "sha256": "4930d3f297e8336da8fe23bd1d9c73ec3fa8a5756be2fd4fc3a7bcc81a05ad9c"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/text/drama_script_plan/utterances_rule/screenplay.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/text/drama_script_plan/utterances_rule/screenplay.md",
+      "sha256": "937bdb4e1a89f0eda026b40ac3c53cd33367cd6d398c459ab53788c6ae73b1c3"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/text/episode_plan/author_division_rule/novel.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/text/episode_plan/author_division_rule/novel.md",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/text/episode_plan/author_division_rule/screenplay.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/text/episode_plan/author_division_rule/screenplay.md",
+      "sha256": "9e7e21de6f6d895211d65bc82ba7b8c96fd011b801d8bb2162a9551f83ced673"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/text/episode_plan/content_mode_label/drama.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/text/episode_plan/content_mode_label/drama.md",
+      "sha256": "609236fa4805f9c29ae4b05c492a183810a8d93b148a7613a801aa2a31ccf5ae"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/text/episode_plan/content_mode_label/narration.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/text/episode_plan/content_mode_label/narration.md",
+      "sha256": "a67ed38549cbebe5ab767f783bcd6d5a6b100fb6d1c74e7c8ab26e67d4f45b51"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/text/episode_plan/intro/novel.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/text/episode_plan/intro/novel.md",
+      "sha256": "4530e990f06598358f22de30782892b5c3b2f1812a3c63fdd7160305fbaa4e79"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/text/episode_plan/intro/screenplay.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/text/episode_plan/intro/screenplay.md",
+      "sha256": "ec71f4bf06975929f4946b8bf9698273d342f9f1057b8430d8fa13fbb7d31f21"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/text/episode_plan/lists/context_entries.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/text/episode_plan/lists/context_entries.md",
+      "sha256": "591d6de2981f42a73406062aad6d66427b4c3d6f2833e525695d5e6bafd68ee1"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/text/episode_plan/lists/failure.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/text/episode_plan/lists/failure.md",
+      "sha256": "99678c3917af844fb5966f0bd1b850b4033da9d27486f2b85123685096d0a25a"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/text/episode_plan/outline_rule/drama.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/text/episode_plan/outline_rule/drama.md",
+      "sha256": "bb1e03203293f3c3940922de8b87ed18f0573d34a6a5be262b8a81bda6a1b8c5"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/text/episode_plan/outline_rule/drama/novel.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/text/episode_plan/outline_rule/drama/novel.md",
+      "sha256": "8e39a6ba7fd35c39bd6d7c50a5f45317fb2668fcf07bb04c0fcbc23260611a85"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/text/episode_plan/outline_rule/drama/screenplay.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/text/episode_plan/outline_rule/drama/screenplay.md",
+      "sha256": "aa1ca700e2d78a015cbb13746c0750bfc0b528789d04fb54fb6ebca2e43539b4"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/text/episode_plan/outline_rule/narration.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/text/episode_plan/outline_rule/narration.md",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/text/episode_plan/source_heading/novel.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/text/episode_plan/source_heading/novel.md",
+      "sha256": "bb8633d00c47a6a09a4aee1a1ac015e028a2b9d217a8b6930755834957e2d045"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/text/episode_plan/source_heading/screenplay.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/text/episode_plan/source_heading/screenplay.md",
+      "sha256": "fd6b7a13fc91b78df2443fe51464d430d36376435a242cd0c956750eedbeb088"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/text/source_overview/task/novel.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/text/source_overview/task/novel.md",
+      "sha256": "a7f16b543b002084ee06006e951cdf756cc769da09908663e333e21c9a860490"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/partials/text/source_overview/task/screenplay.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/partials/text/source_overview/task/screenplay.md",
+      "sha256": "4b041224427927e0c9634f97779470f2e328710525233ef25f83c9c2d522334a"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/reference_video/unit.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/reference_video/unit.md",
+      "sha256": "dbf487cd6f978c9f500b47f312694e707f705aaa9f4d4d41c04b1dc04a4121fa"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/storyboard/grid.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/storyboard/grid.md",
+      "sha256": "2ac9009f0508257de6f9b29f6226e37a11cbc09e47f28cbc0b3d9f5d9aa5d149"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/storyboard/image.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/storyboard/image.md",
+      "sha256": "1996d8106c31afedac190d8cfde7acc83866211ce3b0cd3de793efdb715af69d"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/storyboard/video.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/storyboard/video.md",
+      "sha256": "fa3c942341f69b58d6c98aca89fce3e7dbbad679810a1e5d48a9775e8f2f305a"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/style/01_live_cinematic_ancient.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/style/01_live_cinematic_ancient.md",
+      "sha256": "fd3a86f16b1fdee9871b4742f076f0d08e355cc6d4602b8f039f924be1f7604b"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/style/02_live_zhang_yimou.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/style/02_live_zhang_yimou.md",
+      "sha256": "6714d52260d13450bd2d686a9a712053c05725fb876effb1595fd99e10f0a0dd"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/style/03_live_ancient_xianxia.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/style/03_live_ancient_xianxia.md",
+      "sha256": "7f24319ff252a2020a83d1b7cb91acb4c6e950388c10a86f996d4b7b020a6ecb"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/style/04_live_premium_drama.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/style/04_live_premium_drama.md",
+      "sha256": "6842e78b0cd83889b2dafaff11ba721ed33f9400e623ff3b1f6c62105fa7497d"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/style/05_live_cinema.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/style/05_live_cinema.md",
+      "sha256": "18910ea7cb605d02fb07d317318030576faf263dd08c9d25fd004e4e6d4d15a6"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/style/06_live_spartan.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/style/06_live_spartan.md",
+      "sha256": "69e20b8d7323fc21426ef120e781fb313d7d8aa18bb2cc5bd316a68fc65da4a4"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/style/07_live_bladerunner.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/style/07_live_bladerunner.md",
+      "sha256": "2effbd83c44fedb745da46029b57c69d0d779e2169457fc71e8520d45b2b7c1e"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/style/08_live_got.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/style/08_live_got.md",
+      "sha256": "d704fda53334bad09c59bb443dbed20a672a8bcf9fb0fa9694b4b90d017a08f6"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/style/09_live_breaking_bad.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/style/09_live_breaking_bad.md",
+      "sha256": "327115f7c2a73a70f9e7f37e279fc97ace01c0431b1864ed1cb51d8c7d433c5a"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/style/10_live_kdrama.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/style/10_live_kdrama.md",
+      "sha256": "59e966bdb84c1dafccd058ee3b7a43f5fe452608b20a4d8732dd8d7456b05937"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/style/11_live_kurosawa.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/style/11_live_kurosawa.md",
+      "sha256": "21f096275d34e0e59f7acd5d3c3b28cf144437d75ae4d935c7a46ab457b1d4ad"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/style/12_live_nolan.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/style/12_live_nolan.md",
+      "sha256": "6894bf192114803c1db23377c59836a74ff23aaad338d3fe651c4c0a034b0023"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/style/13_live_tarantino.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/style/13_live_tarantino.md",
+      "sha256": "10677bd9fb7c8386c61cd73c3e4da6c31a709681e62c61f963d62831d438c554"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/style/14_live_lynch.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/style/14_live_lynch.md",
+      "sha256": "ebdbc6aed1b9c650d73350d5a97022b280c4c4105cf28f61fd426533431b5b93"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/style/15_live_anderson.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/style/15_live_anderson.md",
+      "sha256": "353fe8f9e852e6d565a6455f55a182f1bdd99d86200b5e3e45edd444c0ff4fd1"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/style/16_live_wong.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/style/16_live_wong.md",
+      "sha256": "1c27aaab91029c01feb8d97ab68f0d1d338221871cfe90fdeb355e430385b4bb"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/style/17_live_shaw.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/style/17_live_shaw.md",
+      "sha256": "60d2eb8f2923cde48847456a2f92b192a8b40888da14afb49ceef47eaa9560eb"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/style/18_live_cyberpunk.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/style/18_live_cyberpunk.md",
+      "sha256": "f64e85e933760c457ef1ef1474607d1a7ebe208b322c621dfd553b3496eb9048"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/style/19_anim_3d_cg.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/style/19_anim_3d_cg.md",
+      "sha256": "ad6132c142dcbfbe4c78c1a9c05f6d4aff05a3835f0d0f0fb461cc07bd684a4a"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/style/20_anim_cn_3d.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/style/20_anim_cn_3d.md",
+      "sha256": "629bcd3d44a385b2f90d3eb1527b7850f278a4f8beee0b9cea26ce1115bbb5be"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/style/21_anim_kyoto.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/style/21_anim_kyoto.md",
+      "sha256": "5210bc9331eb6b8a986904f4d551d12180693cda03186a7f6f86c55b7510b977"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/style/22_anim_arcane.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/style/22_anim_arcane.md",
+      "sha256": "eab47b3346400808936f2d00fd675847c171bee5bc60b797cb9588eb463703ad"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/style/23_anim_us_3d.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/style/23_anim_us_3d.md",
+      "sha256": "d993f7bd0d573d8f6b818dbef9263ea724a24836ee21d79950c4b9011dd89bbd"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/style/24_anim_ink_wushan.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/style/24_anim_ink_wushan.md",
+      "sha256": "1a3f33f9cefdef4162c4dcf48876f1ee4d407f9c376278612a517b47962a5773"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/style/25_anim_ink_papercut.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/style/25_anim_ink_papercut.md",
+      "sha256": "da102a35155770aa8d050ece94ca1c8ada4f2a750b7da9e27d6285204f514059"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/style/26_anim_felt.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/style/26_anim_felt.md",
+      "sha256": "c89b124a246e13d4d2078221559843063f5b225738a96465501721e6f8ac36dd"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/style/27_anim_clay.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/style/27_anim_clay.md",
+      "sha256": "4ac45e4ea751bd7c43bbdc4ed2dc4de677896446ebdce688e5dce1bab368ac65"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/style/28_anim_jp_horror.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/style/28_anim_jp_horror.md",
+      "sha256": "9e430b8a5568be43cf4cbf33dbe59d10b1989a78510ae183a6c6e2cda036cc60"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/style/29_anim_kr_webtoon.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/style/29_anim_kr_webtoon.md",
+      "sha256": "fc5d6b38805fe44425f817cd0322abcd1cf3402bc7bbad0eae79b7fcd72ec339"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/style/30_anim_zzz.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/style/30_anim_zzz.md",
+      "sha256": "4280821d9574d3e2e76051671bc1b4435c6ebec6a395365c026daac78a6f4414"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/style/31_anim_ghibli.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/style/31_anim_ghibli.md",
+      "sha256": "55e582eb20843e6cab228846518ab83c85a03c3e39d3f5dc151b08abd6a7601b"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/style/32_anim_demon_slayer.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/style/32_anim_demon_slayer.md",
+      "sha256": "160525734b81c3859bc8d88a4ec4b421b4d8ecc9dbf634fb97ccf6cba9ef0916"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/style/33_anim_cyberpunk.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/style/33_anim_cyberpunk.md",
+      "sha256": "a8b39cddee4050ba5c38393456f1c16838e8f4354bd9382492fcf55e6c3fee8c"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/style/34_anim_bloodborne.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/style/34_anim_bloodborne.md",
+      "sha256": "b00d591d993032b98111c4b304f3b688748d6ed43f55e7afee96fb4baef0e5cc"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/style/35_anim_itojunji.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/style/35_anim_itojunji.md",
+      "sha256": "052d41300f778adec514f8161ed94f2f04c653797aaff14fd81ab10273bb02c2"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/style/36_anim_90s_retro.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/style/36_anim_90s_retro.md",
+      "sha256": "20e4e556056bf60c75d43d42ed30d23e8769ae21f37534007f4631f6117aeb10"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/text/ad_reference_video_prompt_authoring.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/text/ad_reference_video_prompt_authoring.md",
+      "sha256": "06cb1b235998aabacf6494153fb2fa2dcfdece1461b2c6162a7ba3faa5d56b1e"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/text/ad_reference_video_script.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/text/ad_reference_video_script.md",
+      "sha256": "c0d2f2a3e5992d5d554cfd5201d5ab86646581ca0f26185e765c28e16e1d0a7e"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/text/ad_storyboard_prompt_authoring.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/text/ad_storyboard_prompt_authoring.md",
+      "sha256": "19930a81d6dd57c0ebe0064435318d0a925ee2d27a4f9c87f086966747ac7d4a"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/text/ad_storyboard_script.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/text/ad_storyboard_script.md",
+      "sha256": "7dc2cd39eb9266903b02a8888b08b3c9ae3e34c68d9b31f0e6c88d78ef1daa51"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/text/agent_language_rule.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/text/agent_language_rule.md",
+      "sha256": "6176e9dcf4f995da02c54096d33ef12311615243a22748400cc9f4a1cc205bb5"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/text/drama_prompt_authoring.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/text/drama_prompt_authoring.md",
+      "sha256": "6b1259710be38e11823214f99d997f82fe9b4bab48051c5541e5808c821e5d84"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/text/drama_script_plan.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/text/drama_script_plan.md",
+      "sha256": "fc76dbda5a4dfe794ef438e8977d47ddb829d84336c442c48d027aaeff482861"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/text/episode_plan.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/text/episode_plan.md",
+      "sha256": "65c738f7a42f617d7f9c99e12e07585a5c8adb4933d7086c6ec9193baf6f573b"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/text/narration_prompt_authoring.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/text/narration_prompt_authoring.md",
+      "sha256": "429c4126ab62f8e6bff436c4b35da9e002809fe51594421d50eeb2a896720f5a"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/text/narration_script_plan.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/text/narration_script_plan.md",
+      "sha256": "4334121d6e3e217d0f6c79d0430c541015e86fdf2f83397f44adaa8173b70999"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/text/reference_video_prompt_authoring.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/text/reference_video_prompt_authoring.md",
+      "sha256": "ac32d999c4a37b16c2c71d4f4e93bd487faf48a31ab549f510489f8fb556d1c8"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/text/reference_video_script_plan.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/text/reference_video_script_plan.md",
+      "sha256": "162d764873b54a7918a4100fee3fcc449a778d6b9c7eaadf3ad29ee4d2211751"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/text/source_overview.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/text/source_overview.md",
+      "sha256": "770bc8324af45d8d4bebf2b40d74a014de72f0fbf9484f58425853a2793deb7c"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_templates/templates/text/style_analysis.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_templates/templates/text/style_analysis.md",
+      "sha256": "ed86a063e40213563e7cb58fadf191a48110920e1c46329bddab024c8fce35d8"
+    },
+    {
+      "path": "originals/lib/prompts/prompt_utils.py",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/prompt_utils.py",
+      "sha256": "dcee35768c6f1f158ad823da07f78c2e57b91758f6c7f275dfb2e852a863d8df"
+    },
+    {
+      "path": "originals/lib/prompts/reference_image_numbering.py",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/reference_image_numbering.py",
+      "sha256": "0eab9c147c72ba6dd186ecd5933a29439c55cbeb05603ffb5148d3464557b528"
+    },
+    {
+      "path": "originals/lib/prompts/style_templates.py",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/prompts/style_templates.py",
+      "sha256": "5ca8afd9df02c4c06007c8916587a056a33f3d89bf1287ecd4dad5dd91b1a0f4"
+    },
+    {
+      "path": "originals/lib/script/script_document.py",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/script/script_document.py",
+      "sha256": "cdd18dc38287d8ae2d5f52c165f05381e0c148f7d96b743e7961327122dcdf46"
+    },
+    {
+      "path": "originals/lib/script/script_generator.py",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/script/script_generator.py",
+      "sha256": "7db570bf1b07a854760b40d3595b44f17a23640ccc240f1cbe61f636258dcb56"
+    },
+    {
+      "path": "originals/lib/script/script_models.py",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/script/script_models.py",
+      "sha256": "5f2b2d2051eab504185e06df79d09cd8f875de1bc7c663baee5699772de209ba"
+    },
+    {
+      "path": "originals/lib/workflow/workflow_plan.py",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/workflow/workflow_plan.py",
+      "sha256": "ebbcbe565d498b1fae29ff372b5fe8475bca2f169ae56e7ecf643f45d800c27e"
+    },
+    {
+      "path": "originals/lib/workflow/workflow_rules.py",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/workflow/workflow_rules.py",
+      "sha256": "4f2d0264ab0648c5717fb5f818e97824ef1c4598f9726717d9262fddb3747733"
+    },
+    {
+      "path": "originals/lib/workflow/workflow_state.py",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/lib/workflow/workflow_state.py",
+      "sha256": "04e7a5248997e6486bb4f16f6e6d7bbcaf2fc7e6fce2ab309192aeb62eeead5b"
+    },
+    {
+      "path": "originals/server/services/project/script_review.py",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/server/services/project/script_review.py",
+      "sha256": "63921f34954ce2f2a232e3b12abae90dd3506f65cae1cac5718ec8a6d996452c"
+    },
+    {
+      "path": "originals/server/text_generation.py",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/server/text_generation.py",
+      "sha256": "4ec433a9b19f25d7d0f20e69ad41d334bd47410179ddda7ac8ec3ef399f275b7"
+    },
+    {
+      "path": "originals/server/tool_runtime.py",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/server/tool_runtime.py",
+      "sha256": "5e4152cb4562063f1154c91ce926f7b78594ae68f62d1bd8a4cbbf85867a3ccf"
+    },
+    {
+      "path": "originals/skills/LICENSE",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/skills/LICENSE",
+      "sha256": "8a058e663ef3cd86848341e38b5718fb1946cb94e248e72d78cfbb018ee42f58"
+    },
+    {
+      "path": "originals/skills/README.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/skills/README.md",
+      "sha256": "b6b1056a3c82a57ab476e24357e6318032bd52ce64406cf8fca8927284344ccc"
+    },
+    {
+      "path": "originals/skills/video-workflow/SKILL.md",
+      "source": "https://github.com/ArcReel/ArcReel/blob/55595f73059b4d216bb586eb7271233cbc217094/skills/video-workflow/SKILL.md",
+      "sha256": "0dffcaa60e58ebbff7d31d6ac3952d91fc6461ced2fdc109f86cae6e0cca523b"
+    }
+  ]
+}

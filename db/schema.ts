@@ -40,7 +40,8 @@ export const projects = sqliteTable('projects', {
   body: text('body').notNull(),
   revision: integer('revision').notNull(),
   updatedAt: text('updated_at').notNull(),
-});
+  deletedAt: integer('deleted_at'),
+}, t => [index('idx_projects_deleted_at').on(t.deletedAt)]);
 export const media = sqliteTable('media', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),

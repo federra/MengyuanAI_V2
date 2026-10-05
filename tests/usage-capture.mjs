@@ -99,7 +99,7 @@ await fs.writeFile(
 );
 await fs.writeFile(
   path.join(root, 'model-server.mjs'),
-  `export const textRequest=(...args)=>globalThis.__textRequest(...args);export const config=async()=>({});export const readyConfig=async()=>({id:'test',kind:'image',protocol:'images',model:'test',enabled:true,hasKey:true,apiKey:'fixture'});export const modelRequest=(...args)=>globalThis.__modelRequest(...args);`,
+  `export const modelRequestTimeoutMs=()=>60000;export const textRequest=(...args)=>globalThis.__textRequest(...args);export const config=async()=>({});export const readyConfig=async()=>({id:'test',kind:'image',protocol:'images',model:'test',enabled:true,hasKey:true,apiKey:'fixture'});export const modelRequest=(...args)=>globalThis.__modelRequest(...args);`,
 );
 const compiled = new Map();
 async function compile(filename) {
@@ -107,12 +107,16 @@ async function compile(filename) {
   if (compiled.has(filename)) return compiled.get(filename);
   const target = path.join(root, String(compiled.size) + '.mjs');
   compiled.set(filename, target);
+  if (filename.endsWith('.json')) {
+    await fs.writeFile(target, 'export default ' + await fs.readFile(filename,'utf8') + ';');
+    return target;
+  }
   let source = ts.transpileModule(await fs.readFile(filename, 'utf8'), {
     compilerOptions: {
       target: ts.ScriptTarget.ES2022,
       module: ts.ModuleKind.ES2022,
     },
-  }).outputText;
+  }).outputText.replace(/with\s*\{\s*type:\s*['"]json['"]\s*\}/g, '');
   const imports = [...source.matchAll(/from\s*['"]([^'"]+)['"]/g)];
   for (const match of imports) {
     let resolved;
@@ -124,7 +128,7 @@ async function compile(filename) {
       resolved = await compile(
         (match[1].startsWith('@/')
           ? path.resolve(match[1].slice(2))
-          : path.resolve(path.dirname(filename), match[1])) + '.ts',
+          : path.resolve(path.dirname(filename), match[1])) + (match[1].endsWith('.json') ? '' : '.ts'),
       );
     if (resolved)
       source = source.replace(
@@ -147,7 +151,7 @@ const old = {
   brief: '旧创意',
   revision: 1,
 };
-db.prepare('INSERT INTO projects VALUES(?,?,?,?,?)').run(
+db.prepare('INSERT INTO projects(id,title,body,revision,updated_at) VALUES(?,?,?,?,?)').run(
   old.id,
   old.title,
   JSON.stringify(old),

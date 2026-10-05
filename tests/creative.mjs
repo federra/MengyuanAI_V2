@@ -13,9 +13,11 @@ const code = ts
   })
   .outputText.replaceAll("'./studio'", "'./studio.mjs'");
 await fs.writeFile('work/test/creative.mjs', code);
-const { parseStoryPlans, chooseStory, creativeStages } = await import(
+const { parseStoryPlans, chooseStory, creativeStages, generationTaskName } = await import(
   pathToFileURL(path.resolve('work/test/creative.mjs')).href
 );
+for (const [task,name] of [['storyOptions','故事方案'],['story','故事'],['script','剧本'],['shots','分镜'],['video','视频'],['prompt','分镜提示词']])
+  assert.equal(generationTaskName?.(task),name,'generation status must name the requested output');
 const { exampleProject, validateProject } = await import(
   pathToFileURL(path.resolve('work/test/studio.mjs')).href
 );

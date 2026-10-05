@@ -1,3 +1,4 @@
+import { videoDurationError } from './video-duration';
 import { shotVisualText, type Project } from './studio';
 import { composeVideoContext, videoReferences } from './video-context';
 import { finalVideoPrompt } from './video-request';
@@ -20,6 +21,8 @@ export function doubaoTasks(project: Project, ids: string[], defaults: Defaults 
     .map((s) => {
       const parameters = doubaoParameters(project, s, defaults);
       if (!doubaoRatios.includes(parameters.ratio)) throw Error(`豆包不支持项目画幅${parameters.ratio}，请在分镜的豆包画幅选项中选择受支持的比例后提交。`);
+      const durationError = videoDurationError(parameters.duration, undefined, 'doubao');
+      if (durationError) throw Error(`${s.title}：${durationError}`);
       const references = videoReferences(project, s);
       const input: GenerationInput = {
         projectId: project.id,

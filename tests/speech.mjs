@@ -6,7 +6,7 @@ import {pathToFileURL} from 'node:url';
 import path from 'node:path';
 const dir='work/model-test';
 for(const name of ['speech','speech-server','studio','dialogue','dialogue-timeline']){
- const code=ts.transpileModule(await fs.readFile(`lib/${name}.ts`,'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText.replaceAll("'./server'","'./fake'").replace(/from '(\.\/[^']+)'/g,"from '$1.mjs'");await fs.writeFile(`${dir}/${name}.mjs`,code);
+ const code=ts.transpileModule(await fs.readFile(`lib/${name}.ts`,'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText.replaceAll("'./server'","'./fake'").replaceAll("'./usage-server'","'./fake'").replace(/from '(\.\/[^']+)'/g,"from '$1.mjs'");await fs.writeFile(`${dir}/${name}.mjs`,code);
 }
 const imp=n=>import(pathToFileURL(path.resolve(dir,n+'.mjs')));
 const {modelDefaults,validateModel}=await imp('models');const {configs,jobs,blobs,profiles,defaults}=await imp('fake');const {seal,listConfigs}=await imp('model-server');
@@ -21,7 +21,7 @@ const listed=(await listConfigs()).filter(m=>m.kind==='audio');assert.equal(list
 const input={projectId:crypto.randomUUID(),targetId:crypto.randomUUID(),lineId:'line-1',text:'妈，今天一定要回来呀。',voice:'child-voice',speed:1,instructions:'期待'};
 assert.equal(speechBody(c,input).input,input.text);assert(!('instructions' in speechBody(c,input)));assert.equal(speechBody({...c,speechInstructions:true},input).instructions,'期待');
 assert.throws(()=>speechBody(c,{...input,text:''}));assert.throws(()=>speechBody(c,{...input,speed:0}));
-let requests=[];globalThis.fetch=async(url,init)=>{requests.push({url,init});return new Response(new Uint8Array([73,68,51,1,2,3]),{headers:{'content-type':'audio/mpeg'}});};
+const requests=[];globalThis.fetch=async(url,init)=>{requests.push({url,init});return new Response(new Uint8Array([73,68,51,1,2,3]),{headers:{'content-type':'audio/mpeg'}});};
 let accepted;const result=await submitSpeech(input,'speech-1',j=>{accepted={...j};});assert.equal(accepted.status,'submitting');assert.equal(result.status,'succeeded');assert(blobs.has(result.media.id));assert(!jobs.get('speech-1').config.includes(key));
 assert.equal(requests[0].url,'https://speech.example.com/v1/audio/speech');assert.equal(JSON.parse(requests[0].init.body).model,'second-tts');assert.equal(JSON.parse(requests[0].init.body).input,input.text);assert(!('instructions' in JSON.parse(requests[0].init.body)));
 await submitSpeech(input,'speech-1');assert.equal(requests.length,1,'idempotent submission');
@@ -31,5 +31,9 @@ const project=newProject();project.id=input.projectId;const shot={...newShot(),i
 const bound=receiveGeneratedSpeech(project,[result]);assert.equal(bound.shots[0].lines[0].audio.id,result.media.id);assert.equal(bound.shots[0].lines[0].audioStart,0);assert.equal(bound.shots[0].lines[0].start,4);assert.equal(receiveGeneratedSpeech(bound,[result]),bound);
 assert.equal(receiveGeneratedSpeech(project,[{...result,projectId:'another'}]),project);
 assert.equal(receiveGeneratedSpeech(project,[{...result,speechText:'错误台词'}]),project);
-validateProject(JSON.parse(JSON.stringify(bound)));
+// The service mock uses a non-UUID operation key; validate with a realistic stored media ID.
+const persisted = JSON.parse(JSON.stringify(bound));
+persisted.shots[0].lines[0].audio.id = crypto.randomUUID();
+persisted.shots[0].lines[0].audio.url = '/api/media/' + persisted.shots[0].lines[0].audio.id;
+validateProject(persisted);
 console.log('PASS multiple custom speech profiles, encryption, protocol body, optional instructions, binary media, failure handling, idempotency, exact-line binding, timing and persistence.');

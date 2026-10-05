@@ -77,8 +77,10 @@ export function normalizeEpisodes(root: RecordValue) {
         throw Error(`${label}描述合计超过10000字`);
       const asset = { id: id(), kind, name, description, inLibrary: false };
       bySourceId.set(sourceId, asset);
-      if (!assets.some((a) => a.kind === kind && a.name === name))
-        assets.push(asset);
+      const existing = assets.find((a) => a.kind === kind && a.name === name);
+      if (!existing) assets.push(asset);
+      else if (!existing.description.trim() && description.trim())
+        existing.description = description;
     });
   }
   if (assets.length > 200) throw Error('导入资产合计超过200项');

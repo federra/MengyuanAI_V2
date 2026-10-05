@@ -6,7 +6,7 @@ import path from 'node:path';
 import {validateBundle,safeName} from '../browser-extension/contract.js';
 import {fillPrompt} from '../browser-extension/fill.js';
 const dir='work/doubao-test';await fs.mkdir(dir,{recursive:true});
-for(const name of ['video-generation','doubao-manager','doubao','studio','dialogue','dialogue-timeline','video-context','video-performance','video-request','video-voice']){const code=ts.transpileModule(await fs.readFile(`lib/${name}.ts`,'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText.replace(/from '(\.\/[^']+)'/g,"from '$1.mjs'");await fs.writeFile(`${dir}/${name}.mjs`,code);}
+for(const name of ['video-duration','video-generation','doubao-manager','doubao','studio','dialogue','dialogue-timeline','video-context','video-performance','video-request','video-voice']){const code=ts.transpileModule(await fs.readFile(`lib/${name}.ts`,'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText.replace(/from '(\.\/[^']+)'/g,"from '$1.mjs'");await fs.writeFile(`${dir}/${name}.mjs`,code);}
 const imp=n=>import(pathToFileURL(path.resolve(dir,n+'.mjs')));const {newProject,newShot}=await imp('studio');const {doubaoTasks}=await imp('doubao');
 const p=newProject();p.shots=[newShot()];const s=p.shots[0];s.character='石头';s.description='石头 ( @role_shitou ) 拿起 红笔 ( @prop_pen )。';s.dialogue='石头：“妈，今天回来呀。”';
 p.assets=[['人物','石头'],['道具','红笔']].map(([kind,name],i)=>({id:'asset-'+i,kind,name,description:'固定设定',image:{id:'image-'+i,url:'/api/media/image-'+i,name:name+'.png',type:'image/png'}}));s.references=p.assets.map(a=>a.id);
@@ -61,3 +61,6 @@ console.log('PASS shot-first model/aspect/duration and explicit plugin defaults,
 
 assert.equal(doubaoParameters({...p,ratio:'21:9'},s,defaults).ratio,'21:9');
 assert.throws(()=>doubaoTasks({...p,ratio:'2.35:1',shots:[s]},[s.id],defaults),/不支持项目画幅/);
+
+assert.throws(()=>doubaoTasks({...p,shots:[{...s,duration:22}]},[s.id]),/重新拆分/);
+console.log('PASS oversize storyboard is blocked before a Doubao bundle or media request');

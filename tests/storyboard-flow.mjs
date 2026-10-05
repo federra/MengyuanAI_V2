@@ -11,6 +11,7 @@ for (const [file, name] of [
   ['lib/api-response.ts', 'api-response'],
   ['lib/storyboard-conversion-server.ts', 'storyboard-conversion-server'],
   ['lib/storyboard-generation-input.ts', 'storyboard-generation-input'],
+  ['lib/video-duration.ts', 'video-duration'],
   ['app/api/storyboards/normalize/route.ts', 'normalize-route'],
 ]) {
   const code = ts
@@ -20,7 +21,8 @@ for (const [file, name] of [
         module: ts.ModuleKind.ES2022,
       },
     })
-    .outputText.replaceAll("'@/lib/creative'", "'../test/creative.mjs'")
+    .outputText.replaceAll("'@/lib/video-duration'", "'./video-duration.mjs'")
+    .replaceAll("'@/lib/creative'", "'../test/creative.mjs'")
     .replaceAll("'@/lib/storyboard-conversion-server'", "'./storyboard-conversion-server.mjs'")
     .replaceAll("'@/lib/storyboard-generation-input'", "'./storyboard-generation-input.mjs'")
     .replaceAll("'./model-server'", "'./fake.mjs'")
@@ -47,13 +49,15 @@ export function respond(value){answer=value;}
 export function json(value,status=200){return Response.json(value,{status});}
 export function sameOrigin(req){if(req.headers.get('origin')!==new URL(req.url).origin)throw Error('不允许跨站写入');}
 export async function textRequest(body){requests.push(body);return Response.json(Array.isArray(answer) ? answer.shift() : answer);}
-export async function config(){return {enabled:true,hasKey:true};}
+let videoConfig={enabled:true,hasKey:true};
+export function configureVideo(value){videoConfig=value;}
+export async function config(){return videoConfig;}
 `,
 );
 const imp = (name) =>
   import(pathToFileURL(path.resolve(dir, name + '.mjs')).href);
 const { POST } = await imp('route');
-const { respond, requests } = await imp('fake');
+const { respond, requests, configureVideo } = await imp('fake');
 const { episodeTemplate } =
   await import('../work/test/storyboard-contract.mjs');
 const source = structuredClone(episodeTemplate);
@@ -84,7 +88,7 @@ const request = () =>
 answer(source);
 let r = await request();
 assert.equal(r.status, 200);
-let result = await r.json();
+const result = await r.json();
 assert.deepEqual(result.storyboard, {
   segments: 26,
   duration: 260,
@@ -135,6 +139,16 @@ assert.equal(r.status,200);
 assert.equal((await r.json()).storyboard.segments,2);
 console.log('PASS long scripts split and length-limited chunks retry as smaller validated parts');
 
+const assetPart = (description) => ({choices:[{finish_reason:'stop',message:{content:JSON.stringify({
+  shots:[{title:'进站',duration:5,character:'小林'}],
+  assets:[{kind:'人物',name:'小林',description}],
+})}}]});
+respond([assetPart(''),assetPart('红色外套'),oneShot(3)]);
+r=await postScript(longScript);
+assert.equal(r.status,200);
+assert.equal(JSON.parse((await r.json()).text).assets[0].description,'红色外套','later chunks must fill missing asset descriptions');
+console.log('PASS asset descriptions survive deduplication across script chunks');
+
 answer({plans:[{title:'长故事',summary:'概要',content:'完整正文',tags:[]}]});
 const long=await POST(new Request('http://localhost/api/ai',{method:'POST',headers:{origin:'http://localhost','Content-Type':'application/json'},body:JSON.stringify({task:'storyOptions',content:'长篇测试',storyCount:4,storyLength:'5000字以上'})}));
 assert.equal(long.status,200);
@@ -157,3 +171,52 @@ r=await callImport({unknown:'需要转换'});assert.equal(r.status,422);assert.m
 respond({choices:[{message:{content:JSON.stringify(standard)}}]});
 r=await callImport({unknown:'完整响应未提供finish_reason'});assert.equal(r.status,200);
 console.log('PASS conversion distinguishes truncated output and accepts complete output without optional finish_reason.');
+
+respond({choices:[{finish_reason:'length',message:{content:'',reasoning_content:'reasoning only'}}]});
+const emptyBefore=requests.length;
+r=await postScript('剧本'.repeat(800));
+assert.equal(r.status,502);
+assert.match((await r.json()).error,/尚未返回正文.*不等于剧本输入字数超限/);
+assert.equal(requests.length-emptyBefore,1,'reasoning-only exhaustion must not fan out into repeated paid attempts');
+console.log('PASS reasoning-only truncation gives an output-specific error without recursive requests');
+
+// A complete, valid JSON response can still be unrenderable as one video.
+const oversized = {shots:[{title:'长对白',duration:22,description:'完整动作',dialogue:'甲：“前半句。”\n乙：“后半句。”'}]};
+const split = {shots:[{title:'前半段',duration:10,description:'前半动作',dialogue:'甲：“前半句。”'},{title:'后半段',duration:12,description:'后半动作',dialogue:'乙：“后半句。”'}]};
+respond([complete(oversized),complete(split)]);
+const durationBefore=requests.length;
+r=await postScript('甲说前半句，乙说后半句。');
+assert.equal(r.status,200);
+const repaired=await r.json();
+assert.equal(repaired.storyboard.segments,2,'22-second result must be resegmented, not silently kept or clamped');
+assert.equal(repaired.storyboard.duration,22,'resegmentation must preserve the provided total timing');
+assert.match(repaired.text,/前半句/);assert.match(repaired.text,/后半句/);
+assert.equal(requests.length-durationBefore,2);
+assert.match(requests[durationBefore].messages[0].content,/15秒/);
+respond([complete(oversized),complete(oversized)]);
+const invalidBefore=requests.length;
+r=await postScript('长对白');
+assert.equal(r.status,502,'still oversized after one repair must not reach application');
+assert.match((await r.json()).error,/时长.*原项目未修改/);
+assert.equal(requests.length-invalidBefore,2,'duration repair is bounded');
+console.log('PASS duration generation contract, content-preserving resegmentation and bounded rejection');
+
+const {videoDurationOptions,videoDurationError}=await imp('video-duration');
+assert.deepEqual(videoDurationOptions({protocol:'heima-video',model:'grok'}),[6,10,15]);
+assert.deepEqual(videoDurationOptions({protocol:'chat-video',model:'firefly-veo31-8s-16x9-1080p'}),[8]);
+assert.equal(videoDurationOptions({protocol:'heima-minimax',model:'minimax_h3'})[0],5);
+assert.equal(videoDurationOptions(undefined,'doubao')[0],4);
+assert.match(videoDurationError(16),/15/);
+assert.match(videoDurationError(4,{protocol:'heima-minimax',model:'minimax_h3'}),/5/);
+assert.match(videoDurationError(2,undefined,'doubao'),/4/);
+configureVideo({protocol:'chat-video',model:'firefly-veo31-8s-16x9-1080p'});
+respond([oneShot(1),complete({shots:[{title:'固定8秒',duration:8,description:'完整动作'}]})]);
+r=await postScript('固定时长型号');assert.equal(r.status,200);
+assert.equal(JSON.parse((await r.json()).text).shots[0].duration,8);
+assert.match(requests.at(-1).messages[0].content,/允许时长：8秒/);
+assert(!requests.at(-1).messages[0].content.includes('0.1至120的秒数'));
+// A faithful import remains unchanged; video submission separately enforces limits.
+const importCount=requests.length;r=await callImport(oversized);
+assert.equal(r.status,200);assert.equal(requests.length,importCount);
+assert.equal(JSON.parse((await r.json()).text).shots[0].duration,22);
+console.log('PASS channel-specific allowed durations and faithful long-duration import');

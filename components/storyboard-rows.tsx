@@ -1,4 +1,5 @@
 'use client';
+import { videoDurationOptions, videoDurationError } from '@/lib/video-duration';
 import { modelApi } from './model-settings';
 import { ModelPicker } from './model-picker';
 import { BusinessSelect } from './skill-center';
@@ -69,6 +70,7 @@ import { matchShotAssets } from '@/lib/assets';
 import {
   dialogueLines,
   dialogueText,
+  explicitDialogueSpeakers,
   newLine,
   type DialogueLine,
 } from '@/lib/dialogue';
@@ -132,9 +134,11 @@ export function StoryboardRows({
   onGenerate,
   onOptimize,
   onManageAssets,
+  onResegment,
   batchAction,
 }: {
   onManageAssets: (shotIds: string[]) => void;
+  onResegment: () => void;
   batchAction?: { kind: 'audio' | 'blocking'; shotId: string; nonce: number };
   onOptimize: (shotId: string) => void;
   onGenerate: (target: GenerationTarget) => void;
@@ -254,7 +258,7 @@ export function StoryboardRows({
   const dubbingLines = dubbingShot
     ? dialogueLines(
         dubbingShot,
-        project.assets.filter((a) => a.kind === '人物').map((a) => a.name),
+        project.assets.filter((a) => a.kind === '人物'),
       )
     : [];
   const dubbingLine = dubbingLines.find((l) => l.id === dubbing?.lineId);
@@ -473,12 +477,14 @@ export function StoryboardRows({
             pluginPaused ? '已暂停' : videoJob?.status === 'downloading' ? '下载中' : pluginActive && pluginJob?.status === 'queued' ? '排队中' : pluginActive && pluginJob?.generationAcceptedAt ? '等待视频返回' : '生成中';
           const lines = dialogueLines(
             s,
-            project.assets.filter((a) => a.kind === '人物').map((a) => a.name),
+            project.assets.filter((a) => a.kind === '人物'),
           );
           const refs = project.assets.filter((a) =>
             s.references.includes(a.id),
           );
           const videoModel = models.find((m) => m.kind === 'video' && (s.videoModelId ? m.id === s.videoModelId : m.isDefault));
+          const durationOptions = videoDurationOptions(videoModel, s.videoModelId);
+          const durationError = videoDurationError(s.duration, videoModel, s.videoModelId);
           const resolutionOptions = videoResolutionOptions(videoModel);
           const selectedResolution = videoResolutionForModel(s.videoResolution, videoModel);
           const frameActions = <div className="sheet-frame-actions">
@@ -593,7 +599,7 @@ export function StoryboardRows({
                           />
                           <Choice
                             label={`第${n + 1}条说话角色`}
-                            placeholder="选择角色"
+                            placeholder={explicitDialogueSpeakers(line.text, project.assets).length > 1 ? '多说话人，待拆分' : '选择角色'}
                             value={line.speaker}
                             options={project.assets
                               .filter((a) => a.kind === '人物')
@@ -676,6 +682,9 @@ export function StoryboardRows({
                             <X />
                           </Button>
                         </div>
+                        {line.speaker && !project.assets.some((asset) => asset.kind === '人物' && asset.name === line.speaker) && (
+                          <small className="dialogue-speaker-note">{line.speaker}：待关联角色资产</small>
+                        )}
                         <textarea
                           aria-label={`镜头${i + 1}第${n + 1}条台词`}
                           rows={3}
@@ -968,20 +977,21 @@ export function StoryboardRows({
                         type="number"
                         aria-label={`镜头${i + 1}时长`}
                         min={0.1}
-                        max={120}
+                        max={durationOptions.at(-1)}
                         step={0.1}
                         value={s.duration}
                         onChange={(e) => {
                           const n = Number(e.target.value);
                           if (Number.isFinite(n))
                             onEdit(
-                              { duration: Math.min(120, Math.max(0.1, n)) },
+                              { duration: Math.min(durationOptions.at(-1)!, Math.max(0.1, n)) },
                               s.id,
                             );
                         }}
                       />
                       秒
                     </span></label>
+                    {durationError && <div className="helper" role="alert">{durationError} <Button variant="outline" size="sm" disabled={disabled || !project.script.trim()} onClick={onResegment}>重新生成项目分镜</Button></div>}
                     <div className="sheet-model-field sheet-model-resolution">
                       <small>分辨率</small>
                       {s.videoModelId === 'doubao' ? <span className="sheet-model-unavailable" title="豆包网页当前没有清晰度选项">由豆包页面决定</span> : <Select value={selectedResolution} onValueChange={(value) => value && onEdit({videoResolution: value}, s.id)}>

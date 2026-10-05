@@ -10,6 +10,8 @@ for (const [file, name] of [
   ['lib/model-json.ts', 'model-json'],
   ['app/api/assets/route.ts', 'assets-route'],
   ['app/api/projects/route.ts', 'projects-route'],
+  ['lib/project-trash-server.ts','project-trash-server'],
+  ['lib/project-trash.ts','project-trash'],
 ]) {
   const code = ts
     .transpileModule(await fs.readFile(file, 'utf8'), {
@@ -19,7 +21,11 @@ for (const [file, name] of [
       },
     })
     .outputText.replaceAll("'@/lib/server'", "'./fake.mjs'")
+    .replaceAll("'./server'", "'./fake.mjs'")
+    .replaceAll("'./project-trash'", "'./project-trash.mjs'")
+    .replaceAll("'@/lib/project-trash-server'", "'./project-trash-server.mjs'")
     .replaceAll("'@/lib/model-server'", "'./fake.mjs'")
+    .replaceAll("'@/lib/usage-server'", "'./fake.mjs'")
     .replaceAll("'@/lib/assets'", "'../test/assets.mjs'")
     .replaceAll("'@/lib/studio'", "'../test/studio.mjs'")
     .replaceAll("'@/lib/api-response'", "'./api-response.mjs'")
@@ -31,10 +37,12 @@ await fs.writeFile(
   `
 export let output;export function respond(value){output=value;}
 export const rows=new Map();
+export function usageOwner(){return null;}
 export function json(value,status=200){return Response.json(value,{status});}
 export function sameOrigin(req){if(req.headers.get('origin')!==new URL(req.url).origin)throw Error('跨站');}
 export async function textRequest(){if(output instanceof Error)throw output;return Response.json({choices:[{finish_reason:'stop',message:{content:output}}]});}
-export function db(){return {prepare(sql){let args;return {bind(...v){args=v;return this},async all(){return {results:[...rows.values()].map(p=>({body:JSON.stringify(p)}))}},async run(){
+export function db(){return {async batch(statements){return Promise.all(statements.map(s=>s.run()));},prepare(sql){let args;return {bind(...v){args=v;return this},async all(){return {results:[...rows.values()].map(p=>({body:JSON.stringify(p)}))}},async run(){
+ if(sql.startsWith('DELETE'))return {meta:{changes:0}};
  if(sql.startsWith('INSERT')){const [id,,body]=args;if(rows.has(id))return {meta:{changes:0}};rows.set(id,JSON.parse(body));}
  else {const [title,body,revision,updated,id,expected]=args;if(rows.get(id)?.revision!==expected)return {meta:{changes:0}};rows.set(id,JSON.parse(body));}
  return {meta:{changes:1}};
@@ -80,7 +88,9 @@ const report = reviewAssetDrafts(
   { assets: [verified, verified, hallucinated] },
   p.script,
 );
-assert.equal(report.warnings.length, 2);
+assert(report.warnings.some(w => w.includes('重复')));
+assert(report.warnings.some(w => w.includes('无效')));
+assert(report.warnings.some(w => w.includes('车站')));
 assert(report.assets.some((a) => a.kind === '场景' && a.name === '车站'));
 assert(!report.assets.some((a) => a.name === '不存在'));
 parseAssetDrafts(report, p.script);
@@ -97,7 +107,7 @@ let progress = 0;
 const response = extract(req('assets', { script: p.script }));
 const extracted = await readApiResponse(await response, () => progress++);
 assert(progress > 0);
-assert.equal(extracted.warnings.length, 2);
+assert.deepEqual(extracted.warnings, report.warnings);
 let next = mergeScriptAssets(p, extracted.assets, 'model');
 next.shots = parseShots(
   JSON.stringify({
@@ -119,7 +129,7 @@ next.shots = parseShots(
 next = mergeScriptAssets(next, extracted.assets, 'model');
 validateProject(next);
 assert(next.shots[0].references.length >= 2);
-let stored = await readApiResponse(await save(req('projects', next, false)));
+const stored = await readApiResponse(await save(req('projects', next, false)));
 assert.equal(stored.revision, 1);
 assert.equal(rows.get(p.id).assets.length, next.assets.length);
 const all = await readApiResponse(await read());

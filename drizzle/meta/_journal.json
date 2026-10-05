@@ -29,6 +29,13 @@
       "when": 1789123953137,
       "tag": "0003_lame_sage",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1791212762600,
+      "tag": "0004_project_trash",
+      "breakpoints": true
     }
   ]
 }

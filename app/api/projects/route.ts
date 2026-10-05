@@ -1,10 +1,12 @@
 import { db, json, sameOrigin } from '@/lib/server';
 import { usageOwner } from '@/lib/usage-server';
 import { validateProject } from '@/lib/studio';
+import { purgeExpiredProjects } from '@/lib/project-trash-server';
 export async function GET() {
   try {
+    await purgeExpiredProjects();
     const rows = await db()
-      .prepare('SELECT body FROM projects ORDER BY updated_at DESC')
+      .prepare('SELECT body FROM projects WHERE deleted_at IS NULL ORDER BY updated_at DESC')
       .all<{ body: string }>();
     return json(rows.results.map((r) => JSON.parse(r.body)));
   } catch {
@@ -29,7 +31,7 @@ export async function POST(req: Request) {
             .bind(p.id, p.title, body, revision, saved.updatedAt)
         : db()
             .prepare(
-              'UPDATE projects SET title=?,body=?,revision=?,updated_at=? WHERE id=? AND revision=?',
+              'UPDATE projects SET title=?,body=?,revision=?,updated_at=? WHERE id=? AND revision=? AND deleted_at IS NULL',
             )
             .bind(p.title, body, revision, saved.updatedAt, p.id, p.revision);
     const owner = usageOwner();
@@ -73,7 +75,7 @@ export async function POST(req: Request) {
     const result = await db().batch(batch);
     if (!result[0].meta.changes)
       return json(
-        { error: '项目已存在或被其他窗口更新，请重新加载后再编辑。' },
+        { error: '项目已存在、已移至回收站或被其他窗口更新，请重新加载后再编辑。' },
         409,
       );
     return json(saved);

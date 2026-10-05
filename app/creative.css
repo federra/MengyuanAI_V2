@@ -946,10 +946,10 @@
   max-height: 760px;
   overflow: auto;
   padding: 16px;
-  border: 1px solid #edf2fa;
+  border: 1px solid var(--border);
   border-radius: 9px;
-  background: white;
-  color: #253653;
+  background: var(--card);
+  color: var(--card-foreground);
   font-size: 1rem;
   line-height: 1.95;
   white-space: pre-wrap;
@@ -959,4 +959,4 @@
 .formatted-script > span { display: block; }
 .formatted-script .script-scene { font-size: 1.08rem; font-weight: 700; margin-top: 16px; }
 .formatted-script .script-scene:first-child { margin-top: 0; }
-.formatted-script .script-dialogue strong { color: #2c72d4; font-weight: 700; }
+.formatted-script .script-dialogue strong { color: var(--accent-foreground); font-weight: 700; }

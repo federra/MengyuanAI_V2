@@ -232,7 +232,7 @@ class DoubaoManager {
     else if (action === 'settings') {
       const s = { ...this.state.settings, ...data };
       if (!Number.isInteger(+s.timeoutMinutes) || +s.timeoutMinutes < 1 || +s.timeoutMinutes > 120 || !Number.isInteger(+s.concurrency) || +s.concurrency < 1 || +s.concurrency > 10) throw Error('超时为1–120分钟，并发为1–10');
-      if (!['自动','3:4','4:3','16:9','9:16','1:1','21:9'].includes(s.ratio) || !Number.isFinite(+s.duration) || +s.duration < 1 || +s.duration > 60) throw Error('画幅或时长无效');
+      if (!['自动','3:4','4:3','16:9','9:16','1:1','21:9'].includes(s.ratio) || !Number.isInteger(+s.duration) || +s.duration < 4 || +s.duration > 15) throw Error('画幅或时长无效');
       s.failureKeywords = [...new Set((s.failureKeywords || []).map(x => clean(x, 60)).filter(Boolean))].slice(0, 60);
       for (const key of ['mode','model','resolution','promptSelector','uploadReadySelector','uploadSelector','submitSelector','resultSelector','pointsSelector','remainingSelector','runningSelector','idleSelector','nicknameSelector']) s[key] = clean(s[key], 300);
       s.autoSubmit = s.autoSubmit === true; this.state.settings = s;
@@ -262,6 +262,8 @@ class DoubaoManager {
       if (new Set(b.tasks.map(t => t.id)).size !== b.tasks.length) throw Error('任务包中有重复分镜');
       if (!accountIds.length) throw Error('所选分组没有已勾选“调用”的账号；本次未加入队列。');
       for (const task of b.tasks) {
+        const duration = task.duration ?? this.state.settings.duration;
+        if (!Number.isInteger(duration) || duration < 4 || duration > 15) throw Error('豆包单条视频时长须为4至15整数秒，请重新拆分超长分镜；本次未加入队列。');
         if(task.dependsOnShotId && (b.tasks.some(t=>t.id===task.dependsOnShotId) || this.state.jobs.some(j=>j.projectId===b.projectId&&j.shotId===task.dependsOnShotId&&(['queued','paused'].includes(j.status)||holdsAccount(j))))) throw Error('当前分镜依赖上一视频尾帧，请等待原视频完成并重新绑定尾帧后提交');
         if (task.dependsOnShotId && (!/^[\w-]{1,100}$/.test(task.dependsOnShotId) || task.dependsOnShotId===task.id || !task.references.some(r=>r.mediaId===task.tailFrameMediaId))) throw Error('请先取得上一镜头尾帧并绑定到当前分镜，再提交依赖任务');
         if (!/^[\w-]{1,100}$/.test(task.id) || typeof task.prompt !== 'string' || task.prompt.length > 60000 || !Array.isArray(task.references)) throw Error('分镜任务格式无效');

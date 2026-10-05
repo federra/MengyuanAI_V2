@@ -22,7 +22,7 @@ export function AssetSync({
   ready: boolean;
   enabled: boolean;
   visible: boolean;
-  onApply: (next: Project) => void;
+  onApply: (update: (current: Project) => Project) => void;
   onOpen: () => void;
 }) {
   const latest = useRef({ project, onApply });
@@ -85,12 +85,11 @@ export function AssetSync({
           latest.current.project.script !== script
         )
           return;
-        const next = mergeScriptAssets(
-          latest.current.project,
-          drafts,
-          ready ? 'model' : 'labels',
+        latest.current.onApply(current =>
+          current.id === projectId && current.script === script
+            ? mergeScriptAssets(current, drafts, ready ? 'model' : 'labels')
+            : current,
         );
-        latest.current.onApply(next);
         setStatus(
           ready
             ? `已整理${drafts.length}项剧本资产，请复核分类与设定。`
@@ -108,7 +107,8 @@ export function AssetSync({
             latest.current.project.script === script
           )
             latest.current.onApply(
-              mergeScriptAssets(latest.current.project, drafts, 'labels'),
+              current => current.id === projectId && current.script === script
+                ? mergeScriptAssets(current, drafts, 'labels') : current,
             );
         }
       } finally {
@@ -122,6 +122,7 @@ export function AssetSync({
     };
   }, [script, projectId, scanned, mode, ready, enabled, retry]);
   if (!visible) return null;
+  const missingDescriptions = project.assets.filter(a => !a.description.trim()).length;
   return (
     <section className="panel asset-summary">
       <div>
@@ -136,10 +137,13 @@ export function AssetSync({
                 : scanned !== script
                   ? '剧本已变化，资产等待重新整理。'
                   : mode === 'model'
-                    ? '已根据当前剧本整理，请复核遗漏和设定。'
+                    ? '当前剧本的资产已整理，请复核遗漏和设定。'
                     : '当前仅识别明确标签与带引号的对白角色；全文识别需要配置文本模型。'}
         </output>
       </div>
+      {missingDescriptions > 0 && <p className="helper">
+        当前有{missingDescriptions}项资产描述待补充；名称已识别不代表设定已完整提取，可重新整理或在资产管理中填写。
+      </p>}
       {failed && scanned === script && mode === 'labels' && (
         <p className="helper">
           已保留剧本明确标注的资产，AI全文识别尚未完成；可手动重试。

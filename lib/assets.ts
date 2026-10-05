@@ -89,8 +89,21 @@ export function reviewAssetDrafts(value: unknown, script: string) {
     }
     try {
       const [item] = parseAssetDrafts({ assets: [candidate] }, script);
+      // A quote existing somewhere in the script is insufficient when it names
+      // somebody else. Generated voice names use the speaker as their anchor.
+      const anchor = item.kind === '声音' && item.name.endsWith('配音')
+        ? item.name.slice(0, -2) : item.name;
+      if (anchor && normalized.includes(compact(anchor)) && !compact(item.evidence).includes(compact(anchor))) {
+        warnings.push(`第${index + 1}项“${item.name}”的原文依据未包含该资产名称，未自动采用描述，请人工复核。`);
+        continue;
+      }
       const key = item.kind + ':' + item.name;
       if (names.has(key)) {
+        const previous = assets.find(a => a.kind === item.kind && a.name === item.name)!;
+        if (!previous.description.trim() && item.description.trim()) {
+          previous.description = item.description;
+          previous.evidence = item.evidence;
+        }
         warnings.push(`第${index + 1}项重复资产已合并。`);
         continue;
       }
@@ -115,6 +128,9 @@ export function reviewAssetDrafts(value: unknown, script: string) {
     throw Error(
       '本次模型资产均缺少可验证的原文依据，未修改资产。请检查剧本标签或重试。',
     );
+  for (const item of assets)
+    if (!item.description.trim())
+      warnings.push(`“${item.name}”（${item.kind}）仅识别到名称，描述尚未提取，请补充或重新整理资产。`);
   return { assets, warnings };
 }
 
@@ -165,7 +181,7 @@ export function matchShotAssets(shot: Shot, assets: Asset[]): Shot {
   const refs = new Set(
     shot.references.filter((ref) => assets.some((a) => a.id === ref)),
   );
-  const lines = dialogueLines(shot);
+  const lines = dialogueLines(shot, assets);
   for (const a of assets) {
     const lineMatch = lines.some(
       (l) =>
@@ -204,7 +220,7 @@ export function mergeScriptAssets(
         existing.description !== draft.description
       )
         existing.suggestedDescription = draft.description;
-      else delete existing.suggestedDescription;
+      else if (draft.description.trim()) delete existing.suggestedDescription;
     } else assets.push({ id: id(), ...draft });
   }
   if (assets.length > 200) throw Error('资产总量超过200项，请先整理资产');

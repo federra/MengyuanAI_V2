@@ -1,0 +1,43 @@
+ArcReel 三环节源码分析与提示词阅读说明
+
+核对日期：2026-09-30；main 提交：55595f73059b4d216bb586eb7271233cbc217094。
+结论：是由 AI 模型按指令处理，但分为工作流 Skill、专职 Agent、后端参数化提示词与程序校验几层。不是一个 Skill 把整本小说一次转写完。
+本次仅源码静态核对与原文件保存，未启动 ArcReel、未调用真实模型，不评价实际生成质量。没有修改本工作台业务代码或安装这些 Skill。
+
+一、实际流程（剧情演绎 + 分镜图生视频）
+源文上传/概述 → 全局资产提取 → 分集规划 → 单集结构化内容 → 用户确认并生成正式脚本 → 补视觉提示词 → 资产图/分镜图/视频。
+“小说转剧本”与“剧本转分镜”没有严格对应两个独立的自由文本改写步骤：script_plan 已直接产出逐镜头内容；所谓 generate_episode_script 在此模式主要补视觉生产字段。
+主 Agent 读取服务端工作流计划，通过 video-workflow Skill 路由，不把全书读进自己的上下文；资产分析 Agent 自行读源文，脚本规划 Agent 主要调用后端工具。Agent 所用模型与项目配置的文本生成模型不应视为同一个固定模型。
+证据：originals/agent_runtime_profile/.claude/skills/video-workflow/SKILL.drama.md；originals/server/tool_runtime.py（generate_script_plan）；originals/lib/workflow/workflow_rules.py。
+
+二、小说转剧本 / 已有剧本整理
+前置 plan_episodes 由后端按源文窗口调用文本模型规划分集，返回原文范围、标题、故事节点、钩子及下集预告，并派生 source/episode_N.txt；用户已按集上传时不必重新分集。
+normalize-drama-script Agent → generate_script_plan → server/text_generation.py::generate_drama_script_plan → build_normalize_prompt → text/drama_script_plan 模板 → 项目文本模型。
+输入不只有小说：还包括项目概述、风格、已登记资产候选、本集及下集大纲、语言、视频模型合法时长、口播语速、单集目标时长和临时附加要求。
+输出 drafts/episode_N/script_plan_normalized_script.json：title、scenes；每镜含 scene_id、duration_seconds、segment_break、characters_in_scene、scenes、props、scene_description、utterances、source_text。
+source_kind=novel：将小说改编为可见画面，可按语境把叙述/心理活动安排为画外音；source_text 摘录原文。source_kind=screenplay：从成品剧本提取结构，作者对白与画外音逐字保留，不润色或增删。两种规则来自同一模板的 novel/screenplay 片段。
+生成请求传 response_schema，后端继续解析、校验与检查版本；内容确认后由程序将规划投影为 scripts/episode_N.json，不需要再让模型抄一遍全部内容。
+必读：originals/lib/prompts/prompt_templates/templates/text/drama_script_plan.md；其 partials/text/drama_script_plan/ 下各分支；originals/lib/script/script_models.py。
+
+三、剧本转分镜究竟在哪发生
+拆镜头、台词、资产绑定、时长在上一阶段已经决定。确认后 create-episode-script Agent → generate_episode_script → ScriptGenerator.generate → build_drama_prompt → text/drama_prompt_authoring。
+模型按已有 scene_id 只输出 image_prompt 和 video_prompt。图片字段包含单帧场景描述、景别、光线与可见氛围；视频字段描述动作、运镜及环境音。已登记资产用 @[名称] 引用，角色变体用 @[角色/衍生]。
+后端 _parse_visual_layer 校验结构，_merge_visual_layer 检查 ID 缺失、多出或重复，并只覆盖视觉字段，原台词、原文锚等内容透传保留；默认只补待编写项，指定 entry_ids 才重写选中条目。
+真正“生成分镜图片”是下一步图像模型任务：storyboard/image 模板拼接项目风格、参考图声明和结构化画面描述。分镜图不是再次让文本模型重写整集剧本。
+必读：originals/lib/prompts/prompt_templates/templates/text/drama_prompt_authoring.md；partials/shared/image_prompt_writing_guide.md、action_writing_guide.md、ambiance_audio_writing_guide.md；templates/storyboard/image.md。
+
+四、资产提取
+当前可执行路径主要靠 analyze-assets.md 这份专职 Agent 提示词直接指导 Agent 阅读源文、识别角色/场景/道具；没有与 drama_script_plan 同形的独立“资产提取文本模板”供该流程再调用一次。
+角色 description 只收视觉特征，voice_style 单独收声音风格；场景只写环境、不把人物画进去；道具写外观、材质、尺寸和颜色。禁止猜测视觉描述，缺失就留空。
+小说可识别实质出场人物；成品剧本按作者具名角色提取，泛指群演/空镜不登记。角色跨场景的换装、变身、年龄变化可登记 derivatives；临时表情、姿势不建变体。
+已有资产跳过，不覆盖人工描述；新增资产通过 complete_asset_inventory 连同源文 revision 原子保存，源文变动则拒绝旧结果。它提取的是资产定义，图片另由 generate-assets 与 asset/sheet 提示词调用图像模型生成。
+必读：originals/agent_runtime_profile/.claude/agents/analyze-assets.md；originals/lib/project/asset_inventory.py；originals/lib/prompts/prompt_templates/templates/asset/sheet.md。
+版本差异：同一提交的 docs/adr/0092 已接受“资产识别并入逐集脚本规划、退役全书提取”的设计，但当前 workflow_rules/workflow_state、工具、Agent 与模板仍保留上述全局资产提取路径，不能把 ADR 当成已经落地的实现。该 ADR 一并保存供后续对照。
+
+五、如何使用保存的提示词
+先看“核心提示词原文合集.txt”；originals 按上游路径保存未改写原文，来源与校验清单.json 记录每个文件的固定提交链接和 SHA-256。
+lib/prompts 整目录保存是为了保留模板引擎、partial/variant、风格与参考图规则的依赖；其中附带的广告等模板不是本次三环节分析主体。该资料包是研究快照，不是完整可启动的 ArcReel 安装包。
+模板中的 {{ novel_text }}、{{ scenes_content }}、{{ character_names }} 等是待填参数，partial/variant 要按模式展开，不能把模板原文直接当作已渲染完成的请求。slots 描述输入，output_schema 指向输出定义。字段枚举等约束部分在 schema 中，不在提示词正文里。
+剧情演绎、旁白、参考生视频不是同一套规则：narration_script_plan 按朗读节奏逐字切分原文；reference_video_script_plan 拆成一次视频生成一个 video_unit，不经过分镜图步骤。两者的核心模板与 Agent 也已保存。
+需要某个项目实际发给模型的完整文本时，上游 generate_script_plan 支持 dry_run=true；它用真实项目数据拼接但不调用模型。本次未捏造项目参数，也未执行生成。
+已保留上游 LICENSE/NOTICE 与 skills 子目录的单独许可；不要把 skills/ 的许可标签直接套用到 lib/prompts 和 agent_runtime_profile。

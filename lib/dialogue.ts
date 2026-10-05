@@ -1,4 +1,4 @@
-import { id, type Shot } from './studio';
+import { id, type Asset, type Shot } from './studio';
 export type DialogueLine = {
   audio?: import('./studio').Media;
   speechPendingId?: string;
@@ -28,16 +28,53 @@ export function newLine(): DialogueLine {
 export function dialogueText(lines: DialogueLine[]) {
   return lines.map((l) => l.text).join('\n');
 }
+type SpeakerReference = string | Asset;
+function speakerAliases(asset: Asset) {
+  return [asset.attributes?.别名, asset.attributes?.alias, asset.attributes?.aliases]
+    .flatMap((value) => value?.split(/[、,，;；|\n]/) || [])
+    .map((value) => value.trim()).filter(Boolean);
+}
+function resolveSpeaker(name: string, speakers: SpeakerReference[]) {
+  const roles = speakers.filter((speaker): speaker is Asset => typeof speaker !== 'string' && speaker.kind === '人物');
+  const exact = roles.filter((role) => role.name === name || role.id === name);
+  const matches = exact.length ? exact : roles.filter((role) => speakerAliases(role).includes(name));
+  if (matches.length > 1) return undefined;
+  return matches[0]?.name || name;
+}
+function speakerTokens(speakers: SpeakerReference[]) {
+  return [...new Set(speakers.flatMap((speaker) => typeof speaker === 'string' ? [speaker] :
+    speaker.kind === '人物' ? [speaker.name, speaker.id, ...speakerAliases(speaker)] : [])
+    .map((name) => name.trim()).filter(Boolean))];
+}
+// Recover only explicitly labelled speech. These common role labels retain their
+// literal identity; “妈妈” must never silently become a project asset named “年轻妈妈”.
+export function explicitDialogueSpeakers(text: string, speakers: SpeakerReference[] = []) {
+  const names = [...new Set([...speakerTokens(speakers), '妈妈', '爸爸', '母亲', '父亲', '妻子', '丈夫'])]
+    .sort((a, b) => b.length - a.length);
+  const found = new Set<string>();
+  for (const name of names) {
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const pattern = new RegExp(`(?:^|[\\s，,。；;…！？!?])${escaped}\\s*(?:[（(][^()（）]*[)）]\\s*|【[^】]*】\\s*)*[:：]`, 'u');
+    if (!pattern.test(text)) continue;
+    const resolved = resolveSpeaker(name, speakers);
+    if (resolved) found.add(resolved);
+  }
+  return [...found];
+}
 export function dialogueLines(
   s: Shot,
-  speakers: string[] = [],
+  speakers: SpeakerReference[] = [],
 ): DialogueLine[] {
-  if (s.lines && dialogueText(s.lines) === s.dialogue) return s.lines;
+  const names = [...s.character.split(/[、,，]/), ...speakerTokens(speakers)];
+  const recover = (line: DialogueLine) => {
+    const labelled = line.speaker ? [] : explicitDialogueSpeakers(line.text, [...names, ...speakers]);
+    const speaker = line.speaker ? resolveSpeaker(line.speaker, speakers) || line.speaker :
+      labelled.length === 1 ? labelled[0] : '';
+    return speaker === line.speaker ? line : { ...line, speaker };
+  };
+  if (s.lines && dialogueText(s.lines) === s.dialogue) return s.lines.map(recover);
   if (!s.dialogue) return [];
-  return parseAudioLines(s.dialogue, [
-    ...s.character.split(/[、,，]/),
-    ...speakers,
-  ]).map((line, i) => ({
+  return parseAudioLines(s.dialogue, names).map((line, i) => recover({
     ...line,
     id: `legacy-${s.id}-${i}`,
   }));
@@ -97,7 +134,7 @@ export function parseAudioLines(
     )
       continue;
     const source = clean.replace(/^(?:台词|对白)\s*[:：]\s*/, '');
-    const speaker =
+    const speaker = explicitDialogueSpeakers(source, names).length > 1 ? '' :
       names.find(
         (name) =>
           source.startsWith(name) &&

@@ -51,12 +51,14 @@ export function ProjectAssetDialog({
   selectedShotIds = [],
   onKindChange,
   onBatchShotAction,
+  onReviewAssets,
 }: {
   generationJobs: GenerationJob[];
   onBatch: (request: ImageBatchRequest) => void;
   selectedShotIds?: string[];
   onKindChange?: (kind: string) => void;
   onBatchShotAction?: (kind: 'audio' | 'blocking', shotId: string) => void;
+  onReviewAssets?: () => void;
   open: boolean;
   kind: string;
   project: Project;
@@ -218,6 +220,9 @@ export function ProjectAssetDialog({
             默认仅保存在当前项目，点击“添加到资产中心”后才可跨项目复用。
           </DialogDescription>
         </DialogHeader>
+        {onReviewAssets && <div className="actions">
+          <Button variant="outline" onClick={onReviewAssets}>查看资产识别状态 / 重新整理</Button>
+        </div>}
         {onKindChange && <nav className="project-asset-tabs" aria-label="资产管理分类">
           {(['人物', '场景', '道具', '批量配音', '批量站位图'] as const).map((tab) => (
             <Button key={tab} type="button" variant={kind === tab ? 'default' : 'outline'} aria-current={kind === tab ? 'page' : undefined} onClick={() => onKindChange(tab)}>

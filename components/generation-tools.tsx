@@ -1,4 +1,5 @@
 'use client';
+import { videoDurationError } from '@/lib/video-duration';
 import { VideoFileButton } from './video-file-button';
 import { planVideoVoices } from '@/lib/video-voice';
 import { useState, useEffect, useRef } from 'react';
@@ -183,7 +184,7 @@ export function GenerationDialog({
   if (videoInput) {
     try {
       videoPreview = finalVideoPrompt(videoInput, model);
-      videoError = videoReferenceError(model, videoInput);
+      videoError = videoReferenceError(model, videoInput) || videoDurationError(duration, model);
     } catch (e) {
       videoError = (e as Error).message;
     }
@@ -575,7 +576,7 @@ export function GenerationDialog({
             }
             onClick={submit}
           >
-            {busy ? '正在提交，请稍候…' : '提交生成任务'}
+            {busy ? `正在提交${video ? '视频' : '图片'}生成任务…` : '提交生成任务'}
           </Button>
         </fieldset>
         <output aria-live="polite">{message}</output>

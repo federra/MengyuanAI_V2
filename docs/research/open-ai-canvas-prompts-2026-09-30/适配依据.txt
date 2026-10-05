@@ -1,0 +1,22 @@
+open-ai-canvas（影策）提示词适配依据
+源码提交：d01e60d87ef720e61b32196426b128ed0650fb31；核对日期：2026-09-30。
+
+一、核对范围
+本次查看内置默认模板、模板编译器、输出契约及短剧工作流的资产/连续性说明。部署后的管理员活动模板、用户追加/重写配置不在公开源码中，不能声称这里保存的是某个在线实例实际发送的最终提示词。完整git下载超时，所需文件已由固定提交的raw地址取得，不影响本次文件级核对。
+
+二、剧本转分镜
+storyboard_default.go 的 DefaultStoryboardPromptTemplate 定义导演方法：先判定叙事意图、观众视点、人物表演，再设计景别机位；单一主运镜有起点、动机与停止点；静态首帧与运动/结束状态分离；项目媒介不漂移。
+prompt_template_defaults.go 给出 storyboard_plan/v3 schema 与受保护上下文。schema 包含 narrativeIntent、viewerPOV、performanceBlocking、visualPrompt、videoPrompt、timeBeats、mustHave、continuityOut、assetRefs 等。受保护规则包括每镜最多2名主要角色、1个主运镜、3个节拍、最多6个画布引用，画幅由节点参数控制。
+prompt_template.go::CompilePrompt 先取活动模板（无则内置），再追加或替换用户定制，渲染后追加受保护正文/规则/schema。只拿默认提示词第一段无法复原完整请求。
+适配：保留叙事动机、表演调度、首帧/动作/结束状态和制作优先级；映射到 director-storyboard/1.0 的 episodes/shots、camera、visual、audio、generation_prompt。两名主要角色限制不作为我们系统硬上限；上下文没有画布nodeId不虚构；画幅沿用本项目；默认不启用原项目允许精简对白的修复规则。
+
+三、资产提取
+默认 chapter_assets_extract 输出 characters/scenes/props 三数组；characters 含别名、剧情定位、外貌衣装体态、性格、一致性提示、三视图提示、语言、声音年龄与音色；场景和道具含 name/description/prompt。character_extract 是只提角色的另一操作，不等同于全资产提取。
+工作流 assets.md 补充稳定身份、服装变体、环境母版、道具结构、声音和起止状态；这些是领域工作流要求，不等于章节资产提取单次请求自动执行了整个工作流。
+适配：转为本系统人物/场景/道具/服饰/声音五类 assets 数组，逐项添加原文连续 evidence。别名用于识别同一身份；角色背景与性格不混入供生图使用的外貌描述，音色转到声音资产。未明确内容标待确认。移除自动建画布、生成资产图、状态锁定、媒体任务与外部工具步骤。
+
+四、当前宿主边界
+分镜Skill能在现有分镜生成入口选择。资产Skill文档可导入，但现有资产识别API不读取自定义Skill，导演修改API只改既有资产，不能新增；需后续接入或人工文本调用。本文与两份Skill只做资料和指令转写，未修改产品实现或调用收费生成。
+
+五、原始契约差异（转写前检查）
+影策的 storyboard-plan/v3 顶层 shots 每项为其单镜头对象，不是我们的完整视频段契约；人物卡也不是 assets 草稿，且无本地所需evidence。原始Go源码不是可导入的Skill文档。适配后使用name/stage/version元数据和独立文本指令，不能把导入校验通过等同于真实生成质量验收。

@@ -1,7 +1,8 @@
 'use client';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import Image from 'next/image';
-import { Clapperboard } from 'lucide-react';
+import { Clapperboard, MoreHorizontal, Trash2 } from 'lucide-react';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import type { Project } from '@/lib/studio';
 import { projectOverview, projectStatusLabels, type ProjectCover } from '@/lib/project-overview';
 
@@ -28,9 +29,9 @@ function ProjectCoverPreview({ covers }: { covers: ProjectCover[] }) {
   />;
 }
 
-export function ProjectCard({ project, onOpen }: { project: Project; onOpen: () => void }) {
+export function ProjectCard({ project, onOpen, onDelete, disabled, footer, className = '' }: { project: Project; onOpen?: () => void; onDelete?: () => void; disabled?: boolean; footer?: ReactNode; className?: string }) {
   const {status, covers} = projectOverview(project);
-  return <button className="project-card project-card-with-cover" onClick={onOpen}>
+  const content = <>
     <div className="project-card-cover">
       <ProjectCoverPreview key={JSON.stringify(covers)} covers={covers} />
     </div>
@@ -43,5 +44,10 @@ export function ProjectCard({ project, onOpen }: { project: Project; onOpen: () 
       <p>{project.brief || '尚未填写创意'}</p>
       <small>{project.shots.length} 个镜头 · {new Date(project.updatedAt).toLocaleDateString('zh-CN')}</small>
     </div>
-  </button>;
+  </>;
+  return <article className={`project-card-shell ${className}`}>
+    {onOpen ? <button className="project-card project-card-with-cover" disabled={disabled} onClick={onOpen}>{content}</button> : <div className="project-card project-card-with-cover">{content}</div>}
+    {footer && <div className="project-card-footer">{footer}</div>}
+    {onDelete && <DropdownMenu><DropdownMenuTrigger className="project-card-menu" disabled={disabled} aria-label={`${project.title}项目操作`}><MoreHorizontal /></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem variant="destructive" onClick={onDelete}><Trash2 />删除</DropdownMenuItem></DropdownMenuContent></DropdownMenu>}
+  </article>;
 }

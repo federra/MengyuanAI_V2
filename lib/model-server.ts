@@ -238,17 +238,32 @@ export async function modelRequest(
     );
   return r;
 }
-export async function textRequest(body: Record<string, unknown>) {
+export async function textRequest(
+  body: Record<string, unknown>,
+  options: { allowEmptyTruncated?: boolean } = {},
+) {
   const c = await readyConfig('text');
+  // These DeepSeek models default to thinking. Their documented default output
+  // budget is 64K, shared by reasoning and the answer; a small answer-only cap
+  // can run out before a single JSON character is returned.
+  const thinking = c.thinking || 'auto';
+  const deepseekThinking = /^(deepseek-flash|deepseek-v4-pro|deepseek-v4-flash)$/i.test(c.model)
+    && thinking !== 'disabled' && body.reasoning_effort !== 'none';
+  const maxTokens = deepseekThinking && typeof body.max_tokens === 'number'
+    ? Math.max(body.max_tokens, body.reasoning_effort === 'max' ? 131072 : 65536)
+    : body.max_tokens;
   const response = await modelRequest(c, '/chat/completions', {
     ...body,
+    ...(maxTokens !== undefined ? { max_tokens: maxTokens } : {}),
     model: c.model,
-    ...(c.thinking !== 'auto' ? { thinking: { type: c.thinking } } : {}),
+    ...(thinking !== 'auto' ? { thinking: { type: thinking } } : {}),
   });
   try {
     const data = (await response.json()) as {
-      choices?: { message?: { content?: unknown } }[];
+      choices?: { finish_reason?: string; message?: { content?: unknown; reasoning_content?: unknown } }[];
+      usage?: { completion_tokens?: number; completion_tokens_details?: { reasoning_tokens?: number } };
     };
+    const finishReason = data.choices?.[0]?.finish_reason;
     const message = data.choices?.[0]?.message;
     if (Array.isArray(message?.content))
       message.content = message.content
@@ -258,13 +273,31 @@ export async function textRequest(body: Record<string, unknown>) {
             : '',
         )
         .join('');
+    const empty = typeof message?.content !== 'string' || !message.content.trim();
+    if (empty || finishReason === 'length') {
+      console.error(JSON.stringify({
+        event: 'text_response_incomplete', model: c.model,
+        finishReason: typeof finishReason === 'string' ? finishReason.slice(0, 40) : 'missing',
+        maxTokens, contentChars: typeof message?.content === 'string' ? message.content.length : 0,
+        hasReasoning: typeof message?.reasoning_content === 'string' && !!message.reasoning_content.trim(),
+        completionTokens: typeof data.usage?.completion_tokens === 'number' ? data.usage.completion_tokens : undefined,
+        reasoningTokens: typeof data.usage?.completion_tokens_details?.reasoning_tokens === 'number' ? data.usage.completion_tokens_details.reasoning_tokens : undefined,
+      }));
+    }
+    if (empty && finishReason === 'length') {
+      if (message && options.allowEmptyTruncated) {
+        message.content = '';
+        return Response.json(data);
+      }
+      throw Error(`模型触发生成长度限制（本次请求输出上限${typeof maxTokens === 'number' ? maxTokens + ' tokens' : '由服务商决定'}），尚未返回正文${message?.reasoning_content ? '，已返回推理内容' : ''}。这不等于剧本输入字数超限；请检查输出预算、思考模式或服务商限制后重试。`);
+    }
     if (
       !message ||
       typeof message.content !== 'string' ||
       !message.content.trim()
     )
       throw Error(
-        '模型未返回正文，请检查模型是否仅返回了推理内容，或缩短输入后重试。',
+        '模型未返回正文，请检查服务商响应与思考模式；不能据此判断剧本输入超限。',
       );
     return Response.json(data);
   } catch (e) {

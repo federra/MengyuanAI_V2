@@ -267,7 +267,11 @@ export function parseStoryboardImport(text: string): {
       )
         throw Error('assets 每项需要有效的 kind、name 和 description');
       const name = value.name.trim();
-      if (!flatAssets.some((a) => a.kind === value.kind && a.name === name))
+      const existing = flatAssets.find((a) => a.kind === value.kind && a.name === name);
+      if (existing) {
+        if (!existing.description.trim() && value.description.trim())
+          existing.description = value.description;
+      } else
         flatAssets.push({
           id: id(),
           kind: value.kind,

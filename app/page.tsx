@@ -1,5 +1,6 @@
 'use client';
-import { ProjectCard } from '@/components/project-card';
+import { ProjectCenter } from '@/components/project-center';
+import type { TrashedProject } from '@/lib/project-trash';
 import { recoverProject } from '@/lib/project-recovery';
 import { AdminConsole } from '@/components/admin-console';
 import {AccessGate,AccessProfile} from '@/components/access-gate';
@@ -11,7 +12,7 @@ import {
   WorkflowAssistant,
 } from '@/components/creative-workspace';
 import { SequencePreview } from '@/components/sequence-preview';
-import { creativeStages, customStylePatch, parseStoryPlans } from '@/lib/creative';
+import { creativeStages, customStylePatch, parseStoryPlans, generationTaskName } from '@/lib/creative';
 import { BusinessCenter } from '@/components/business-center';
 import { BusinessSelect, SkillCenter } from '@/components/skill-center';
 import { AssetCenter } from '@/components/asset-center';
@@ -250,6 +251,8 @@ export default function Home(){return <AccessGate>{state=><Workbench accessState
 function Workbench({accessState}:{accessState:AccessState}) {
   const [project, setProject] = useState<Project>(() => exampleProject());
   const [projects, setProjects] = useState<Project[]>([]);
+  const [trashedProjects, setTrashedProjects] = useState<TrashedProject[]>([]);
+  const trashRefreshSequence = useRef(0);
   const [step, setStep] = useState<Stage>('分镜');
   const [menu, setMenu] = useState('创作中心');
   const lastWorkbench = useRef<{ projectId: string; stage: Stage }>({
@@ -377,7 +380,9 @@ function Workbench({accessState}:{accessState:AccessState}) {
     useState<GenerationTarget | null>(null);
   const [aiText, setAiText] = useState('');
   const [aiTask, setAiTask] = useState('');
+  const [aiStoryboardMode, setAiStoryboardMode] = useState<'append' | 'replace'>('append');
   const [aiGenerating, setAiGenerating] = useState('');
+  const [aiGenerationDetail, setAiGenerationDetail] = useState('');
   const aiGenerationLock = useRef(false);
   const aiStoryboard = useMemo(() => {
     if (aiTask !== 'shots' || !aiText.trim()) return null;
@@ -428,15 +433,18 @@ function Workbench({accessState}:{accessState:AccessState}) {
     window.addEventListener('director-before-logout',guard);return()=>window.removeEventListener('director-before-logout',guard);
   },[]);
   useEffect(() => {
-    api<Project[]>('/api/projects')
-      .then(async (data: Project[]) => {
+    Promise.all([api<Project[]>('/api/projects'), api<TrashedProject[]>('/api/projects/trash')])
+      .then(async ([data, trash]) => {
+        setTrashedProjects(trash);
         setProjects(data);
         if (data.length) {
           setProject(data[0]);
           setSelected(data[0].shots[0]?.id || '');
         } else setDirty(true);
         const recovery=await window.directorDesktop?.auth?.('recovery-read') as {project?:Project;dirty?:boolean;recoveredCopy?:boolean}|null;
-        if (recovery?.dirty && recovery.project && window.confirm('发现该账号上次未保存的项目，是否恢复？如已保存版本发生变化，将另建恢复草稿，保留两份内容。')) {
+        if (recovery?.project && trash.some(entry => entry.project.id === recovery.project!.id)) {
+          setNotice('上次打开的项目已移至回收站，可在项目中心恢复。');
+        } else if (recovery?.dirty && recovery.project && window.confirm('发现该账号上次未保存的项目，是否恢复？如已保存版本发生变化，将另建恢复草稿，保留两份内容。')) {
           const restored = recoverProject(recovery.project, data);
           if (restored.copied || recovery.recoveredCopy) recoveryCopies.current.add(restored.project.id);
           current.current = restored.project;
@@ -462,6 +470,20 @@ function Workbench({accessState}:{accessState:AccessState}) {
     window.addEventListener('beforeunload', f);
     return () => window.removeEventListener('beforeunload', f);
   }, []);
+  useEffect(() => {
+    if (loading) return;
+    let active = true;
+    const refresh = () => {
+      if (lock.current) return;
+      const sequence = ++trashRefreshSequence.current;
+      void api<TrashedProject[]>('/api/projects/trash').then(trash => {
+        if (active && sequence === trashRefreshSequence.current) setTrashedProjects(trash);
+      }).catch(() => {});
+    };
+    const timer = setInterval(refresh, 60000);
+    window.addEventListener('focus', refresh);
+    return () => {active = false; clearInterval(timer); window.removeEventListener('focus', refresh);};
+  }, [loading]);
   const shot = project.shots.find((s) => s.id === selected) || project.shots[0];
   const shotIndex = shot ? project.shots.findIndex((s) => s.id === shot.id) : 0;
   const total = project.shots
@@ -670,6 +692,55 @@ function Workbench({accessState}:{accessState:AccessState}) {
       setStep('创意');
     });
   }
+  async function deleteProject(candidate: Project) {
+    if (lock.current || aiGenerationLock.current || batchesActive.current) throw Error('请等待当前操作完成后再删除项目。');
+    ++trashRefreshSequence.current;
+    lock.current = true; setBusy('删除项目'); setError('');
+    try {
+      await saveQueue.current;
+      let source = candidate;
+      if (current.current.id === candidate.id) {
+        if (isDirty.current) await save();
+        source = current.current;
+      }
+      const deleted = await api<{deletedAt:number;expiresAt:number}>(`/api/projects/${candidate.id}`, {
+        method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({revision:source.revision}),
+      });
+      setProjects(all => all.filter(p => p.id !== candidate.id));
+      setTrashedProjects(all => [{project:{...source,revision:source.revision+1},deletedAt:deleted.deletedAt,expiresAt:deleted.expiresAt},...all.filter(entry=>entry.project.id!==candidate.id)]);
+      if (current.current.id === candidate.id) {
+        const next = projects.find(p => p.id !== candidate.id) || newProject('未命名短片');
+        current.current = next; isDirty.current = false;
+        setProject(next); setDirty(false); setSelected(next.shots[0]?.id || ''); setUndo(null); setAiText('');
+        recoveryCopies.current.delete(candidate.id);
+        await window.directorDesktop?.auth?.('recovery-write', {project:next,dirty:false}).catch(() => {});
+      }
+      setNotice('项目已移至回收站，30天内可恢复。');
+    } finally { lock.current = false; setBusy(''); }
+  }
+  async function restoreProject(entry: TrashedProject) {
+    if (lock.current) throw Error('请等待当前操作完成。');
+    ++trashRefreshSequence.current;
+    lock.current = true; setBusy('恢复项目'); setError('');
+    try {
+      const restored = await api<Project>(`/api/projects/${entry.project.id}/restore`, {
+        method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({revision:entry.project.revision}),
+      });
+      setProjects(all => [restored, ...all.filter(p => p.id !== restored.id)]);
+      setTrashedProjects(all => all.filter(item => item.project.id !== restored.id));
+      setNotice('项目已恢复，可在项目中心打开。');
+    } finally { lock.current = false; setBusy(''); }
+  }
+  async function clearProjectTrash() {
+    if (lock.current) throw Error('请等待当前操作完成。');
+    ++trashRefreshSequence.current;
+    lock.current = true; setBusy('清空回收站'); setError('');
+    try {
+      const result = await api<{clearedCount:number}>('/api/projects/trash', {method:'DELETE'});
+      setTrashedProjects([]);
+      setNotice(`已清空回收站，永久删除${result.clearedCount}个项目。`);
+    } finally {lock.current = false;setBusy('');}
+  }
   function addShot() {
     const s = newShot();
     edit({ shots: [...project.shots, s] });
@@ -754,7 +825,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
     });
     if (fileInput.current) fileInput.current.value = '';
   }
-  async function generate(task: string, context?: string, source: Project = project) {
+  async function generate(task: string, context?: string, source: Project = project, storyboardMode: 'append' | 'replace' = 'append') {
     const content =
       task === 'story' || task === 'storyOptions'
         ? source.brief
@@ -770,10 +841,12 @@ function Workbench({accessState}:{accessState:AccessState}) {
     if (aiGenerationLock.current) return;
     aiGenerationLock.current = true;
     setAiTask(task);
+    setAiStoryboardMode(storyboardMode);
     setAiGenerating(task);
+    setAiGenerationDetail('');
     setError('');
     try {
-      const result = await api<{ text: string; phase?: string }>('/api/ai', {
+      const result = await api<{ text: string; phase?: string; index?: number; total?: number }>('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -815,6 +888,11 @@ function Workbench({accessState}:{accessState:AccessState}) {
                   })
                 : task === 'story' ? JSON.stringify({brief: content, videoType: source.videoType, style: source.style, ratio: source.ratio, storyLength: source.storyLength || '500～1000字', creativeSkill: [...builtinSkills, ...(source.skills || [])].find(s => s.id === (source.creativeSkillId || 'idea'))}) : content),
         }),
+      }, progress => {
+        if (progress.phase === 'storyboard-retiming') setAiGenerationDetail('正在按视频渠道时长重新拆分动作和对白');
+        else if (progress.phase === 'storyboard-converting') setAiGenerationDetail('正在校验并转换分镜格式');
+        else if (progress.phase === 'storyboard-generating')
+          setAiGenerationDetail(`正在处理剧本第${progress.index || 1}/${progress.total || 1}段`);
       });
       if (current.current.id !== source.id) {
         setNotice('原项目的 AI 结果已返回；请切换回原项目重新发起生成。');
@@ -857,16 +935,24 @@ function Workbench({accessState}:{accessState:AccessState}) {
       if (aiTask === 'shots') {
         const prepared = await api<{text: string; phase?: string}>('/api/storyboards/normalize', {
           method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({source: aiText}),
-        }, progress => { if (progress.phase === 'storyboard-converting') setBusy('剧本格式转换中'); });
+        }, progress => { if (progress.phase === 'storyboard-retiming') setAiGenerationDetail('正在按视频渠道时长重新拆分动作和对白');
+        else if (progress.phase === 'storyboard-converting') setBusy('剧本格式转换中'); });
         if (current.current.id !== project.id) throw Error('项目已切换，请重新应用。');
-        const next = applyStoryboardImport(project, prepared.text, 'append');
+        if (current.current.script !== project.script) throw Error('剧本已修改，请按新剧本重新生成分镜。');
+        const latest = current.current;
+        const next = applyStoryboardImport(latest, prepared.text, aiStoryboardMode);
+        next.assets = next.assets.map(a => revisedAsset(latest.assets.find(old => old.id === a.id), a));
         setAiText(prepared.text);
-        edit({ shots: next.shots, assets: next.assets });
-        setSelected(next.shots[project.shots.length].id);
+        // Keep both async writers on the same snapshot, even before React renders.
+        current.current = next;
+        setProject(next);
+        setDirty(true);
+        setUndo(structuredClone(latest));
+        setSelected(next.shots[aiStoryboardMode === 'replace' ? 0 : latest.shots.length]?.id || '');
         setStep('分镜');
       } else if (aiTask === 'prompt') editShot({ prompt: aiText });
       else edit({ [aiTask]: aiText });
-      setUndo(structuredClone(project));
+      if (aiTask !== 'shots') setUndo(structuredClone(project));
       setDialog('');
       setNotice('已应用 AI 建议，可撤销');
     } catch (e) {
@@ -1130,7 +1216,8 @@ function Workbench({accessState}:{accessState:AccessState}) {
         )}
         {aiGenerating && <output className="ai-generation-indicator" aria-live="polite">
           <span className="ai-generation-orbit" aria-hidden="true"><Sparkles size={20}/></span>
-          <strong>AI努力生成中</strong>
+          <strong>AI正在生成{generationTaskName(aiGenerating)}</strong>
+          {aiGenerationDetail && <small>{aiGenerationDetail}</small>}
           <small>可继续切换页面和处理其他内容</small>
         </output>}
         <input
@@ -1268,9 +1355,12 @@ function Workbench({accessState}:{accessState:AccessState}) {
                 ready={model.text}
                 enabled={!loading}
                 visible={
-                  creativeMode && step === '资产'
+                  (creativeMode && step === '资产') || menu === '资产中心'
                 }
-                onApply={(next) => {
+                onApply={(update) => {
+                  const next = update(current.current);
+                  if (next === current.current) return;
+                  current.current = next;
                   setProject(next);
                   setDirty(true);
                 }}
@@ -1280,41 +1370,12 @@ function Workbench({accessState}:{accessState:AccessState}) {
                 }}
               />
               {menu === '项目中心' ? (
-                <section className="panel">
-                  <Title
-                    title="项目中心"
-                    description="每个故事，拥有独立的创作空间"
-                  />
-                  <div className="project-center-actions">
-                    <Button
-                      onClick={() => {
-                        setNewName('');
-                        setNewVideoType('剧情短片');
-                        setNewStyle('电影质感');
-                        setNewRatio('16:9');
-                        setNewCustomType('');
-                        setNewCustomStyle('');
-                        setDialog('project');
-                      }}
-                    >
-                      <Plus />
-                      新建项目
-                    </Button>
-                  </div>
-                  <div className="project-cards">
-                    {projects.length === 0 ? (
-                      <div className="empty-note">
-                        <FolderOpen />
-                        <h3>还没有保存的项目</h3>
-                        <p>可以保存当前示例，或新建你的短片。</p>
-                      </div>
-                    ) : (
-                      projects.map((p) => (
-                        <ProjectCard key={p.id} project={p} onOpen={() => choose(p)} />
-                      ))
-                    )}
-                  </div>
-                </section>
+                <ProjectCenter projects={projects} trashed={trashedProjects} disabled={loading || !!busy || !!aiGenerating || imageBatches.active}
+                  onOpen={choose} onDelete={deleteProject} onRestore={restoreProject} onClearTrash={clearProjectTrash}
+                  onNew={() => {
+                    setNewName(''); setNewVideoType('剧情短片'); setNewStyle('电影质感'); setNewRatio('16:9');
+                    setNewCustomType(''); setNewCustomStyle(''); setDialog('project');
+                  }} />
               ) : menu === 'skill中心' ? (
                 <SkillCenter
                   key={project.id + (skillSelection?.field || '')}
@@ -1605,7 +1666,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
                 </>
               ) : (
                 <>
-                  <section className="panel">
+                  <section className="panel storyboard-list-panel">
                     <Title
                       title={
                         step === '配音'
@@ -1638,6 +1699,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
                       </div>
                     ) : step === '分镜' ? (
                       <StoryboardRows
+                        onResegment={() => generate('shots', undefined, project, 'replace')}
                         batchAction={assetManagementBatchAction}
                         onJob={recordGeneration}
                         generationJobs={generationState.jobs}
@@ -2084,7 +2146,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
                       </div>
                     </section>
                   )}
-                  <section className="panel">
+                  <section className="panel storyboard-timeline-panel">
                     <Title
                       title="故事时间线"
                       description="选择镜头，继续完善故事"
@@ -2218,6 +2280,11 @@ function Workbench({accessState}:{accessState:AccessState}) {
           projects={projects}
           disabled={!!busy || loading}
           onClose={() => setAssetManagementKind('')}
+          onReviewAssets={() => {
+            setAssetManagementKind('');
+            setMenu('创作中心');
+            setStep('资产');
+          }}
           onChange={edit}
           onSave={async () => {
             await save();
@@ -2372,7 +2439,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
               {aiTask === 'shots' && (
                 <p className="helper">
                   {aiStoryboard
-                    ? `已识别${aiStoryboard.segments}个视频段，共${aiStoryboard.seconds}秒；内部子镜头保留在各段中，随附${aiStoryboard.assets}项项目资产。应用后追加到现有分镜。`
+                    ? `已识别${aiStoryboard.segments}个视频段，共${aiStoryboard.seconds}秒；内部子镜头保留在各段中，随附${aiStoryboard.assets}项项目资产。${aiStoryboardMode === 'replace' ? '确认应用后替换现有全部分镜，可撤销。' : '应用后追加到现有分镜。'}`
                     : '当前结果尚未通过分镜结构校验，应用时将尝试一次AI格式转换；转换失败则保留原内容。'}
                 </p>
               )}
