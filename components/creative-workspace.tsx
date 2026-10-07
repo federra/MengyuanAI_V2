@@ -1,15 +1,13 @@
 'use client';
-import { useId, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   Sparkles,
   ArrowRight,
   Upload,
   BookOpen,
-  Bot,
   Lightbulb,
   FileText,
   PenLine,
-  Plus,
   ChevronDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -32,6 +30,15 @@ const keys = {
   分场: 'scenes',
 } as const;
 type TextStage = keyof typeof keys;
+function scriptLines(text: string) {
+  let offset = 0;
+  const result = [];
+  for (const line of text.split('\n')) {
+    result.push({ line, start: offset });
+    offset += line.length + 1;
+  }
+  return result;
+}
 export function CreativeWorkspace({
   project,
   stage,
@@ -80,6 +87,7 @@ export function CreativeWorkspace({
         )
       : undefined;
   const text = preview?.content ?? project[key];
+  const formattedLines = scriptLines(text);
   const selected = plans.find((p) => p.id === project.selectedStoryId);
   const inspected = plans.find((p) => p.id === planId);
   function generatePlans() {
@@ -393,14 +401,17 @@ export function CreativeWorkspace({
               <button
                 type="button"
                 className="formatted-script"
-                aria-label="点击编辑剧本正文"
-                onClick={() => { setScriptEditing(true); requestAnimationFrame(() => scriptInput.current?.focus()); }}
+                data-director-target="project"
+                data-director-id={project.id}
+                data-director-field="script"
+                aria-label="选中文字可用AI修改，点击可编辑剧本正文"
+                onClick={() => { if (window.getSelection()?.toString().trim()) return; setScriptEditing(true); requestAnimationFrame(() => scriptInput.current?.focus()); }}
               >
-                {text.split('\n').map((line, index) => {
+                {formattedLines.map(({ line, start }, index) => {
                   const scene = /^\s*(?:第[一二三四五六七八九十百千0-9]+场|场景\s*[0-9一二三四五六七八九十]+)/.test(line);
-                  const dialogue = /^\s*([^：:\s]{1,12})[：:](.*)$/.exec(line);
-                  return <span key={index} className={scene ? 'script-scene' : dialogue ? 'script-dialogue' : 'script-line'}>
-                    {dialogue ? <><strong>{dialogue[1]}：</strong>{dialogue[2]}</> : line || '\u00a0'}
+                  const dialogue = /^(\s*[^：:\s]{1,12}[：:])(.*)$/.exec(line);
+                  return <span key={index} data-director-line-start={start} data-director-line-length={line.length} className={scene ? 'script-scene' : dialogue ? 'script-dialogue' : 'script-line'}>
+                    {dialogue ? <><strong>{dialogue[1]}</strong>{dialogue[2]}</> : line || '\u00a0'}
                   </span>;
                 })}
               </button>
@@ -409,6 +420,7 @@ export function CreativeWorkspace({
               ref={scriptInput}
               className={stage === '剧本' && !scriptEditing ? 'script-input-hidden' : undefined}
               data-stage-field={key}
+              data-director-readonly={preview ? 'true' : undefined}
               aria-label={`${stage}正文`}
               rows={20}
               value={text}
@@ -618,207 +630,5 @@ export function CreativeWorkspace({
         </DialogContent>
       </Dialog>
     </section>
-  );
-}
-function DirectorBot() {
-  const uid = useId();
-  return (
-    <svg viewBox="0 0 84 88" aria-hidden="true">
-      <defs>
-        <linearGradient id={uid + 'shell'} x2=".9" y2="1">
-          <stop stopColor="#ffffff" />
-          <stop offset=".55" stopColor="#f1f7ff" />
-          <stop offset="1" stopColor="#8badd8" />
-        </linearGradient>
-        <linearGradient id={uid + 'face'} x2="1" y2="1">
-          <stop stopColor="#244f81" />
-          <stop offset="1" stopColor="#051632" />
-        </linearGradient>
-        <radialGradient id={uid + 'eye'}>
-          <stop stopColor="white" />
-          <stop offset=".45" stopColor="#86edff" />
-          <stop offset="1" stopColor="#00a7ef" />
-        </radialGradient>
-      </defs>
-      <ellipse cx="45" cy="82" rx="26" ry="4" fill="#c4d9f5" opacity=".65" />
-      <path d="M42 17 L42 8" stroke="#72a9e8" strokeWidth="3" />
-      <ellipse cx="42" cy="7" rx="3" ry="6" fill="#4298f7" />
-      <path
-        d="M24 62 Q24 50 43 50 Q62 51 63 65 L58 78 Q42 85 26 76Z"
-        fill={`url(#${uid}shell)`}
-      />
-      <ellipse cx="43" cy="62" rx="8" ry="4" fill="#527fbe" />
-      <path
-        d="M29 77 L27 84 M57 77 L61 83"
-        stroke="#648fc5"
-        strokeWidth="8"
-        strokeLinecap="round"
-      />
-      <path
-        d="M22 58 Q15 66 11 56 M64 58 Q73 58 73 49"
-        fill="none"
-        stroke={`url(#${uid}shell)`}
-        strokeWidth="11"
-        strokeLinecap="round"
-      />
-      <ellipse cx="42" cy="38" rx="31" ry="26" fill={`url(#${uid}shell)`} />
-      <rect
-        x="17"
-        y="23"
-        width="51"
-        height="34"
-        rx="17"
-        fill={`url(#${uid}face)`}
-      />
-      <ellipse cx="32" cy="39" rx="5" ry="9" fill={`url(#${uid}eye)`} />
-      <ellipse cx="54" cy="39" rx="5" ry="9" fill={`url(#${uid}eye)`} />
-      <path
-        d="M39 49 Q43 52 47 49"
-        fill="none"
-        stroke="#70d4ff"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
-      <ellipse cx="12" cy="40" rx="4" ry="9" fill="#8eafd8" />
-      <ellipse cx="72" cy="40" rx="4" ry="9" fill="#84a8d9" />
-      <path
-        d="M26 18 Q39 10 53 19"
-        stroke="white"
-        strokeWidth="3"
-        fill="none"
-        opacity=".8"
-      />
-    </svg>
-  );
-}
-export function WorkflowAssistant({
-  project,
-  stage,
-  onUse,
-  onStage,
-  onInsert,
-}: {
-  project: Project;
-  stage: Stage;
-  onUse: (id: string, instruction: string) => void;
-  onInsert?: () => void;
-  onStage: (s: Stage) => void;
-}) {
-  const choices = [...builtinSkills, ...(project.skills || [])];
-  const defaultSkill =
-    choices.find((s) => s.stage === stage) || builtinSkills[5];
-  const [skillId, setSkillId] = useState(defaultSkill.id);
-  const [expanded, setExpanded] = useState(false);
-  const [instruction, setInstruction] = useState('');
-  const suggestions =
-    stage === '创意'
-      ? ['加强核心冲突与转折', '明确受众和短片主题', '提供一个更容易拍摄的创意']
-      : stage === '故事'
-        ? [
-            '检查人物动机与故事因果',
-            '增加有依据的反转情节',
-            '压缩为适合短视频的故事',
-          ]
-        : stage === '剧本' || stage === '分场'
-          ? [
-              '优化对白，让人物表达更自然',
-              '调整剧情节奏与场次衔接',
-              '检查人物、场景、服饰和道具的一致性',
-            ]
-          : [
-              '优化当前分镜的提示词',
-              '为场景推荐合适的拍摄手法',
-              '生成更丰富的镜头角度',
-              '推荐合适的音乐与音效设定',
-              '检查分镜的连贯性',
-              '生成分镜的视觉风格建议',
-            ];
-  return (
-    <div className="director-island">
-      <Button
-        className="director-island-toggle"
-        aria-expanded={expanded}
-        aria-controls="director-island-panel"
-        onClick={() => setExpanded(!expanded)}
-      >
-        <Sparkles />
-        AI 导演助手 <span>{expanded ? '收起 −' : '展开 +'}</span>
-      </Button>
-      <aside
-        id="director-island-panel"
-        hidden={!expanded}
-        className="workflow-assistant"
-      >
-        <div className="workflow-assistant-heading">
-          <span>{stage === '分镜' ? <DirectorBot /> : <Bot size={28} />}</span>
-          <div>
-            <h2>AI 导演助手</h2>
-            <p>陪你把故事变成镜头</p>
-          </div>
-        </div>
-        <p className="assistant-welcome">
-          在{stage === '剪辑' ? '成品导出' : stage}
-          阶段，我可以根据你的要求提出修改，并检查相关内容是否需要同步。
-        </p>
-        <h3>你可以试试</h3>
-        <div className="assistant-suggestions">
-          {suggestions.map((s) => (
-            <Button variant="outline" key={s} onClick={() => setInstruction(s)}>
-              <Sparkles />
-              {s}
-              <ArrowRight />
-            </Button>
-          ))}
-        </div>
-        <textarea
-          aria-label="导演助手修改要求"
-          rows={5}
-          value={instruction}
-          maxLength={4000}
-          placeholder="例如：优化第2个镜头，并同步受影响的对白…"
-          onChange={(e) => setInstruction(e.target.value)}
-        />
-        <BusinessSelect
-          label="选择创作Skill"
-          favorites={project.favoriteSkillIds}
-          value={skillId}
-          options={choices.map((s) => ({ value: s.id, label: s.name }))}
-          onChange={setSkillId}
-        />
-        <Button
-          disabled={stage !== '分镜' && !instruction.trim()}
-          onClick={() =>
-            onUse(
-              skillId,
-              instruction ||
-                '优化当前分镜提示词，并检查与相邻镜头的关联和连续性。',
-            )
-          }
-        >
-          <Sparkles />
-          {stage === '分镜' ? '分镜优化Skill' : '预览 AI 修改'}
-        </Button>
-        {stage === '分镜' && onInsert && (
-          <Button className="sheet-insert" variant="outline" onClick={onInsert}>
-            <Plus />
-            插入选中分镜
-          </Button>
-        )}
-        <p className="helper">
-          先审阅建议，再决定应用哪些修改。生成需要已配置文本模型。
-        </p>
-        {['分镜', '视频', '配音', '资产'].includes(stage) && (
-          <div className="assistant-stage-links">
-            <Button variant="outline" onClick={() => onStage('资产')}>
-              管理关联资产
-            </Button>
-            <Button variant="outline" onClick={() => onStage('剪辑')}>
-              进入成品导出
-              <ArrowRight />
-            </Button>
-          </div>
-        )}
-      </aside>
-    </div>
   );
 }

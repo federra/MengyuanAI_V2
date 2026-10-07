@@ -9,7 +9,6 @@ import {ThemeToggle} from '@/components/theme-toggle';
 import { readApiResponse, progressType } from '@/lib/api-response';
 import {
   CreativeWorkspace,
-  WorkflowAssistant,
 } from '@/components/creative-workspace';
 import { SequencePreview } from '@/components/sequence-preview';
 import { creativeStages, customStylePatch, parseStoryPlans, generationTaskName } from '@/lib/creative';
@@ -37,6 +36,8 @@ import { doubaoCommand, receiveDoubaoVideos } from '@/lib/doubao-manager';
 import { dialogueLines } from '@/lib/dialogue';
 import { receiveBlockingImages } from '@/lib/blocking-image';
 import { DirectorTools } from '@/components/director-tools';
+import { DirectorChat } from '@/components/director-chat';
+import { undoStageChanges, type DirectorUndo } from '@/lib/director-stage';
 import {
   undoLast,
   applyStoryboardImport,
@@ -398,6 +399,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
     }
   }, [aiTask, aiText]);
   const [undo, setUndo] = useState<Project | null>(null);
+  const assistantUndo = useRef<{ snapshot: Project; stage: Stage; action: DirectorUndo } | undefined>(undefined);
   const [savedTime, setSavedTime] = useState('');
   const recoveryCopies = useRef(new Set<string>());
   const current = useRef(project);
@@ -1187,6 +1189,14 @@ function Workbench({accessState}:{accessState:AccessState}) {
           variant="outline"
           disabled={!!busy}
           onClick={() => {
+            if (assistantUndo.current?.snapshot === undo) {
+              try {
+                const next = undoStageChanges(current.current, assistantUndo.current.stage, assistantUndo.current.action);
+                current.current = next;
+                setProject(next); setDirty(true); setUndo(null); assistantUndo.current = undefined;
+              } catch (e) { setError(e instanceof Error ? e.message : '撤销失败'); }
+              return;
+            }
             if (project.changeLog?.at(-1)?.id !== undo.changeLog?.at(-1)?.id && project.changeLog?.length) {
               try { setProject(undoLast(project)); setDirty(true); setUndo(null); }
               catch (e) { setError(e instanceof Error ? e.message : '撤销失败'); }
@@ -1300,6 +1310,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
             key={`${project.id}-${skillLaunch?.nonce || 0}`}
             hideToolbar={step === '创意' || step === '故事' || step === '剧本'}
             onCloseLaunch={() => setSkillLaunch(undefined)}
+            onAssistant={() => setSkillLaunch({ nonce: Date.now(), projectId: project.id, skillId: '' })}
             launch={
               skillLaunch?.projectId === project.id ? skillLaunch : undefined
             }
@@ -2173,42 +2184,31 @@ function Workbench({accessState}:{accessState:AccessState}) {
               )}
             </div>
             {creativeMode && (
-              <WorkflowAssistant
-                onInsert={
-                  project.shots.length >= 200
-                    ? undefined
-                    : () => {
-                        const s = newShot();
-                        const list = [...project.shots];
-                        list.splice(
-                          shot
-                            ? list.findIndex((x) => x.id === shot.id) + 1
-                            : list.length,
-                          0,
-                          s,
-                        );
-                        edit({ shots: list });
-                        setSelected(s.id);
-                      }
-                }
+              <DirectorChat
                 key={`${project.id}-${step}`}
                 project={project}
                 stage={step}
-                onStage={setStep}
-                onUse={(skillId, instruction) =>
-                  setSkillLaunch({
-                    nonce: Date.now(),
-                    projectId: project.id,
-                    skillId,
-                    instruction,
-                    scope:
-                      step === '分镜' && shot
-                        ? 'shot'
-                        : step === '剪辑'
-                          ? 'project'
-                          : 'stage',
-                  })
-                }
+                shotId={shot?.id}
+                disabled={!!busy || loading}
+                launch={skillLaunch?.projectId === project.id ? skillLaunch : undefined}
+                onConsumeLaunch={() => setSkillLaunch(undefined)}
+                onApply={(update) => {
+                  const before = current.current;
+                  const next = update(before);
+                  const record = next.changeLog?.at(-1);
+                  if (record && !record.undo && record.id !== before.changeLog?.at(-1)?.id) {
+                    const snapshot = structuredClone(before);
+                    const ids = new Set(record.changes.filter((change) => change.target === 'shot').map((change) => change.id));
+                    assistantUndo.current = { snapshot, stage: step, action: { recordId: record.id, changes: record.changes,
+                      shotSnapshots: before.shots.filter((shot) => ids.has(shot.id)).map((shot) => ({ before: structuredClone(shot), after: structuredClone(next.shots.find((item) => item.id === shot.id)!) })) } };
+                    setUndo(snapshot);
+                  } else { assistantUndo.current = undefined; setUndo(null); }
+                  current.current = next;
+                  setProject(next);
+                  setDirty(true);
+                  setError('');
+                  return next;
+                }}
               />
             )}
           </div>

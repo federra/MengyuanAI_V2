@@ -17,16 +17,13 @@ import {
   SelectContent,
   SelectItem,
 } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { type Project, type Stage, validateProject, id } from '@/lib/studio';
 import {
   builtinSkills,
   type Skill,
-  type Change,
   parseStoryboardImport,
   applyStoryboardImport,
   shotTemplate,
-  validateChanges,
   applyChanges,
   undoLast,
 } from '@/lib/director';
@@ -86,12 +83,12 @@ function Choice({
 export function DirectorTools({
   project,
   stage,
-  shotId,
   disabled,
   onApply,
   launch,
   hideToolbar = false,
   onCloseLaunch,
+  onAssistant,
 }: {
   project: Project;
   stage: Stage;
@@ -100,6 +97,7 @@ export function DirectorTools({
   onApply: (p: Project, message: string) => void;
   hideToolbar?: boolean;
   onCloseLaunch?: () => void;
+  onAssistant?: () => void;
   launch?: {
     panel?: string;
     nonce: number;
@@ -111,25 +109,14 @@ export function DirectorTools({
   };
 }) {
   const [dialog, setDialog] = useState(
-    launch?.panel || (launch ? 'assistant' : ''),
+    launch?.panel || '',
   );
   useEffect(() => {
-    if (!dialog && launch) onCloseLaunch?.();
+    if (!dialog && launch?.panel) onCloseLaunch?.();
   }, [dialog, launch, onCloseLaunch]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const requestLock = useRef(false);
   const [skillId, setSkillId] = useState(launch?.skillId || '');
-  const [scope, setScope] = useState(
-    launch?.scope || (launch ? 'project' : 'stage'),
-  );
-  const [linked, setLinked] = useState(true);
-  const [instruction, setInstruction] = useState(launch?.instruction || '');
-  const [proposal, setProposal] = useState<Change[]>([]);
-  const [accepted, setAccepted] = useState<number[]>([]);
-  const [usedSkill, setUsedSkill] = useState<Skill>();
-  const [usedInstruction, setUsedInstruction] = useState('');
-  const [baseId, setBaseId] = useState('');
   const [draft, setDraft] = useState<Skill>({ ...builtinSkills[0] });
   const [source, setSource] = useState('');
   const [importChecking, setImportChecking] = useState(false);
@@ -145,13 +132,6 @@ export function DirectorTools({
   const [storyboardPreview, setStoryboardPreview] = useState<ReturnType<
     typeof parseStoryboardImport
   > | null>(null);
-  const [selection, setSelection] = useState<{
-    text: string;
-    field: string;
-    start: number;
-    end: number;
-    projectId: string;
-  } | null>(null);
   const importFile = useRef<HTMLInputElement>(null);
   const skillFile = useRef<HTMLInputElement>(null);
   const skills = [...builtinSkills, ...(project.skills || [])];
@@ -159,23 +139,6 @@ export function DirectorTools({
     skills.find((s) => s.id === skillId) ||
     builtinSkills.find((s) => s.stage === stage) ||
     builtinSkills[4];
-  useEffect(() => {
-    const listener = () => {
-      const el = document.activeElement;
-      if (!(el instanceof HTMLTextAreaElement)) return;
-      const field = el.dataset.stageField;
-      if (!field || el.selectionEnd <= el.selectionStart) return;
-      setSelection({
-        text: el.value.slice(el.selectionStart, el.selectionEnd),
-        field,
-        start: el.selectionStart,
-        end: el.selectionEnd,
-        projectId: project.id,
-      });
-    };
-    document.addEventListener('selectionchange', listener);
-    return () => document.removeEventListener('selectionchange', listener);
-  }, [project.id]);
   function open(kind: string) {
     setDialog(kind);
     setError('');
@@ -185,70 +148,7 @@ export function DirectorTools({
       setImportReady(false);
       setImportMode('append');
     }
-    if (kind === 'assistant') {
-      setProposal([]);
-      setScope(stage === '分镜' && shotId ? 'shot' : 'stage');
-    }
     if (kind === 'skills') setDraft({ ...chosen });
-  }
-  async function propose() {
-    if (requestLock.current) return;
-    requestLock.current = true;
-    setBusy(true);
-    setError('');
-    setProposal([]);
-    try {
-      const r = await fetch('/api/director', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: progressType },
-        body: JSON.stringify({
-          project,
-          skillId: chosen.id,
-          instruction,
-          scope,
-          stage,
-          shotId,
-          linked,
-          selection: selection?.text,
-          selectionField: selection?.field,
-          selectionStart: selection?.start,
-          selectionEnd: selection?.end,
-        }),
-      });
-      const data = (await readApiResponse(r)) as {
-        error?: string;
-        changes?: Change[];
-        skill?: Skill;
-      };
-      if (!r.ok) throw Error(data.error || '生成失败');
-      const changes = validateChanges(project, data);
-      setProposal(changes);
-      setAccepted(changes.map((_, i) => i));
-      setUsedSkill(data.skill);
-      setUsedInstruction(instruction);
-      setBaseId(project.id);
-      if (!changes.length) setError('助手没有提出修改，项目保持不变。');
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '生成失败');
-    } finally {
-      setBusy(false);
-      requestLock.current = false;
-    }
-  }
-  function applyProposal() {
-    try {
-      if (project.id !== baseId) throw Error('项目已切换，请重新生成方案');
-      const next = applyChanges(
-        project,
-        proposal.filter((_, i) => accepted.includes(i)),
-        usedInstruction,
-        usedSkill,
-      );
-      onApply(next, `已应用 ${accepted.length} 项修改；受影响镜头已标记待复核`);
-      setDialog('');
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '应用失败');
-    }
   }
   async function previewImport() {
     if (importLock.current) return;
@@ -387,7 +287,7 @@ export function DirectorTools({
             <BookOpen />
             技能管理
           </Button>
-          <Button disabled={disabled} onClick={() => open('assistant')}>
+          <Button disabled={disabled} onClick={onAssistant}>
             <Sparkles />
             让导演助手修改
           </Button>
@@ -411,7 +311,6 @@ export function DirectorTools({
             <DialogTitle>
               {
                 {
-                  assistant: '导演助手 · Skill 关联修改',
                   import: '导入创作内容',
                   skills: 'Skill 技能管理',
                   history: '关联修改记录',
@@ -426,150 +325,6 @@ export function DirectorTools({
             <p className="notice error" role="alert">
               {error}
             </p>
-          )}
-          {dialog === 'assistant' && (
-            <>
-              <div className="field-grid">
-                <div>
-                  <p className="helper">本次使用的 Skill</p>
-                  <Choice
-                    label="选择导演技能"
-                    value={chosen.id}
-                    options={skills.map((s) => ({
-                      value: s.id,
-                      label: s.name + ' · ' + s.version,
-                    }))}
-                    onChange={setSkillId}
-                  />
-                </div>
-                <div>
-                  <p className="helper">修改范围</p>
-                  <Choice
-                    label="修改范围"
-                    value={scope}
-                    options={[
-                      { value: 'stage', label: '当前阶段' },
-                      { value: 'shot', label: '当前镜头' },
-                      { value: 'selection', label: '选中文字' },
-                      { value: 'project', label: '整个项目' },
-                    ]}
-                    onChange={setScope}
-                  />
-                </div>
-              </div>
-              <p className="info-box">{chosen.content}</p>
-              {scope === 'selection' && (
-                <p className="selection-preview">
-                  {selection?.projectId === project.id
-                    ? `已选中：${selection.text.slice(0, 500)}`
-                    : '请先在创意、故事、剧本或分场编辑框中选中文字，再打开助手。'}
-                </p>
-              )}
-              <label className="field">
-                修改要求
-                <textarea
-                  rows={4}
-                  value={instruction}
-                  onChange={(e) => setInstruction(e.target.value)}
-                  placeholder="例如：把故事中的清晨改为雨夜，保留人物和结局，同步修改剧本、场次及镜头光线。"
-                />
-              </label>
-              <label className="linked-choice" htmlFor="director-linked">
-                <Checkbox
-                  id="director-linked"
-                  aria-label="允许关联修改"
-                  checked={linked}
-                  onCheckedChange={setLinked}
-                />
-                允许提出关联内容的修改（仍需逐项审阅）
-              </label>
-              <Button
-                disabled={
-                  busy ||
-                  !instruction.trim() ||
-                  (scope === 'shot' && !shotId) ||
-                  (scope === 'selection' &&
-                    (!selection || selection.projectId !== project.id))
-                }
-                onClick={propose}
-              >
-                <Sparkles />
-                {busy ? '正在分析关联内容…' : '调用 Skill，生成修改方案'}
-              </Button>
-              <p className="helper">
-                需配置真实文本模型；本次将发送当前项目文字与所选技能指令，不发送素材文件。Skill
-                正文作为创作指令使用，不执行脚本。
-              </p>
-              {proposal.length > 0 && (
-                <div className="change-preview">
-                  <h3>
-                    {proposal.length} 项修改建议 · 已选 {accepted.length} 项
-                  </h3>
-                  {proposal.map((c, i) => (
-                    <article className="change-card" key={i}>
-                      <label className="linked-choice">
-                        <Checkbox
-                          checked={accepted.includes(i)}
-                          onCheckedChange={(v) =>
-                            setAccepted((a) =>
-                              v ? [...a, i] : a.filter((n) => n !== i),
-                            )
-                          }
-                        />
-                        <b>
-                          {c.target === 'project'
-                            ? '项目'
-                            : c.target === 'shot'
-                              ? `镜头 ${project.shots.findIndex((s) => s.id === c.id) + 1}`
-                              : project.assets.find((a) => a.id === c.id)
-                                  ?.name}{' '}
-                          / {fieldNames[c.field] || c.field}
-                        </b>
-                      </label>
-                      <p>{c.reason}</p>
-                      <div className="diff-grid">
-                        <div>
-                          <small>修改前</small>
-                          <pre>{c.before || '（空）'}</pre>
-                        </div>
-                        <div>
-                          <small>修改后</small>
-                          <textarea
-                            aria-label={`修改建议${i + 1}`}
-                            rows={5}
-                            value={String(c.after)}
-                            onChange={(e) =>
-                              setProposal((all) =>
-                                all.map((x, j) =>
-                                  j === i
-                                    ? {
-                                        ...x,
-                                        after:
-                                          c.field === 'duration'
-                                            ? Number(e.target.value)
-                                            : e.target.value,
-                                      }
-                                    : x,
-                                ),
-                              )
-                            }
-                          />
-                        </div>
-                      </div>
-                    </article>
-                  ))}
-                  <p className="helper">
-                    只应用部分条目可能留下上下游差异。已有图片、视频和配音会保留；受影响镜头需要复核。
-                  </p>
-                  <Button
-                    disabled={!accepted.length || busy}
-                    onClick={applyProposal}
-                  >
-                    应用选中的 {accepted.length} 项修改
-                  </Button>
-                </div>
-              )}
-            </>
           )}
           {dialog === 'import' && (
             <fieldset disabled={importChecking} style={{border:0,padding:0,minWidth:0}}>

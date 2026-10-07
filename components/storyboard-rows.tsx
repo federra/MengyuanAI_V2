@@ -28,6 +28,7 @@ import { DoubaoControls } from './doubao-controls';
 import { useDoubaoTaskPreview } from './doubao-task-preview';
 import type { Media } from '@/lib/studio';
 import { PromptEditor } from '@/components/prompt-editor';
+import { dialogueSelectionOffset } from '@/lib/director-stage';
 import { assetDisplayImage } from '@/lib/asset-image-state';
 import { captureVideoTailFrame } from '@/lib/frame-capture-client';
 import { ShotVideoPreview } from '@/components/shot-video-preview';
@@ -686,6 +687,11 @@ export function StoryboardRows({
                           <small className="dialogue-speaker-note">{line.speaker}：待关联角色资产</small>
                         )}
                         <textarea
+                          data-director-target="shot"
+                          data-director-id={s.id}
+                          data-director-field="dialogue"
+                          data-director-offset={dialogueSelectionOffset(s, n, line.text) ?? -1}
+                          data-director-readonly={dialogueSelectionOffset(s, n, line.text) === null ? 'true' : undefined}
                           aria-label={`镜头${i + 1}第${n + 1}条台词`}
                           rows={3}
                           maxLength={10000}
@@ -767,6 +773,7 @@ export function StoryboardRows({
                 </div>
                 <div className={`row-prompt ${visibleFields.includes('prompt') ? '' : 'sheet-column-hidden'}`}>
                   <PromptEditor
+                    shotId={s.id}
                     value={shotVisualText(s)}
                     assets={refs}
                     availableAssets={project.assets}

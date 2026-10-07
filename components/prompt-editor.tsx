@@ -15,7 +15,7 @@ type MentionKind = (typeof mentionKinds)[number]['kind'];
 type Mention = { offset: number; kind?: MentionKind; active: number; x: number; y: number };
 
 // Only plain text and application-created asset tokens are written into the editor.
-function editorText(node: Node): string {
+export function promptEditorText(node: Node): string {
   if (node.nodeType === Node.TEXT_NODE) return node.textContent || '';
   if (node.nodeType !== Node.ELEMENT_NODE && node.nodeType !== Node.DOCUMENT_FRAGMENT_NODE) return '';
   if (node instanceof HTMLElement && node.dataset.assetText !== undefined) return node.dataset.assetText;
@@ -29,7 +29,7 @@ function editorText(node: Node): string {
       !text.endsWith('\n')
     )
       text += '\n';
-    text += editorText(child);
+    text += promptEditorText(child);
   }
   return text;
 }
@@ -41,7 +41,7 @@ function caretOffset(root: HTMLElement): number | null {
   const before = range.cloneRange();
   before.selectNodeContents(root);
   before.setEnd(range.startContainer, range.startOffset);
-  return editorText(before.cloneContents()).length;
+  return promptEditorText(before.cloneContents()).length;
 }
 function placeCaret(root: HTMLElement, offset: number) {
   const selection = window.getSelection();
@@ -49,7 +49,7 @@ function placeCaret(root: HTMLElement, offset: number) {
   const range = document.createRange();
   let consumed = 0;
   for (const child of root.childNodes) {
-    const length = editorText(child).length;
+    const length = promptEditorText(child).length;
     if (consumed + length >= offset && child.nodeType === Node.TEXT_NODE) {
       range.setStart(child, Math.max(0, offset - consumed));
       range.collapse(true);
@@ -100,6 +100,7 @@ export function PromptEditor({
   onChange,
   onAsset,
   onInsertAsset,
+  shotId,
 }: {
   value: string;
   assets: Asset[];
@@ -109,6 +110,7 @@ export function PromptEditor({
   onChange: (text: string) => void;
   onAsset: (asset: Asset) => void;
   onInsertAsset: (text: string, asset: Asset) => void;
+  shotId?: string;
 }) {
   const root = useRef<HTMLDivElement>(null);
   const lastInput = useRef<string | null>(null);
@@ -141,7 +143,7 @@ export function PromptEditor({
       root.current.childNodes.length === 1 &&
       root.current.firstChild instanceof HTMLBRElement
         ? ''
-        : editorText(root.current);
+        : promptEditorText(root.current);
     if (text.length > 10000) {
       setError('提示词最多10000字，请精简内容');
       renderText(root.current, value, assets);
@@ -162,7 +164,7 @@ export function PromptEditor({
   }
   function chooseAsset(asset: Asset) {
     if (!root.current || !mention) return;
-    const insertion = insertAssetMention(editorText(root.current), mention.offset, asset.name);
+    const insertion = insertAssetMention(promptEditorText(root.current), mention.offset, asset.name);
     if (!insertion) { setMention(null); return; }
     renderText(root.current, insertion.text, [...assets, asset]);
     lastInput.current = insertion.text;
@@ -195,6 +197,10 @@ export function PromptEditor({
     <>
       <div
         ref={root}
+        data-director-target={shotId ? 'shot' : undefined}
+        data-director-id={shotId}
+        data-director-field={shotId ? 'visual' : undefined}
+        data-director-readonly={disabled ? 'true' : undefined}
         className="prompt-rich-editor"
         role="textbox"
         aria-label={label}
