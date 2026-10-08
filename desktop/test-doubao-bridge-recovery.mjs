@@ -14,7 +14,7 @@ clearInterval(m.timer);m.requestWake=()=>{};
 const source=(await fs.readFile(new URL('../browser-extension/background.js',import.meta.url),'utf8')).replace(/^import .*;\r?\n/gm,'');
 const storage={},tabs=[],sent=[],created=[],closed=[];
 let online=true,tabSequence=10,hasResult=false,inspected=0;
-const functions=Object.fromEntries(['configureVideo','prepareTask','readPageState','readLoginState','labelAccount','inspectComposer','enterCreation','confirmVideo','probeResult','readGenerationProgress'].map(name=>[name,{[name]:function(){}}[name]]));
+const functions=Object.fromEntries(['configureVideo','prepareTask','readPageState','readLoginState','labelAccount','inspectComposer','enterCreation','confirmVideo','probeResult','readResultIdentity','readGenerationProgress'].map(name=>[name,{[name]:function(){}}[name]]));
 const chrome={
  runtime:{getURL:()=> 'chrome-extension://fixture/',onMessage:{addListener(){}},onStartup:{addListener(){}}},action:{onClicked:{addListener(){}}},alarms:{create:async()=>{},onAlarm:{addListener(){}}},
  storage:{local:{get:async keys=>Object.fromEntries(keys.map(k=>[k,structuredClone(storage[k])])),set:async patch=>Object.assign(storage,structuredClone(patch))}},
@@ -23,6 +23,7 @@ const chrome={
    const tab=tabs.find(t=>t.id===target.tabId);
    if(['inspectComposer','readPageState','configureVideo','prepareTask'].includes(func.name)){inspected++;throw Error('submitted tasks must not wait for a creation composer');}
    if(func.name==='probeResult')return [{result:hasResult&&tab.url==='https://www.doubao.com/chat/123'?{url:tab.url,messageId:'result-message'}:null}];
+   if(func.name==='readResultIdentity')return [{result:null}];
    if(func.name==='confirmVideo')return [{result:{needed:false}}];
    if(func.name==='readGenerationProgress')return [{result:null}];
    return [{result:(await m.snapshot()).helper.version}];

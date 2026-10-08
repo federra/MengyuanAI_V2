@@ -1,6 +1,9 @@
 const {EventEmitter} = require('node:events');
 const UPDATE_BASE = 'https://121.199.40.214/updates/windows/';
 const MAC_UPDATE_BASE = 'https://121.199.40.214/updates/mac/';
+function isProxyConnectionError(error) {
+  return /\bERR_(?:PROXY_CONNECTION_FAILED|TUNNEL_CONNECTION_FAILED|NO_SUPPORTED_PROXIES|MANDATORY_PROXY_CONFIGURATION_FAILED)\b/.test(`${error?.code || ''} ${error?.message || ''}`);
+}
 function compareVersions(a,b) {
   const parse=value=>{if(typeof value!=='string'||!/^\d{1,6}\.\d{1,6}\.\d{1,6}$/.test(value))throw Error('更新版本号格式无效');return value.split('.').map(Number)};
   const aa=parse(a),bb=parse(b);
@@ -48,6 +51,26 @@ class SoftwareUpdate extends EventEmitter {
     }catch(error){this.set({status:'error',message:error.name==='TimeoutError'?'检查更新超时，请检查网络后重试。':`检查更新失败：${error.message}`});}
     return this.snapshot();
   });}
+  async downloadWithProxyRecovery() {
+    const download=async()=>{
+      const result=await this.updater.checkForUpdates();
+      if(result?.updateInfo?.version!==this.state.availableVersion)throw Error('发布版本发生变化，请重新检查更新。');
+      await this.updater.downloadUpdate();
+    };
+    try {await download();}
+    catch(error){
+      if(!isProxyConnectionError(error))throw error;
+      // electron-updater has its own session; never change the app or OS proxy.
+      const updateSession=this.updater.netSession;
+      if(!updateSession?.setProxy || !updateSession.closeAllConnections)throw error;
+      this.set({progress:0,message:'代理连接失败，正在改用直连下载并校验完整性…'});
+      try {
+        await updateSession.setProxy({mode:'direct'});
+        await updateSession.closeAllConnections();
+        await download();
+      }catch(retryError){throw Error('已尝试直连，更新仍未完成：'+String(retryError.message),{cause:retryError});}
+    }
+  }
   downloadAndInstall(){
     if(this.state.status==='installing')return Promise.resolve(this.snapshot());
     if(this.state.canDownload)return this.run(async()=>{
@@ -62,9 +85,7 @@ class SoftwareUpdate extends EventEmitter {
       try {
         if(!this.state.downloaded){
           this.set({status:'downloading',progress:0,message:'正在下载更新并校验完整性…'});
-          const result=await this.updater.checkForUpdates();
-          if(result?.updateInfo?.version!==this.state.availableVersion)throw Error('发布版本发生变化，请重新检查更新。');
-          await this.updater.downloadUpdate();
+          await this.downloadWithProxyRecovery();
           this.set({downloaded:true,progress:100,status:'downloaded',message:'下载完成，准备退出安装。'});
         }
         this.set({status:'installing',message:'准备退出并安装；如有未保存内容，请处理保存提示。'});

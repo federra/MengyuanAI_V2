@@ -10,7 +10,7 @@ import {
   SelectContent,
   SelectItem,
 } from '@/components/ui/select';
-import { modelDefaults, type ModelConfig } from '@/lib/models';
+import { modelDefaults, textOutputLimit, type ModelConfig } from '@/lib/models';
 export async function modelApi<T>(
   url: string,
   body?: unknown,
@@ -39,6 +39,7 @@ export function ModelSettings({ onChanged }: { onChanged: () => void }) {
   const [busy, setBusy] = useState('');
   const [message, setMessage] = useState('');
   const [loaded, setLoaded] = useState(false);
+  const [outputBudgetDrafts, setOutputBudgetDrafts] = useState<Record<string, string>>({});
   useEffect(() => {
     modelApi<ModelConfig[]>('/api/models')
       .then(setRows)
@@ -52,10 +53,16 @@ export function ModelSettings({ onChanged }: { onChanged: () => void }) {
     setBusy(row.id!);
     setMessage('');
     try {
+      const outputBudget = row.kind === 'text' && action === 'save'
+        ? textOutputLimit(outputBudgetDrafts[row.id!] !== undefined
+          ? Number(outputBudgetDrafts[row.id!])
+          : row.maxOutputTokens)
+        : row.maxOutputTokens;
       const out = await modelApi<ModelConfig & { message?: string }>(
         '/api/models',
         {
           ...row,
+          ...(row.kind === 'text' ? { maxOutputTokens: outputBudget } : {}),
           speechVoices: row.speechVoices?.map((v) => v.trim()).filter(Boolean),
           apiKey: row.apiKey || '',
           action:
@@ -72,6 +79,11 @@ export function ModelSettings({ onChanged }: { onChanged: () => void }) {
             })),
           );
         change(row.id!, { ...out, apiKey: '' });
+        setOutputBudgetDrafts((drafts) => {
+          const next = { ...drafts };
+          delete next[row.id!];
+          return next;
+        });
         onChanged();
       }
       setMessage(
@@ -322,6 +334,48 @@ export function ModelSettings({ onChanged }: { onChanged: () => void }) {
                   自定义接入点无法从 ID
                   判断能力时，可按服务商文档指定。仅支持文字时不会发送音频文件。
                 </small>
+              </div>
+            )}
+            {row.kind === 'text' && (
+              <div className="field">
+                <label htmlFor={row.id + '-output-budget'}>最大输出预算（tokens）</label>
+                <Select
+                  items={[
+                    { value: 'unlimited', label: '不限制（默认）' },
+                    { value: 'custom', label: '自定义' },
+                  ]}
+                  value={outputBudgetDrafts[row.id!] !== undefined || row.maxOutputTokens != null ? 'custom' : 'unlimited'}
+                  onValueChange={(value) => {
+                    if (value === 'custom') {
+                      setOutputBudgetDrafts((drafts) => ({ ...drafts, [row.id!]: row.maxOutputTokens?.toString() || '' }));
+                    } else if (value === 'unlimited') {
+                      change(row.id!, { maxOutputTokens: null });
+                      setOutputBudgetDrafts((drafts) => {
+                        const next = { ...drafts };
+                        delete next[row.id!];
+                        return next;
+                      });
+                    }
+                  }}
+                >
+                  <SelectTrigger id={row.id + '-output-budget'}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unlimited">不限制（默认）</SelectItem>
+                    <SelectItem value="custom">自定义</SelectItem>
+                  </SelectContent>
+                </Select>
+                {(outputBudgetDrafts[row.id!] !== undefined || row.maxOutputTokens != null) && (
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    aria-label="自定义最大输出预算（tokens）"
+                    value={outputBudgetDrafts[row.id!] ?? row.maxOutputTokens ?? ''}
+                    placeholder="输入正整数"
+                    onChange={(event) => setOutputBudgetDrafts((drafts) => ({ ...drafts, [row.id!]: event.target.value }))}
+                  />
+                )}
+                <small className="helper">作用于此模型的每次文本请求。不限制时由服务商决定；思考模型的推理内容也可能计入预算。</small>
               </div>
             )}
             {row.kind === 'text' && (

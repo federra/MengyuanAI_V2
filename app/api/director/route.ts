@@ -53,7 +53,6 @@ async function chat(req: Request) {
       ],
       response_format: { type: 'json_object' },
       stream: false,
-      max_tokens: 8000,
     });
     if (!response.ok) return json({ error: `模型服务返回${response.status}，原内容未修改` }, 502);
     const result = (await response.json()) as {

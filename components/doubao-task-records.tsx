@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { VideoFileButton } from './video-file-button';
@@ -15,12 +15,21 @@ export function DoubaoTaskRecords({data, onCommand}: {data: DoubaoSnapshot; onCo
   const [search, setSearch] = useState('');
   const [pending, setPending] = useState<string>();
   const [preview, setPreview] = useState<DoubaoJob>();
+  const retrievals = useRef(new Set<string>());
+  const [retrieving, setRetrieving] = useState<string[]>([]);
+  async function retrieveOriginal(job: DoubaoJob) {
+    if (job.retryJobId || retrievals.current.has(job.id) || job.retrieval?.status === 'fetching') return;
+    retrievals.current.add(job.id);
+    setRetrieving([...retrievals.current]);
+    try { await onCommand('retrieve', {id: job.id}); }
+    finally { retrievals.current.delete(job.id); setRetrieving([...retrievals.current]); }
+  }
   const status = (job: DoubaoJob) => doubaoJobPaused(job, data.paused) ? 'paused' : job.status;
   const jobs = [...data.jobs].reverse().filter(j => (!search.trim() || [j.title,j.promptExcerpt,j.requestId,j.videoId].join(' ').toLowerCase().includes(search.trim().toLowerCase())) && (!account || j.accountId === account) && (filter === '全部' || (filter === '进行中' ? ['queued', 'prepared', 'submitted', 'downloading'].includes(status(j)) : filter === '已暂停' ? status(j) === 'paused' : filter === '已完成' ? j.status === 'succeeded' : filter === '待核对' ? j.status === 'attention' : filter === '生成失败' ? j.status === 'failed' : j.status === 'cancelled')));
   const totalPages = Math.max(1, Math.ceil(jobs.length / pageSize));
   const current = Math.min(page, totalPages - 1);
   return <section className="doubao-records" aria-label="豆包工作与视频返回记录">
-    <div className="actions">
+    <div className="actions doubao-record-filters">
       {['全部', '进行中', '已暂停', '已完成', '待核对', '生成失败', '已取消'].map(label => <Button key={label} variant={filter === label ? 'default' : 'outline'} onClick={() => {setFilter(label); setPage(0);}}>{label}</Button>)}
       <select aria-label="按账号筛选任务" value={account} onChange={e => {setAccount(e.target.value); setPage(0);}}><option value="">全部账号</option>{data.accounts.map(a => <option key={a.id} value={a.id}>{a.group} · {a.name}</option>)}</select>
       <input aria-label="搜索豆包任务" placeholder="搜索分镜、提示词或任务编号" value={search} onChange={e=>{setSearch(e.target.value);setPage(0);}} />
@@ -37,7 +46,8 @@ export function DoubaoTaskRecords({data, onCommand}: {data: DoubaoSnapshot; onCo
           {j.status==='attention' && <Button variant="outline" disabled={!!pending} onClick={async()=>{if(!window.confirm('取消此任务的本地追踪？豆包网页上的生成不会自动停止，视频结果将不再自动回填。原对话会保留，账号可继续下一任务。'))return;setPending(j.id);try{await onCommand('cancel',{id:j.id,confirmed:true});}finally{setPending(undefined);}}}>取消追踪</Button>}
           {j.status==='prepared'&&j.error&&<Button variant="outline" onClick={()=>void onCommand('retryPrepare',{id:j.id})}>重新准备</Button>}
           {doubaoJobFailed(j) && <Button disabled={!!pending || !!j.retryJobId || data.paused} onClick={async () => {setPending(j.id);try{await onCommand('regenerate', {id:j.id});}finally{setPending(undefined);}}}>{j.retryJobId ? '已创建新任务' : pending===j.id ? '正在加入队列…' : '重新生成'}</Button>}
-          {j.status === 'attention' && j.submittedAt && !j.retryJobId && <Button variant="outline" disabled={!!pending} onClick={async () => {setPending(j.id);try{await onCommand('resume', {id: j.id});}finally{setPending(undefined);}}}>{pending===j.id?'正在重取…':j.hasSavedResult?'重新下载':'重新获取'}</Button>}
+          {['submitted', 'attention'].includes(j.status) && <Button variant="outline" disabled={!!j.retryJobId || retrieving.includes(j.id) || j.retrieval?.status === 'fetching'} title={j.retryJobId ? '已创建新任务，请查看新任务的结果' : undefined} onClick={() => retrieveOriginal(j)}>{retrieving.includes(j.id) || j.retrieval?.status === 'fetching' ? '获取中…' : '重新获取'}</Button>}
+          {j.retrieval?.message && <output className={`doubao-retrieval-message ${j.retrieval.status === 'failed' ? 'doubao-record-error' : ''}`}>{j.retrieval.status === 'failed' ? `获取失败：${j.retrieval.message}` : j.retrieval.message}</output>}
           {!!j.recoveryCount && <small>原任务重取 {j.recoveryCount} 次</small>}
           {j.hasSavedResult && j.status!=='succeeded' && <small>已找到原始视频，等待下载回传</small>}
           {j.aiWatermarkRemoved && <small>{j.brandWatermark?'AI 明水印已去除，保留豆包品牌水印':'AI 明水印已去除'}</small>}
@@ -45,7 +55,7 @@ export function DoubaoTaskRecords({data, onCommand}: {data: DoubaoSnapshot; onCo
         </div></td>
       </tr>)}</tbody>
     </table>{!jobs.length && <p className="helper">此筛选条件下没有任务记录。</p>}</div>
-    <div className="actions"><span>共 {jobs.length} 条</span><label>每页 <select aria-label="每页任务数量" value={pageSize} onChange={e=>{setPageSize(Number(e.target.value));setPage(0);}}>{[5,10,20,50].map(n=><option key={n} value={n}>{n}</option>)}</select> 条</label><Button variant="outline" disabled={current === 0} onClick={() => setPage(current - 1)}>上一页</Button><span>{current + 1} / {totalPages}</span><Button variant="outline" disabled={current + 1 >= totalPages} onClick={() => setPage(current + 1)}>下一页</Button></div>
+    <div className="actions doubao-record-pagination"><span>共 {jobs.length} 条</span><label>每页 <select aria-label="每页任务数量" value={pageSize} onChange={e=>{setPageSize(Number(e.target.value));setPage(0);}}>{[5,10,20,50].map(n=><option key={n} value={n}>{n}</option>)}</select> 条</label><Button variant="outline" disabled={current === 0} onClick={() => setPage(current - 1)}>上一页</Button><span>{current + 1} / {totalPages}</span><Button variant="outline" disabled={current + 1 >= totalPages} onClick={() => setPage(current + 1)}>下一页</Button></div>
     <Dialog open={!!preview} onOpenChange={open => !open && setPreview(undefined)}><DialogContent className="max-w-5xl"><DialogHeader><DialogTitle>{preview?.title || '视频预览'}</DialogTitle></DialogHeader>{preview?.media && <video style={{width: '100%', maxHeight: '70vh', background: '#0f172a'}} src={preview.media.url} controls autoPlay><track kind="captions" /></video>}</DialogContent></Dialog>
   </section>;
 }

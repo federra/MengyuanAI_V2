@@ -57,6 +57,7 @@ export type DoubaoJob = {
   resultFoundAt?: string;
   recoveryCount?: number;
   recoveryKey?: string;
+  retrieval?: {status:'fetching'|'failed'|'succeeded';key:string;startedAt:string;finishedAt?:string;deadlineAt?:number;reason?:string;message?:string};
   parameters?: { model?: string; actualModel?: string; ratio?: string; duration?: number; sources?: Record<string, string> };
   history?: { at: string; message: string }[];
 };
@@ -107,7 +108,7 @@ export async function doubaoCommand<T = DoubaoSnapshot>(
   if (!window.directorDesktop?.doubao)
     throw Error('多账号管理需要桌面版，请更新桌面版后打开。');
   const result = await window.directorDesktop.doubao(action, data) as T;
-  if (['participation', 'pause', 'account', 'enqueue', 'regenerate', 'resume', 'cancel', 'checkLogin', 'deleteAccount'].includes(action))
+  if (['participation', 'pause', 'account', 'enqueue', 'regenerate', 'resume', 'retrieve', 'cancel', 'checkLogin', 'deleteAccount'].includes(action))
     window.dispatchEvent(new Event('director-doubao-change'));
   return result;
 }

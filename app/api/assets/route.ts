@@ -21,7 +21,6 @@ async function extract(req: Request) {
     const response = await textRequest({
       response_format: { type: 'json_object' },
       stream: false,
-      max_tokens: 8000,
       messages: [
         {
           role: 'system',

@@ -69,11 +69,6 @@ export const storyLengths = [
   '3000～5000字',
   '5000字以上',
 ];
-export function storyTokenBudget(length: string, count = 1) {
-  const words =
-    [500, 1000, 2000, 3000, 5000, 6500][storyLengths.indexOf(length)] || 1000;
-  return Math.max(5000, count * (words * 2 + 1000));
-}
 export function customStylePatch(
   project: Project,
   value: string,

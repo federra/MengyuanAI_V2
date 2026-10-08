@@ -135,7 +135,7 @@ export function DoubaoManager({
       {message && <output>{message}</output>}
       {tab === '账号' && (
         <>
-          <div className="actions">
+          <div className="actions doubao-account-toolbar">
             <Button
               onClick={() =>
                 setEdit({
@@ -148,7 +148,7 @@ export function DoubaoManager({
             >
               新增账号
             </Button>
-            <label>
+            <label className="doubao-account-group">
               分组{' '}
               <select value={group} onChange={(e) => setGroup(e.target.value)}>
                 {['全部分组', ...groups].map((g) => (
@@ -179,7 +179,7 @@ export function DoubaoManager({
             >
               备份账号
             </Button>
-            <label className="tag">
+            <label className="doubao-file-button">
               恢复账号
               <input
                 type="file"
@@ -199,11 +199,13 @@ export function DoubaoManager({
               />
             </label>
           </div>
+          <details className="doubao-usage-help"><summary>使用说明</summary>
           <p className="helper">
             勾选账号“调用”，回到分镜选择豆包并点击生成，软件会自动打开账号浏览器、设置参数、上传参考图和提示词。仅遇到登录或滑块时需要你操作，完成后自动继续。昵称检测可选，不影响生成。用量为本工具记录。
           </p>
           <p className="helper">勾选“调用”后，该账号参与任务；取消后停止接收新任务，已提交任务继续接收结果。设置立即保存，关闭弹窗或重启软件仍保留。分镜生成只使用已勾选“调用”的账号；当前选择 {selected.length} 个。</p>
           <p className="helper">批量打开仅处理当前分组，跳过原任务未结束、登录检测中和额度不足的账号。浏览器打开后仍需确认登录与页面空闲，才会分配新任务。</p>
+          </details>
           {data.paused && <output>豆包任务已暂停，等待任务已暂停，恢复后继续；已提交任务继续接收结果。请到“任务”页恢复。</output>}
           {edit && (
             <div className="doubao-edit">
@@ -438,10 +440,12 @@ export function DoubaoManager({
               并发 {data.settings.concurrency} · 每个账号同时处理一个任务
             </span>
           </div>
+          <details className="doubao-usage-help"><summary>使用说明</summary>
           <p className="helper">
             提交由插件确认匹配的生成请求后记录；超时不自动重复提交。完成后下载原始视频并回填原分镜。关闭此弹窗可继续工作，请保持桌面版和对应
             Chrome 打开。
           </p>
+          </details>
           <DoubaoTaskRecords data={data} onCommand={run} />
         </>
       )}

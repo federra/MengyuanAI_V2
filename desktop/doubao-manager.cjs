@@ -13,7 +13,8 @@ const pendingVideo = j => j.status === 'submitted' && !!j.generationAcceptedAt &
 // three minutes after the original submission, including across restarts.
 const slotReleased = j => holdsAccount(j) && Number.isFinite(Date.parse(j.submittedAt)) && Date.now() - Date.parse(j.submittedAt) >= 3 * 60000;
 const blocksSubmission = j => holdsAccount(j) && !slotReleased(j);
-const recoverable = j => ['submitted','attention'].includes(j.status) && !!j.requestId && !!j.submittedAt && !j.retryJobId && !j.terminalAt;
+const recoverable = j => ['submitted','attention'].includes(j.status) && !!j.requestId && !!j.submittedAt && !j.retryJobId && (!j.terminalAt || !!j.retrieval);
+const RETRIEVAL_TIMEOUT_MS = 60000;
 const conversation = value => { try { const u=new URL(value); return ['https://www.doubao.com','https://doubao.com'].includes(u.origin)&&/^\/chat\/\d+$/.test(u.pathname)?u.href:''; } catch { return ''; } };
 const freshIdle = a => a.runtimeState === 'idle' && a.idleSamples >= 2 && Date.now() - (a.runtimeAt || 0) < 45000;
 const day = (time = Date.now()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(time));
@@ -43,6 +44,7 @@ class DoubaoManager {
     try { const old = JSON.parse(await fs.readFile(path.join(this.root, 'manager.json'), 'utf8')); if (old.version !== 2 || !Array.isArray(old.accounts) || !Array.isArray(old.jobs)) throw Error('豆包数据库格式无效'); this.state = { ...old, participatingAccountIds: Array.isArray(old.participatingAccountIds) ? old.participatingAccountIds.filter(id => old.accounts.some(a => a.id === id)) : [], settings: { ...DEFAULTS, ...old.settings } }; }
     catch (e) { if (e.code !== 'ENOENT') throw e; }
     for (const job of this.state.jobs) {
+      if(job.retrieval?.status==='fetching')this.finishRetrieval(job,'failed','interrupted','工作台已重启，本次获取中断；可重新获取原任务结果');
       if (this.state.paused && job.status === 'queued') job.status = 'paused';
     }
     this.state.accountSequence = Math.max(this.state.accountSequence || 0, ...this.state.accounts.map(a => a.serial || 0));
@@ -301,6 +303,27 @@ class DoubaoManager {
       j.status = 'cancelled'; j.terminalAt = Date.now();
       this.record(j, '已人工取消本地任务追踪；豆包网页生成不会自动停止，结果不再自动回填');
     }
+    else if (action === 'retrieve') {
+      const j=this.state.jobs.find(j=>j.id===data.id);
+      if(!j||!['submitted','attention'].includes(j.status)||!j.submittedAt||!j.requestId)throw Error('仅可重新获取生成中或待核对的原提交任务');
+      if(j.retryJobId)throw Error('原任务已重新生成，请处理对应的新任务');
+      if(j.retrieval?.status==='fetching'||this.downloading.has(j.id))return this.snapshot();
+      const a=this.account(j.accountId),key=crypto.randomUUID();
+      j.retrieval={status:'fetching',key,startedAt:new Date().toISOString(),deadlineAt:Date.now()+RETRIEVAL_TIMEOUT_MS,message:'正在获取原任务结果'};
+      j.recoveryKey=key;j.recoveryCount=(j.recoveryCount||0)+1;
+      this.record(j,'重新获取原任务结果：只读取原视频，不重新提交生成');
+      await this.save();
+      if(j.resultUrl)await this.startDownload(a,j,j.resultUrl);
+      else if(Date.now()-(a.lastSeen||0)>=45000){
+        // Return the fetching snapshot immediately. Opening Chrome must not
+        // hold the command/event queue or prevent the deadline from expiring.
+        setImmediate(()=>{if(this.stopping||j.retrieval?.key!==key||j.retrieval.status!=='fetching')return;
+          void this.runCommand('open',{ids:[a.id]}).catch(async error=>{
+            if(j.retrieval?.key===key&&j.retrieval.status==='fetching'){this.finishRetrieval(j,'failed','connection_failed','原账号连接失败：'+clean(error.message,300));await this.save();}
+          });
+        });
+      }
+    }
     else if (action === 'resume') {
       const j = this.state.jobs.find(j => j.id === data.id);
       if (j && ['submitted','downloading'].includes(j.status) && j.recoveryKey) return this.snapshot();
@@ -321,7 +344,15 @@ class DoubaoManager {
     } else throw Error('不支持的豆包管理操作');
     await this.save();if(['pause','cancel'].includes(action))this.requestWake(); return this.snapshot();
   }
-  async expire() { let changed = false; for (const a of this.state.accounts) if (a.closingCheckId && Date.now() - (a.closingCheckAt || 0) > 60000 && Date.now() - (a.lastSeen || 0) > 45000) { a.closingCheckId = ''; a.runtimeState = 'unknown'; a.idleSamples = 0; changed = true; } for (const a of this.state.accounts) if (a.loginCheck?.status === 'pending' && a.loginCheck.expiresAt < Date.now()) {a.loginCheck.status = 'failed';a.loginCheck.message = '等待登录或昵称超过10分钟；窗口已保留，请完成登录、验证并展开侧栏后重新检测';a.loginStatus = '检测未确认'; changed = true;} for (const j of this.state.jobs) if (ACTIVE.includes(j.status) && Date.now() - (j.waitStartedAt || Date.parse(j.submittedAt || j.preparedAt)) > this.state.settings.timeoutMinutes * 60000) { j.status = 'attention'; j.error = '等待结果时间较长，尚未确认结果；请核对原任务，勿重复生成'; changed = true; this.notify(j); } if (changed) await this.save(); }
+  finishRetrieval(j,status,reason,message) {
+    if(!j.retrieval)return;
+    Object.assign(j.retrieval,{status,reason,message:clean(message,400),finishedAt:new Date().toISOString()});
+    this.record(j,j.retrieval.message);
+  }
+  async expire() { let changed = false;
+    for(const j of this.state.jobs)if(j.retrieval?.status==='fetching'&&j.retrieval.deadlineAt<=Date.now()){
+      this.finishRetrieval(j,'failed','timeout','本次获取超时，尚未找到可用的原视频；请稍后重新获取');changed=true;
+    } for (const a of this.state.accounts) if (a.closingCheckId && Date.now() - (a.closingCheckAt || 0) > 60000 && Date.now() - (a.lastSeen || 0) > 45000) { a.closingCheckId = ''; a.runtimeState = 'unknown'; a.idleSamples = 0; changed = true; } for (const a of this.state.accounts) if (a.loginCheck?.status === 'pending' && a.loginCheck.expiresAt < Date.now()) {a.loginCheck.status = 'failed';a.loginCheck.message = '等待登录或昵称超过10分钟；窗口已保留，请完成登录、验证并展开侧栏后重新检测';a.loginStatus = '检测未确认'; changed = true;} for (const j of this.state.jobs) if (ACTIVE.includes(j.status) && Date.now() - (j.waitStartedAt || Date.parse(j.submittedAt || j.preparedAt)) > this.state.settings.timeoutMinutes * 60000) { j.status = 'attention'; j.error = '等待结果时间较长，尚未确认结果；请核对原任务，勿重复生成'; changed = true; this.notify(j); } if (changed) await this.save(); }
   needsExtensionUpdate(a) { return !!a.executionBuild && a.executionBuild !== EXTENSION_VERSION; }
   eligible(a) {
     return !this.needsExtensionUpdate(a) && !a.extensionUpdating && a.enabled && this.state.participatingAccountIds.includes(a.id) && (a.creationReady || ['已人工确认登录','已检测登录'].includes(a.loginStatus)) && a.loginCheck?.status !== 'pending' && !a.closingCheckId && freshIdle(a)
@@ -347,10 +378,10 @@ class DoubaoManager {
   }
   async claim(a) {
     a.lastSeen = Date.now(); const allowed=await this.authorize().then(()=>true).catch(()=>false);if(allowed)this.dispatch();
-    const owned = this.state.jobs.filter(j => j.accountId === a.id && holdsAccount(j));
+    const owned = this.state.jobs.filter(j => j.accountId === a.id && (holdsAccount(j)||recoverable(j)));
     const current = owned.find(blocksSubmission);
     // Snapshot before saving: only expose completion after its media receipt is durable.
-    const jobStates = this.state.jobs.filter(j => j.accountId === a.id).map(j => ({id:j.id, requestId:j.requestId, status:j.status, terminal:!!j.terminalAt, returned:j.status==='succeeded' && !!j.media?.id}));
+    const jobStates = this.state.jobs.filter(j => j.accountId === a.id).map(j => ({id:j.id, requestId:j.requestId, status:j.status, terminal:!!j.terminalAt, retrievalTracking:!!j.retrieval&&recoverable(j), returned:j.status==='succeeded' && !!j.media?.id}));
     await this.save();
     return { jobStates, waitingJobs: owned.filter(recoverable).map(j=>({...j, slotReleased:slotReleased(j)})), extensionVersion:EXTENSION_VERSION, extensionUpdateRequired:this.needsExtensionUpdate(a), accountName: a.name, serial: a.serial, nickname: a.nickname || '', loginCheck: a.loginCheck?.status === 'pending' ? a.loginCheck : null, waiting: this.state.jobs.some(j=>j.status==='queued'&&j.accountIds.includes(a.id)), enabled: a.enabled && this.state.participatingAccountIds.includes(a.id), paused: this.state.paused || !allowed, runtimeState: a.runtimeState || 'unknown', settings: this.state.settings, job: current && (allowed || current.status==='submitted') ? { ...current, bundle: JSON.parse(await fs.readFile(path.join(this.root, `${current.id}.bundle.json`), 'utf8')) } : null };
   }
@@ -434,10 +465,16 @@ class DoubaoManager {
     }
     if(data.type==='confirmationIntent'){
       await this.authorize();
-      if(j.status!=='submitted'||j.videoId||j.confirmationAttemptedAt||this.state.paused||!a.enabled)throw Error('当前任务不可重复确认生成');
+      if(j.retrieval||j.status!=='submitted'||j.videoId||j.confirmationAttemptedAt||this.state.paused||!a.enabled)throw Error('当前任务不可重复确认生成');
       j.confirmationAttemptedAt=Date.now();this.record(j,'豆包要求确认，继续当前视频任务');await this.save();return {ok:true};
     }
     if (j.retryJobId) return {ok:true}; // Old callbacks cannot overwrite a manual retry.
+    if(data.type==='retrievalFailed'){
+      if(j.retrieval?.status==='fetching'&&data.retrievalKey===j.retrieval.key&&data.requestId===j.requestId){
+        this.finishRetrieval(j,'failed',clean(data.reason,60)||'result_unavailable',data.error||'本次未找到原视频，请稍后重新获取');await this.save();
+      }
+      return {ok:true};
+    }
     if(data.type==='conversationBound'&&recoverable(j)&&data.requestId===j.requestId){
       const url=conversation(data.url);
       if(url&&(!j.conversationUrl||j.conversationUrl===url)){
@@ -465,16 +502,25 @@ class DoubaoManager {
     }
     else if (data.type === 'workflow' && j.status === 'prepared') { for (const step of (Array.isArray(data.steps) ? data.steps : []).slice(0, 8)) this.record(j, clean(step, 200)); j.workflowError = j.error = clean(data.error, 400); if(j.error) this.record(j, j.error); }
     else if (data.type === 'submitted' && j.status === 'prepared') { this.record(j, '已匹配豆包生成请求，正在生成'); j.error = ''; j.status = 'submitted'; j.submittedAt = new Date().toISOString(); j.waitStartedAt = Date.now(); j.requestId = clean(data.requestId, 100); if (a.remaining != null) { a.remaining = Math.max(0, a.remaining - 1); a.balanceSource = '提交后估算（需同步）'; } }
-    else if (data.type === 'identity' && ['submitted','attention'].includes(j.status) && (!data.requestId || data.requestId===j.requestId)) { j.messageId ||= clean(data.messageId, 100); j.videoId ||= clean(data.videoId, 100); }
-    else if(data.type==='resultUnavailable'&&j.status==='submitted'){
+    else if (data.type === 'identity' && ['submitted','attention'].includes(j.status) && (!data.requestId || data.requestId===j.requestId)) {
+      if(j.videoId&&data.videoId&&data.videoId!==j.videoId)throw Error('视频编号与原任务不匹配');
+      if(j.retrieval&&data.requestId!==j.requestId)throw Error('视频身份与原提交不匹配');
+      j.messageId ||= clean(data.messageId, 100); j.videoId ||= clean(data.videoId, 100);
+    }
+    else if(data.type==='resultUnavailable'&&['submitted','attention'].includes(j.status)){
       if(!j.videoId||data.videoId!==j.videoId||data.requestId!==j.requestId)throw Error('视频结果与原提交不匹配');
       j.status='attention';this.terminal(a,j);
+      if(j.retrieval?.status==='fetching')this.finishRetrieval(j,'failed','watermarked_only','豆包仅返回带水印版本，未获取到可用原视频；请稍后重新获取');
       j.error='豆包已返回视频，但接口仅提供带水印版本，未下载到分镜。可重新获取原视频，无需重新生成。';
       this.record(j,j.error);this.notify(j);
+    }
+    else if(data.type==='failed'&&j.retrieval&&data.requestId===j.requestId&&data.terminal!==true){
+      if(j.retrieval.status==='fetching')this.finishRetrieval(j,'failed','result_unavailable',data.error||'原视频获取失败，请稍后重新获取');
     }
     else if (data.type === 'failed' && holdsAccount(j) && j.status !== 'downloading') { j.status = data.terminal === true ? 'failed' : 'attention'; if (data.terminal === true) this.terminal(a,j); j.error = clean(data.error || '提交结果不明，等待确认原任务结束', 500); this.notify(j); }
     else if (data.type === 'result' && ['submitted','attention'].includes(j.status) && j.submittedAt) {
       if (data.original !== true) throw Error('没有确认原始文件地址，不自动回填');
+      if(j.retrieval&&data.requestId!==j.requestId)throw Error('视频结果与原提交不匹配');
       if (j.videoId ? data.videoId !== j.videoId : (!j.requestId || data.requestId !== j.requestId)) throw Error('视频结果与原提交不匹配');
       if (!this.downloading.has(j.id)) {
         const official=data.source==='doubao_without_watermark'&&data.aiWatermarkRemoved===true;
@@ -494,20 +540,29 @@ class DoubaoManager {
     void work.finally(()=>{this.downloading.delete(j.id);this.downloadJobs.delete(work);}).catch(()=>{});
   }
   async download(j, url) {
+    const signals=[this.downloadAbort.signal,AbortSignal.timeout(120000)];
+    if(j.retrieval?.status==='fetching')signals.push(AbortSignal.timeout(Math.max(1,j.retrieval.deadlineAt-Date.now())));
+    const signal=AbortSignal.any(signals);
     try {
       let response;
-      for (let n = 0; n < 5; n++) { response = await this.fetchMedia(allowedMedia(url,j.aiWatermarkRemoved===true), { redirect: 'manual', signal: AbortSignal.any([this.downloadAbort.signal, AbortSignal.timeout(120000)]) }); if ([301,302,303,307,308].includes(response.status)) { url = new URL(response.headers.get('location'), url).href; continue; } break; }
+      for (let n = 0; n < 5; n++) { response = await this.fetchMedia(allowedMedia(url,j.aiWatermarkRemoved===true), { redirect: 'manual', signal }); if ([301,302,303,307,308].includes(response.status)) { url = new URL(response.headers.get('location'), url).href; continue; } break; }
       const type = response.headers.get('content-type')?.split(';')[0];
       if (!response.ok || !['video/mp4','video/webm'].includes(type)) {j.resultUrl='';throw Error('原始视频地址无法下载或已过期，请重新获取以刷新链接');}
       const blob = await response.blob();
       if (!blob.size) throw Error('返回的视频为空');
       const backend = this.backend(); const form = new FormData(); form.set('file', new File([blob], `${j.title}.${type === 'video/webm' ? 'webm' : 'mp4'}`, { type }));
       form.set('operation_id','doubao:'+j.id);
-      const imported = await fetch(backend.origin + '/api/media', { method: 'POST', headers: { Origin: backend.origin, Cookie: `director_session=${backend.token}`, ...(backend.internalToken?{'x-director-finish':backend.internalToken}:{}) }, body: form, signal:this.downloadAbort.signal });
+      const imported = await fetch(backend.origin + '/api/media', { method: 'POST', headers: { Origin: backend.origin, Cookie: `director_session=${backend.token}`, ...(backend.internalToken?{'x-director-finish':backend.internalToken}:{}) }, body: form, signal });
       const media = await imported.json(); if (!imported.ok) throw Error(media.error || '回传工作台失败');
       if (!media?.id) throw Error('工作台未返回视频保存凭据，请核对后重新获取原任务结果');
+      if(j.retrieval)this.finishRetrieval(j,'succeeded','', '原始视频已获取并回填');
       this.record(j, '原始视频已下载并回传工作台'); j.media = media; j.status = 'succeeded'; j.completedAt = new Date().toISOString(); j.error = ''; this.notify(j);
-    } catch (e) { j.status = 'attention'; j.error = this.stopping ? '工作台已关闭，下载中断；重启后可重新获取原任务结果，无需重复生成。' : clean(e.message, 400); this.record(j, j.error); if(!this.stopping)this.notify(j); }
+    } catch (e) {
+      const timedOut=!!j.retrieval&&signal.aborted&&!this.stopping&&j.retrieval.deadlineAt<=Date.now();
+      j.status='attention';j.error=this.stopping?'工作台已关闭，下载中断；重启后可重新获取原任务结果，无需重复生成。':timedOut?'本次获取超时，原视频下载或回填尚未完成；可重新获取原任务结果':clean(e.message,400);
+      if(j.retrieval?.status==='fetching')this.finishRetrieval(j,'failed',timedOut?'timeout':'download_failed',j.error);
+      this.record(j,j.error);if(!this.stopping)this.notify(j);
+    }
     await this.save();
   }
   async handle(req, res) {
@@ -541,4 +596,4 @@ class DoubaoManager {
     } catch (e) { reply(400, { error: clean(e.message, 400) }); }
   }
 }
-module.exports = { DoubaoManager, DEFAULTS, allowedMedia, day };
+module.exports = { DoubaoManager, DEFAULTS, allowedMedia, day, RETRIEVAL_TIMEOUT_MS };

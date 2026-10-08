@@ -54,7 +54,6 @@ async function importSkill(req: Request) {
         },
       ],
       response_format: { type: 'json_object' },
-      max_tokens: 8000,
       stream: false,
     });
     if (!upstream.ok)

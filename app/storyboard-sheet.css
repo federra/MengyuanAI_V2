@@ -886,6 +886,65 @@
 .doubao-jobs small { grid-column:1/-1; color:#bb4d54; }
 .doubao-helper>div { display:grid; grid-template-columns:130px 1fr; gap:15px; border-bottom:1px solid #e7edf6; padding:12px; }
 .doubao-helper dd { overflow-wrap:anywhere; margin:0; }
+.doubao-manager { --doubao-secondary:#526783; gap:12px; }
+:root.dark .doubao-manager { --doubao-secondary:#b4c0d2; }
+.doubao-tabs { padding-bottom:10px; }
+.doubao-manager .actions { gap:8px; }
+.doubao-manager [data-slot="button"],.doubao-manager .doubao-file-button {
+  height:34px; min-height:34px; padding:0 11px; font-size:13px; line-height:1.4; border-radius:8px;
+}
+.doubao-manager .doubao-file-button {
+  display:inline-flex; align-items:center; justify-content:center; cursor:pointer;
+  border:1px solid var(--border); background:var(--background); color:var(--foreground);
+}
+.doubao-manager .doubao-file-button:hover { background:var(--muted); }
+.doubao-manager [data-slot="button"]:disabled {
+  opacity:1; background:var(--muted); color:var(--muted-foreground); border-color:var(--border);
+  box-shadow:none; cursor:not-allowed;
+}
+.doubao-manager select,.doubao-manager input:not([type="checkbox"]):not([type="file"]) { height:34px; font-size:13px; padding:5px 10px; }
+.doubao-manager .helper,.doubao-account-table small,.doubao-record-prompt,.doubao-record-history { color:var(--doubao-secondary); }
+.doubao-account-table small { font-size:12px; line-height:1.5; }
+.doubao-account-table th,.doubao-account-table td { padding:10px; }
+/* Keep labels from shifting the account toolbar's control baseline. */
+.doubao-manager .doubao-account-toolbar > label { margin:0; }
+.doubao-manager .doubao-account-group { display:inline-flex; align-items:center; gap:8px; font-size:13px; white-space:nowrap; }
+.doubao-account-group select { width:auto; }
+.doubao-account-table .doubao-row-actions {
+  display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-items:start; gap:6px;
+  width:220px; max-width:220px;
+}
+.doubao-row-actions > [data-slot="button"] { width:100%; margin:0; }
+.doubao-row-actions > details { position:relative; min-width:0; }
+.doubao-row-actions > details > summary {
+  display:flex; align-items:center; justify-content:center; gap:6px; height:34px; min-height:34px;
+  padding:0 8px; border:1px solid var(--border); border-radius:8px; background:var(--background);
+  color:var(--foreground); font-size:13px; line-height:1.4; cursor:pointer; list-style:none;
+}
+.doubao-row-actions > details > summary::-webkit-details-marker { display:none; }
+.doubao-row-actions > details > summary::before { content:'▸'; }
+.doubao-row-actions > details[open] > summary::before { content:'▾'; }
+.doubao-row-actions > details > summary:hover { background:var(--muted); }
+.doubao-row-actions > details > summary:focus-visible { outline:2px solid var(--ring); outline-offset:2px; }
+.doubao-row-actions > details > [data-slot="button"] {
+  position:absolute; z-index:2; top:40px; left:0; width:220px; background:var(--background);
+  box-shadow:0 4px 12px rgb(0 0 0 / 15%);
+}
+.doubao-usage-help,.doubao-connect-help { color:var(--doubao-secondary); font-size:13px; }
+.doubao-usage-help summary,.doubao-connect-help summary { cursor:pointer; color:var(--foreground); width:fit-content; }
+.doubao-usage-help .helper { margin:8px 0; line-height:1.6; }
+.doubao-manager .doubao-records { gap:10px; margin-top:0; }
+.doubao-records th,.doubao-records td { padding:10px; }
+.doubao-records p { margin:5px 0; }
+.doubao-records .doubao-record-filters { gap:8px; }
+.doubao-record-filters input { flex:1 1 230px; width:auto; }
+.doubao-record-filters select { width:auto; max-width:200px; }
+.doubao-record-actions { gap:6px; min-width:120px; }
+.doubao-manager .doubao-retrieval-message { padding:0; margin:0; background:none; font-size:12px; line-height:1.5; }
+.doubao-manager .doubao-record-pagination { gap:8px; flex-wrap:nowrap; overflow-x:auto; padding-bottom:2px; white-space:nowrap; }
+.doubao-record-pagination label { display:inline-flex; align-items:center; gap:6px; flex:none; }
+.doubao-record-pagination select { width:62px; }
+.doubao-record-pagination > span { flex:none; }
 @media(max-width:700px){.doubao-settings-grid{grid-template-columns:1fr}.doubao-tabs{align-items:stretch}.doubao-helper>div{grid-template-columns:1fr}}
 
 .sheet-head-sticky { position:sticky; top:68px; z-index:20; }

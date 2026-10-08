@@ -9,7 +9,7 @@ import {confirmVideo} from './confirm-video.js';
 import {probeResult} from './probe-result.js';
 import {readResultIdentity} from './result-identity.js';
 import {readGenerationProgress} from './generation-progress.js';
-const EXECUTION_BUILD='0.13.5';
+const EXECUTION_BUILD='0.13.6';
 const own=url=>url?.startsWith(chrome.runtime.getURL(''));
 const doubao=url=>{try{return ['https://www.doubao.com','https://doubao.com'].includes(new URL(url).origin);}catch{return false;}};
 let tail=Promise.resolve(),polling=false;
@@ -44,9 +44,14 @@ function durableEvents(events,patch={}){return eventWork(async()=>{
   await chrome.storage.local.set({...patch,eventOutbox:outbox});
   await flushEventsNow();
 });}
+async function retrievalFailure(job,reason,error){
+  if(job.retrieval?.status!=='fetching')return;
+  await api('/event',{type:'retrievalFailed',jobId:job.id,requestId:job.requestId,retrievalKey:job.retrieval.key,reason,error});
+}
 async function observeWaiting(job,tabId){
   const progress=(await chrome.scripting.executeScript({target:{tabId},func:readGenerationProgress,args:[job]}))[0]?.result;
   if(!progress||!job.requestId)return false;
+  if(job.retrieval){await retrievalFailure(job,progress.failed?'original_failed':'still_generating',progress.failed?'豆包原任务已失败：'+progress.summary:'豆包原任务仍在生成，请稍后重新获取');return true;}
   if(progress.failed){await durableEvent({type:'failed',jobId:job.id,requestId:job.requestId,terminal:true,error:progress.summary});return true;}
   const reply=await api('/event',{type:'generationWaiting',jobId:job.id,requestId:job.requestId,...progress});
   if(reply.ignored)return false;
@@ -60,23 +65,45 @@ async function trackWaiting(next,tabs){
     const state=await saved();
     const entry={...state.waitingJobs?.[job.id],job};
     const isConversation=url=>doubao(url)&&/^\/chat\/\d+$/.test(new URL(url).pathname);
-    const original=isConversation(job.conversationUrl)?job.conversationUrl:isConversation(entry.url)?entry.url:'';
+    const original=job.retrieval&&job.videoId&&entry.playbackOnly?'':isConversation(job.conversationUrl)?job.conversationUrl:isConversation(entry.url)?entry.url:'';
     let tab=original?tabs.find(t=>t.url===original):tabs.find(t=>t.id===entry.tabId||(state.activeJob?.id===job.id&&t.id===state.taskTab));
     const playbackOnly=!original&&job.videoId&&job.recoveryKey&&(!tab||entry.playbackOnly);
     entry.playbackOnly=!!playbackOnly;
-    if(playbackOnly)tab=chooseTab(tabs,state.taskTab);
+    if(playbackOnly){
+      // An explicit retrieval must never arm another job's composer/player.
+      // Use its retained private playback tab, or open one read-only page.
+      if(job.retrieval){
+        tab=tabs.find(t=>t.id===entry.tabId&&entry.playbackOnly&&!Object.entries(state.waitingJobs||{}).some(([id,e])=>id!==job.id&&e.tabId===t.id));
+        if(!tab&&job.retrieval.status==='fetching'){tab=await chrome.tabs.create({url:'https://www.doubao.com/chat/create-image',active:false});tabs.push(tab);}
+      }else tab=chooseTab(tabs,state.taskTab);
+    }
     if(!tab&&original&&doubao(original)&&/^\/chat\/\d+$/.test(new URL(original).pathname)){
       // Reopen the exact conversation after restart; never submit again.
       tab=await chrome.tabs.create({url:original,active:false});tabs.push(tab);
     }
-    if(!tab){await setStatus('未找到原任务对话，请在此账号打开原对话后点击重新获取');continue;}
+    if(!tab){await retrievalFailure(job,'missing_identity','未找到原任务对话或视频编号，请在原账号打开原对话后重新获取');await setStatus('未找到原任务对话，请在此账号打开原对话后点击重新获取');continue;}
     entry.tabId=tab.id;entry.url=original||(isConversation(tab.url)&&!playbackOnly?tab.url:'');
     const remember=async()=>{const latest=await saved();await chrome.storage.local.set({waitingJobs:{...latest.waitingJobs,[job.id]:entry}});};
     // Establish event routing before arming the page or clicking its player.
     await remember();
     if(tab.status==='loading')continue;
     try{
-      if(playbackOnly){await chrome.tabs.sendMessage(tab.id,{type:'arm',job:entry.job,settings:next.settings});continue;}
+      if(playbackOnly||job.retrieval&&job.videoId){
+        if(job.retrieval){
+          const observerBuild=(await chrome.scripting.executeScript({target:{tabId:tab.id},world:'MAIN',func:()=>window.__directorObserverBuild}))[0]?.result;
+          if(observerBuild!==EXECUTION_BUILD){
+            if(entry.playbackFallbackBuild===EXECUTION_BUILD&&entry.playbackFallbackKey===job.retrieval.key){
+              await retrievalFailure(job,'page_error','原视频播放页未成功加载新版助手，请稍后重新获取');continue;
+            }
+            entry.playbackFallbackBuild=EXECUTION_BUILD;entry.playbackFallbackKey=job.retrieval.key;
+            // Updated workers cannot reuse old page scripts. Keep the original
+            // conversation and any draft intact; recover only its saved video.
+            tab=await chrome.tabs.create({url:'https://www.doubao.com/chat/create-image',active:false});tabs.push(tab);
+            entry.tabId=tab.id;entry.url='';entry.playbackOnly=true;await remember();continue;
+          }
+        }
+        await chrome.tabs.sendMessage(tab.id,{type:'arm',job:entry.job,settings:next.settings});continue;
+      }
       if(!job.conversationUrl&&/^\/chat\/\d+$/.test(new URL(tab.url).pathname)){
         await api('/event',{type:'conversationBound',jobId:job.id,requestId:job.requestId,url:tab.url});
         job.conversationUrl=tab.url;entry.url=tab.url;
@@ -105,7 +132,7 @@ async function trackWaiting(next,tabs){
         await setStatus('已找到原视频，正在读取原始下载链接');
       }else if(!result){
         if(await observeWaiting(job,tab.id)){await setStatus('正在跟踪原豆包对话，等待本条视频结果');continue;}
-        if(job.status==='submitted'&&!job.generationAcceptedAt&&!job.videoId&&!job.confirmationAttemptedAt&&!entry.confirmationAttempted&&!next.paused&&next.enabled){
+        if(!job.retrieval&&job.status==='submitted'&&!job.generationAcceptedAt&&!job.videoId&&!job.confirmationAttemptedAt&&!entry.confirmationAttempted&&!next.paused&&next.enabled){
           const confirm=(await chrome.scripting.executeScript({target:{tabId:tab.id},func:confirmVideo,args:[job]}))[0]?.result;
           if(confirm?.needed){
             await chrome.scripting.executeScript({target:{tabId:tab.id},func:confirmVideo,args:[job,'prepare']});
@@ -119,6 +146,7 @@ async function trackWaiting(next,tabs){
         if(job.status==='attention')await setStatus('本次等待已超时，仍检查原对话结果；提交满3分钟后允许下一条');
       }
     }catch(error){
+      await retrievalFailure(job,'page_error','原任务页面读取失败：'+String(error?.message||error).slice(0,300)).catch(()=>{});
       if(Date.now()-(entry.lastProbeErrorAt||0)>60000){
         entry.lastProbeErrorAt=Date.now();
         await api('/event',{type:'resultProbeError',jobId:job.id,requestId:job.requestId,error:String(error?.message||error).slice(0,300)}).catch(()=>{});
@@ -138,7 +166,7 @@ async function closeReturnedTasks(next){
   }
   for(const [id,entry] of Object.entries(initial.waitingJobs||{})){
     const result=next.jobStates?.find(j=>j.id===id && j.requestId===entry.job.requestId);
-    if((['failed','cancelled','attention'].includes(result?.status)&&result.terminal)||(result?.status==='succeeded'&&result.returned&&entry.playbackOnly)){
+    if((['failed','cancelled','attention'].includes(result?.status)&&result.terminal&&!result.retrievalTracking)||(result?.status==='succeeded'&&result.returned&&entry.playbackOnly)){
       const current=await saved(),waitingJobs={...current.waitingJobs};delete waitingJobs[id];
       await chrome.storage.local.set({waitingJobs,retiredTaskTabs:{...current.retiredTaskTabs,[entry.tabId]:entry.url||entry.job.conversationUrl||(await chrome.tabs.get(entry.tabId).catch(()=>null))?.url||''},...(current.activeJob?.id===id?{activeJob:null,taskTab:null}:{})});
       continue; // Keep failed conversations visible for inspection.

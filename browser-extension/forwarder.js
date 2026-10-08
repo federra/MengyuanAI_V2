@@ -6,7 +6,7 @@
     const {type,media,identities,blocked,requestId,jobId,error}=e.data;
     if(type==='uploadActivity'){const active=Number(e.data.active);if(Number.isSafeInteger(active)&&active>=0)globalThis.__directorUploadActivity={active,at:Date.now()};return;}
     if(type==='harvest'){void request({type:'harvest',media,identities,blocked,requestId});for(const m of media||[])if(m.original&&!rendered.has(m.url)){rendered.add(m.url);showDownload(m);}}
-    else if(['submitted','failed'].includes(type))void request({type:'event',event:{type,jobId,requestId,error}});
+    else if(['submitted','failed','retrievalFailed'].includes(type))void request({type:'event',event:{type,jobId,requestId,error,...(type==='retrievalFailed'?{retrievalKey:e.data.retrievalKey,reason:e.data.reason}:{})}});
   });
   function showDownload(m){
     if(!document.body){setTimeout(()=>showDownload(m),500);return;}
@@ -30,15 +30,15 @@
   }
   chrome.runtime.onMessage.addListener((message,_sender,reply)=>{
     if(message.type==='probeVideo'&&message.job?.requestId&&message.url===location.href){
-      window.postMessage({channel:'director-doubao-control',type:'resolveVideo',job:{id:message.job.id,requestId:message.job.requestId,messageId:message.messageId,url:message.url,videoId:message.videoId}},location.origin);reply({ok:true});return;
+      window.postMessage({channel:'director-doubao-control',type:'resolveVideo',job:{id:message.job.id,requestId:message.job.requestId,messageId:message.messageId,url:message.url,videoId:message.videoId,...(message.job.retrieval?{retrievalKey:message.job.retrieval.key}:{})}},location.origin);reply({ok:true});return;
     }
-    if(message.type==='confirmVideo'&&message.job?.status==='submitted'&&message.url===location.href){
+    if(message.type==='confirmVideo'&&!message.job?.retrieval&&message.job?.status==='submitted'&&message.url===location.href){
       window.postMessage({channel:'director-doubao-control',type:'arm',job:{id:message.job.id,prompt:message.prompt,status:'prepared',requestId:message.job.requestId,continuation:true,url:message.url}},location.origin);reply({ok:true});return;
     }
     if(message.type==='arm'){
       const changed=job?.id!==message.job.id||job?.recoveryKey!==message.job.recoveryKey;job=message.job;settings=message.settings;if(changed){baseline=regionText();lastFailure='';}
       window.postMessage({channel:'director-doubao-control',type:'arm',job:{id:job.id,prompt:job.task.prompt,status:job.status}},location.origin);
-      if(job.status==='submitted'&&job.recoveryKey&&job.videoId)window.postMessage({channel:'director-doubao-control',type:'recover',job:{id:job.id,videoId:job.videoId,messageId:job.messageId,requestId:job.requestId,recoveryKey:job.recoveryKey}},location.origin);
+      if(['submitted','attention'].includes(job.status)&&job.recoveryKey&&job.videoId)window.postMessage({channel:'director-doubao-control',type:'recover',job:{id:job.id,videoId:job.videoId,messageId:job.messageId,requestId:job.requestId,recoveryKey:job.recoveryKey,...(job.retrieval?{retrievalKey:job.retrieval.key}:{})}},location.origin);
       reply({ok:true});
     }
   });

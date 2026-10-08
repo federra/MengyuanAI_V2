@@ -1,9 +1,10 @@
 (() => {
   if(window.__directorObserver)return;window.__directorObserver=true;
-  window.__directorObserverBuild='0.13.5';
+  window.__directorObserverBuild='0.13.6';
   const nativeFetch=window.fetch.bind(window),parse=JSON.parse.bind(JSON);
   let armed=null,pendingPlayback=null;const resolved=new Set(),recoveries=new Set();
   const send=(type,data)=>window.postMessage({channel:'director-doubao-v2',type,...data},location.origin);
+  const reportFailure=(j,error)=>send(j.retrievalKey?'retrievalFailed':'failed',{jobId:j.id,requestId:j.requestId,error,...(j.retrievalKey?{retrievalKey:j.retrievalKey,reason:'result_unavailable'}:{})});
   let activeUploads=0;
   const binaryBody=body=>(typeof Blob!=='undefined'&&body instanceof Blob)||(typeof FormData!=='undefined'&&body instanceof FormData)||(typeof ArrayBuffer!=='undefined'&&(body instanceof ArrayBuffer||ArrayBuffer.isView(body)));
   const trackUpload=body=>{
@@ -20,14 +21,14 @@
         void resolveOfficial(j);return;
       }
       if(/^[-\w]{1,150}$/.test(j.videoId||'')){
-        void nativeFetch('/samantha/media/get_play_info?aid=497858&device_platform=web&samantha_web=1&use-olympus-account=1&version_code=20800&pkg_type=release_version&web_tab_id='+crypto.randomUUID(),{method:'POST',credentials:'include',headers:{'content-type':'application/json'},body:JSON.stringify({key:j.videoId,type:'video'})})
+        void nativeFetch('/samantha/media/get_play_info?aid=497858&device_platform=web&samantha_web=1&use-olympus-account=1&version_code=20800&pkg_type=release_version&web_tab_id='+crypto.randomUUID(),{method:'POST',credentials:'include',...(typeof AbortSignal!=='undefined'?{signal:AbortSignal.timeout(15000)}:{}),headers:{'content-type':'application/json'},body:JSON.stringify({key:j.videoId,type:'video'})})
           .then(r=>r.json()).then(value=>{
             if(value.code!==0)throw Error('播放信息接口返回 '+value.code);
             const payload={...value.data,vid:j.videoId,message_id:j.messageId};
             const found=DirectorMedia.extract(payload);
             if(!found.media.some(m=>m.kind==='video')&&!found.blocked?.length)throw Error('播放接口没有返回可识别的视频下载地址');
             harvest(payload,j.requestId);
-          }).catch(error=>send('failed',{jobId:j.id,requestId:j.requestId,error:'原视频取回失败：'+error.message}));
+          }).catch(error=>reportFailure(j,'原视频取回失败：'+error.message));
       }else pendingPlayback={...j,at:Date.now()};
     }
     if(e.data.type==='recover'){
@@ -37,20 +38,20 @@
       if(globalThis.DirectorWatermark){void resolveOfficial(j);return;}
       // Query only the stored video identity. This endpoint fetches playback
       // metadata; never replay the generation request during result recovery.
-      void nativeFetch('/samantha/media/get_play_info?aid=497858&device_platform=web&samantha_web=1&use-olympus-account=1&version_code=20800&pkg_type=release_version&web_tab_id='+crypto.randomUUID(),{method:'POST',credentials:'include',headers:{'content-type':'application/json'},body:JSON.stringify({key:j.videoId,type:'video'})})
+      void nativeFetch('/samantha/media/get_play_info?aid=497858&device_platform=web&samantha_web=1&use-olympus-account=1&version_code=20800&pkg_type=release_version&web_tab_id='+crypto.randomUUID(),{method:'POST',credentials:'include',...(typeof AbortSignal!=='undefined'?{signal:AbortSignal.timeout(15000)}:{}),headers:{'content-type':'application/json'},body:JSON.stringify({key:j.videoId,type:'video'})})
         .then(r=>r.json()).then(value=>{
           const found=value.code===0?DirectorMedia.extract({...value.data,vid:j.videoId,message_id:j.messageId}):null;
           if(found?.blocked?.length&&!found.media.some(m=>m.kind==='video')){send('harvest',{...found,requestId:j.requestId});return;}
           if(!found?.media.some(m=>m.kind==='video'&&m.original&&m.videoId===j.videoId))throw Error('未返回该视频的原始链接，请确认当前账号登录及原任务状态后重取');
           send('harvest',{...found,requestId:j.requestId});
-        }).catch(error=>send('failed',{jobId:j.id,requestId:j.requestId,error:'重新获取失败：'+error.message}));
+        }).catch(error=>reportFailure(j,'重新获取失败：'+error.message));
     }
   });
   async function resolveOfficial(j){
     try {
       const media=await globalThis.DirectorWatermark.resolve(j.videoId,j.messageId);
       send('harvest',{media:[media],identities:[{videoId:j.videoId,messageId:j.messageId}],blocked:[],requestId:j.requestId});
-    }catch(error){send('failed',{jobId:j.id,requestId:j.requestId,error:'官方去水印视频取回失败：'+error.message});}
+    }catch(error){reportFailure(j,'官方去水印视频取回失败：'+error.message);}
   }
   function harvest(value,requestId=''){
     const result=DirectorMedia.extract(value);if(result.media.length||result.identities.length||result.blocked?.length)send('harvest',{...result,...(globalThis.DirectorWatermark?{media:result.media.filter(m=>m.kind!=='video'),blocked:[]}:{}),requestId});

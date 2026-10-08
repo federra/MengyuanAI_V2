@@ -73,6 +73,7 @@ export type ModelConfig = {
   model: string;
   protocol: string;
   thinking: string;
+  maxOutputTokens?: number | null;
   enabled: boolean;
   voiceReference?: 'auto' | 'none' | 'text' | 'audio';
   hasKey?: boolean;
@@ -105,6 +106,7 @@ export const modelDefaults: ModelConfig[] = [
     model: '',
     protocol: 'chat',
     thinking: 'auto',
+    maxOutputTokens: null,
     enabled: false,
   },
   {
@@ -220,6 +222,9 @@ export function validateModel(raw: ModelConfig): ModelConfig {
     protocol: raw.protocol,
     thinking: raw.thinking,
     enabled: raw.enabled === true,
+    ...(raw.kind === 'text'
+      ? { maxOutputTokens: textOutputLimit(raw.maxOutputTokens) }
+      : {}),
     ...(raw.kind === 'audio'
       ? {
           speechPath: raw.speechPath || '/audio/speech',
@@ -233,6 +238,13 @@ export function validateModel(raw: ModelConfig): ModelConfig {
       ? { voiceReference: raw.voiceReference || 'auto' }
       : {}),
   };
+}
+// Missing values in existing profiles mean the same as an explicit unlimited setting.
+export function textOutputLimit(value: unknown): number | null {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0)
+    throw Error('最大输出预算必须为正整数，或选择不限制');
+  return value;
 }
 export function normalizeModelBase(value: string) {
   const u = publicHttps(value.trim());

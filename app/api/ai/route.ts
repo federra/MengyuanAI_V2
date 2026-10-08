@@ -1,7 +1,6 @@
 import { recordUsage } from '@/lib/usage-server';
 import {
   storyLengths,
-  storyTokenBudget,
   parseStoryPlans,
 } from '@/lib/creative';
 import { textRequest, config } from '@/lib/model-server';
@@ -34,7 +33,6 @@ async function generateStoryboard(content: string, prompt: string, accepted: (bo
         {role: 'system', content: `${prompt}${timingRepair ? '\n上次输出存在不支持的分镜时长，请根据原剧本重新拆段；逐段检查时长并完整保留动作、对白和资产。只允许这一次时长修正。' : ''}\n当前只处理剧本的这一段。完整覆盖本段，保持段内顺序；不要补写其他段落或重复前后段。`},
         {role: 'user', content: storyboardPart(input, script)},
       ],
-      max_tokens: 12000,
       stream: false,
       response_format: {type: 'json_object'},
     }, {allowEmptyTruncated: true});
@@ -162,16 +160,6 @@ async function generate(req: Request, accepted: (body: unknown) => void) {
         { role: 'system', content: prompts[task] },
         { role: 'user', content },
       ],
-      max_tokens:
-        task === 'shots'
-          ? 24000
-          : task === 'storyOptions'
-            ? storyTokenBudget(storyLength, storyCount)
-            : task === 'story'
-              ? storyTokenBudget(storyLength)
-              : task === 'script'
-                ? 24000
-                : 5000,
       stream: false,
       ...(['shots', 'storyOptions'].includes(task)
         ? { response_format: { type: 'json_object' } }

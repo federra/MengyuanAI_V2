@@ -7,6 +7,7 @@ import {
   type ModelKind,
   publicHttps,
   normalizeModelBase,
+  textOutputLimit,
 } from './models';
 export const modelRequestTimeoutMs = 600_000;
 async function cryptoKey() {
@@ -69,6 +70,9 @@ export async function config(
       id,
       baseUrl: normalizeModelBase(JSON.parse(row.body).baseUrl),
       hasKey: !!row.secret,
+      ...(kind === 'text'
+        ? { maxOutputTokens: textOutputLimit(JSON.parse(row.body).maxOutputTokens) }
+        : {}),
       ...(secret && row.secret ? { apiKey: await unseal(row.secret) } : {}),
     });
   if (id !== kind) throw Error('找不到所选模型配置，请重新选择');
@@ -116,6 +120,9 @@ export async function listConfigs(): Promise<ModelConfig[]> {
     })),
   ].map((c) => ({
     ...upgradeVideoConfig(c),
+    ...(c.kind === 'text'
+      ? { maxOutputTokens: textOutputLimit(c.maxOutputTokens) }
+      : {}),
     isDefault: selections.some((s) => s.kind === c.kind && s.id === c.id),
   }));
 }
@@ -243,18 +250,14 @@ export async function textRequest(
   options: { allowEmptyTruncated?: boolean } = {},
 ) {
   const c = await readyConfig('text');
-  // These DeepSeek models default to thinking. Their documented default output
-  // budget is 64K, shared by reasoning and the answer; a small answer-only cap
-  // can run out before a single JSON character is returned.
   const thinking = c.thinking || 'auto';
-  const deepseekThinking = /^(deepseek-flash|deepseek-v4-pro|deepseek-v4-flash)$/i.test(c.model)
-    && thinking !== 'disabled' && body.reasoning_effort !== 'none';
-  const maxTokens = deepseekThinking && typeof body.max_tokens === 'number'
-    ? Math.max(body.max_tokens, body.reasoning_effort === 'max' ? 131072 : 65536)
-    : body.max_tokens;
+  const maxTokens = textOutputLimit(c.maxOutputTokens);
+  // Only the saved per-model setting controls output. Legacy callers cannot
+  // reintroduce a software cap through either compatible parameter name.
+  const { max_tokens: _legacyMaxTokens, max_completion_tokens: _legacyCompletionTokens, ...content } = body;
   const response = await modelRequest(c, '/chat/completions', {
-    ...body,
-    ...(maxTokens !== undefined ? { max_tokens: maxTokens } : {}),
+    ...content,
+    ...(maxTokens !== null ? { max_tokens: maxTokens } : {}),
     model: c.model,
     ...(thinking !== 'auto' ? { thinking: { type: thinking } } : {}),
   });

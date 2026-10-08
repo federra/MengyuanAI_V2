@@ -8,6 +8,26 @@ export function probeResult(job,open=false){
   if(job.conversationUrl&&job.conversationUrl!==location.href)return null;
   const prompt=normalize(job.task?.prompt).slice(0,80);
   const progress=normalize(job.progressMessage);
+  if(job.retrieval){
+    // A retained prompt cannot authorize a later unrelated result in the same
+    // chat. Prefer the saved result/acknowledgement identity; otherwise require
+    // exactly one original prompt and its immediately following response.
+    if(!job.requestId||job.conversationUrl!==location.href)return null;
+    let result;
+    if(job.resultMessageId)result=messages.find(e=>e.getAttribute('data-message-id')===job.resultMessageId);
+    else if(job.generationMessageId){const at=messages.findIndex(e=>e.getAttribute('data-message-id')===job.generationMessageId);if(at>=0)result=messages[at+1];}
+    else{
+      const anchors=messages.filter(e=>prompt.length>=12&&normalize(e.innerText).includes(prompt));
+      if(anchors.length===1)result=messages[messages.indexOf(anchors[0])+1];
+    }
+    if(!result||result.querySelector('[data-streaming="true"]')||!/(?:你的视频生成好了|视频(?:已)?生成(?:完成|成功)|视频已完成)/.test(result.innerText||''))return null;
+    const controls=[...result.querySelectorAll('[class*="play-icon-wrapper"], video, [aria-label="播放"], [aria-label="播放视频"], [aria-label="Play"], [aria-label="Play video"]')].filter(visible);
+    const roots=controls.filter(e=>!controls.some(other=>other!==e&&other.contains(e)));
+    if(roots.length!==1)return null;
+    if(open)roots[0].click();
+    return {messageId:result.getAttribute('data-message-id'),url:location.href};
+  }
+
   const associated=!!job.requestId&&!!job.generationAcceptedAt&&job.conversationUrl===location.href;
   function withoutMessageIds(){
     // Some Doubao views omit data-message-id entirely. Use the saved response

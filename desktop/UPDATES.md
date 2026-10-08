@@ -53,11 +53,18 @@ Windows 使用 electron-builder NSIS 安装版 + electron-updater。源码启动
 
 ## 验证
 
+- `node desktop/test-software-update-proxy.mjs`及Electron运行`desktop/test-software-update-proxy-network.mjs`：代理失败回退、有限重试、其他会话保留及真实测试文件下载/SHA-512；不执行真实安装。
 - `node desktop/test-software-update.mjs`：版本比较、无更新/未发布/网络错误、校验失败不退出、取消关闭后复用下载、安装交接。
 - `node desktop/test-shutdown.mjs`：服务退出与任务记录保存。
 - Electron 运行 `desktop/test-software-update-ui.mjs`：临时数据库、模拟更新源与安装器，检查完整 UI 状态及深浅主题。测试不执行真正的 Windows 安装。
 
 相关实现：`software-update.cjs`（主进程状态与校验）、`main.cjs`（IPC/退出交接）、`preload.cjs`（受限接口）、`components/software-update.tsx`（界面）、`build/windows-config.cjs`（NSIS 配置）。
+
+## 代理连接失败
+
+若检查发现新版，但下载报`ERR_PROXY_CONNECTION_FAILED`，检查Windows系统代理是否指向已退出的代理程序。清单检查与安装包下载使用不同网络通道，前者成功不代表后者代理可用。可关闭失效代理、重启软件后重试，或浏览器下载现行安装包后保存退出并覆盖安装。
+
+2026-10-08源码已增加仅更新专用会话的直连回退，明确代理错误最多重试一次，保留版本及完整性校验。该修复尚未发布，现行0.1.112包仍为原逻辑。详情与验证见[排查记录](../docs/software-update-proxy-2026-10-08.md)。
 
 ## 0.1.70 发布记录（2026-09-15）
 

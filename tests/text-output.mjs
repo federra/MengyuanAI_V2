@@ -14,19 +14,19 @@ function setup(model='deepseek-flash',thinking='auto',result={choices:[{finish_r
   globalThis.fetch=async (_url,options)=>{calls.push(JSON.parse(options.body));return Response.json(result);};
   return calls;
 }
-void test('DeepSeek automatic thinking receives room for reasoning and the JSON answer',async()=>{
+void test('DeepSeek automatic thinking omits caller caps by default',async()=>{
   const calls=setup();
   await textRequest(request);
-  assert.equal(calls[0].max_tokens,65536);
+  assert.equal(calls[0].max_tokens,undefined);
   assert.equal(calls[0].thinking,undefined,'preserve automatic thinking preference');
 });
-void test('explicit non-thinking and unknown providers retain the caller output budget',async()=>{
+void test('non-thinking and unknown providers also omit caller budgets by default',async()=>{
   for(const [model,thinking] of [['deepseek-flash','disabled'],['other-model','auto']]){
-    const calls=setup(model,thinking);await textRequest(request);assert.equal(calls[0].max_tokens,8000);
+    const calls=setup(model,thinking);await textRequest(request);assert.equal(calls[0].max_tokens,undefined);
   }
   const calls=setup('deepseek-v4-pro','enabled');
   await textRequest({...request,max_tokens:100000});
-  assert.equal(calls[0].max_tokens,100000);
+  assert.equal(calls[0].max_tokens,undefined);
 });
 void test('reasoning-only truncation survives for the storyboard caller without becoming正文',async()=>{
   const calls=setup('deepseek-flash','auto',{choices:[{finish_reason:'length',message:{content:null,reasoning_content:'private reasoning'}}]});
@@ -39,7 +39,7 @@ void test('reasoning-only truncation survives for the storyboard caller without 
 void test('asset callers get an output-budget error for empty truncation, not advice to shorten input',async()=>{
   setup('deepseek-flash','auto',{choices:[{finish_reason:'length',message:{content:'',reasoning_content:'private reasoning'}}]});
   await assert.rejects(textRequest(request),error=>{
-    assert.match(error.message,/输出.*65536/);
+    assert.match(error.message,/由服务商决定/);
     assert(!error.message.includes('private reasoning'));
     assert(!error.message.includes('缩短输入'));
     return true;

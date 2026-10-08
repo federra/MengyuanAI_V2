@@ -100,7 +100,7 @@ assert.ok(
   requests[0].messages[0].content.includes('视频段（工作台的一行分镜）'),
 );
 assert.ok(!requests[0].messages[0].content.includes('6至12'));
-assert.ok(requests[0].max_tokens > 5000);
+assert.equal(requests[0].max_tokens, undefined, 'story calls defer output limits to the configured text model');
 source.episodes[0].shots[1].time_start = 3;
 answer(source);
 r = await request();
@@ -154,8 +154,8 @@ const long=await POST(new Request('http://localhost/api/ai',{method:'POST',heade
 assert.equal(long.status,200);
 assert.match(requests.at(-1).messages[0].content,/5000字以上/);
 assert(!requests.at(-1).messages[0].content.includes('400至700'));
-assert(requests.at(-1).max_tokens>=52000);
-console.log('PASS long story instructions and output budget reach model');
+assert.equal(requests.at(-1).max_tokens, undefined, 'long story calls do not impose a software output budget');
+console.log('PASS long story instructions reach model without a software output cap');
 
 const complete = text => ({choices:[{finish_reason:'stop',message:{content:JSON.stringify(text)}}]});
 const standard={shots:[{title:'转换镜头',description:'进门',duration:10}]};
