@@ -129,7 +129,6 @@ import {
   type Media,
   newProject,
   newShot,
-  exampleProject,
   id,
   continuity,
   compilePrompt,
@@ -250,7 +249,7 @@ async function api<T>(url: string, options?: RequestInit, onAccepted?: (body: T)
 }
 export default function Home(){return <AccessGate>{state=><Workbench accessState={state}/>}</AccessGate>;}
 function Workbench({accessState}:{accessState:AccessState}) {
-  const [project, setProject] = useState<Project>(() => exampleProject());
+  const [project, setProject] = useState<Project>(() => newProject());
   const [projects, setProjects] = useState<Project[]>([]);
   const [trashedProjects, setTrashedProjects] = useState<TrashedProject[]>([]);
   const trashRefreshSequence = useRef(0);
@@ -281,6 +280,9 @@ function Workbench({accessState}:{accessState:AccessState}) {
   const businessMode = ['skill中心', '收益中心', '渠道代理'].includes(menu);
   const [selected, setSelected] = useState('');
   const [dirty, setDirty] = useState(false);
+  const current = useRef(project);
+  const lock = useRef(false);
+  const isDirty = useRef(dirty);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState('');
   const [notice, setNotice] = useState('');
@@ -306,9 +308,12 @@ function Workbench({accessState}:{accessState:AccessState}) {
     const poll = async () => {
       try {
         const state = await doubaoCommand();
-        if (!disposed) {
-          const next = receiveDoubaoVideos(project, state.jobs);
-          if (next !== project) {
+        if (!disposed && current.current.id === project.id) {
+          const latest = current.current;
+          const next = receiveDoubaoVideos(latest, state.jobs);
+          if (next !== latest) {
+            current.current = next;
+            isDirty.current = true;
             setProject(next);
             setDirty(true);
             setNotice('豆包原始视频已下载并返回对应分镜，请保存项目。');
@@ -402,9 +407,6 @@ function Workbench({accessState}:{accessState:AccessState}) {
   const assistantUndo = useRef<{ snapshot: Project; stage: Stage; action: DirectorUndo } | undefined>(undefined);
   const [savedTime, setSavedTime] = useState('');
   const recoveryCopies = useRef(new Set<string>());
-  const current = useRef(project);
-  const lock = useRef(false);
-  const isDirty = useRef(dirty);
   const fileInput = useRef<HTMLInputElement>(null);
   const uploadTarget = useRef<{
     kind:
@@ -442,12 +444,14 @@ function Workbench({accessState}:{accessState:AccessState}) {
         if (data.length) {
           setProject(data[0]);
           setSelected(data[0].shots[0]?.id || '');
-        } else setDirty(true);
+        }
         const recovery=await window.directorDesktop?.auth?.('recovery-read') as {project?:Project;dirty?:boolean;recoveredCopy?:boolean}|null;
+        const restored = recovery?.project ? recoverProject(recovery.project, data) : null;
         if (recovery?.project && trash.some(entry => entry.project.id === recovery.project!.id)) {
           setNotice('上次打开的项目已移至回收站，可在项目中心恢复。');
-        } else if (recovery?.dirty && recovery.project && window.confirm('发现该账号上次未保存的项目，是否恢复？如已保存版本发生变化，将另建恢复草稿，保留两份内容。')) {
-          const restored = recoverProject(recovery.project, data);
+        } else if (recovery?.project && !restored) {
+          setNotice('上次打开的项目已删除或不存在，未加载历史草稿。');
+        } else if (recovery?.dirty && restored && window.confirm('发现该账号上次未保存的项目，是否恢复？如已保存版本发生变化，将另建恢复草稿，保留两份内容。')) {
           if (restored.copied || recovery.recoveredCopy) recoveryCopies.current.add(restored.project.id);
           current.current = restored.project;
           isDirty.current = restored.dirty;
@@ -476,10 +480,24 @@ function Workbench({accessState}:{accessState:AccessState}) {
     if (loading) return;
     let active = true;
     const refresh = () => {
-      if (lock.current) return;
+      if (lock.current || aiGenerationLock.current || batchesActive.current) return;
       const sequence = ++trashRefreshSequence.current;
-      void api<TrashedProject[]>('/api/projects/trash').then(trash => {
-        if (active && sequence === trashRefreshSequence.current) setTrashedProjects(trash);
+      const observedProject = current.current;
+      void Promise.all([api<Project[]>('/api/projects'), api<TrashedProject[]>('/api/projects/trash')]).then(([all, trash]) => {
+        if (!active || sequence !== trashRefreshSequence.current || current.current !== observedProject || lock.current || aiGenerationLock.current || batchesActive.current) return;
+        const available = all.filter(p => !trash.some(entry => entry.project.id === p.id));
+        setProjects(available);
+        setTrashedProjects(trash);
+        if (current.current.revision > 0 && !available.some(p => p.id === current.current.id)) {
+          const removedId = current.current.id;
+          const next = available[0] || newProject();
+          current.current = next; isDirty.current = false;
+          setProject(next); setDirty(false); setSelected(next.shots[0]?.id || '');
+          setUndo(null); assistantUndo.current = undefined; setAiText(''); setSkillLaunch(undefined);
+          setDialog(''); setGenerationTarget(null); setAssetManagementKind('');
+          recoveryCopies.current.delete(removedId);
+          setNotice('当前项目已删除或不存在，已清除工作区中的历史内容。');
+        }
       }).catch(() => {});
     };
     const timer = setInterval(refresh, 60000);
@@ -686,6 +704,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
   async function choose(p: Project) {
     await action('切换项目', async () => {
       if (isDirty.current) await save();
+      current.current = p; isDirty.current = false;
       setProject(p);
       setUndo(null);
       setSelected(p.shots[0]?.id || '');
@@ -693,6 +712,28 @@ function Workbench({accessState}:{accessState:AccessState}) {
       setMenu('创作中心');
       setStep('创意');
     });
+  }
+  async function renameProject(candidate: Project, title: string) {
+    const name = title.trim();
+    if (!name) throw Error('请输入项目名称。');
+    if (lock.current || aiGenerationLock.current || batchesActive.current) throw Error('请等待当前操作完成后再重命名项目。');
+    ++trashRefreshSequence.current;
+    lock.current = true; setBusy('重命名项目'); setError('');
+    try {
+      await saveQueue.current;
+      if (current.current.id === candidate.id) {
+        const result = await save({ ...current.current, title: name });
+        setUndo(previous => previous?.id === result.id ? { ...previous, title: result.title, revision: result.revision } : previous);
+      } else {
+        // Saving another card must not switch or overwrite the current unsaved draft.
+        const result = await api<Project>('/api/projects', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...candidate, title: name }),
+        });
+        setProjects(all => [result, ...all.filter(p => p.id !== result.id)]);
+      }
+      setNotice('项目已重命名并保存。');
+    } finally { lock.current = false; setBusy(''); }
   }
   async function deleteProject(candidate: Project) {
     if (lock.current || aiGenerationLock.current || batchesActive.current) throw Error('请等待当前操作完成后再删除项目。');
@@ -714,6 +755,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
         const next = projects.find(p => p.id !== candidate.id) || newProject('未命名短片');
         current.current = next; isDirty.current = false;
         setProject(next); setDirty(false); setSelected(next.shots[0]?.id || ''); setUndo(null); setAiText('');
+        assistantUndo.current = undefined; setSkillLaunch(undefined); setDialog(''); setGenerationTarget(null); setAssetManagementKind('');
         recoveryCopies.current.delete(candidate.id);
         await window.directorDesktop?.auth?.('recovery-write', {project:next,dirty:false}).catch(() => {});
       }
@@ -1135,11 +1177,6 @@ function Workbench({accessState}:{accessState:AccessState}) {
               <Select
                 value={project.id}
                 onValueChange={(id) => {
-                  if (id === '__rename__') {
-                    setNewName(project.title);
-                    setDialog('rename');
-                    return;
-                  }
                   const next = projects.find((item) => item.id === id);
                   if (next && next.id !== project.id) void choose(next);
                 }}
@@ -1152,7 +1189,6 @@ function Workbench({accessState}:{accessState:AccessState}) {
                   {[project, ...projects.filter((item) => item.id !== project.id)].map((item) => (
                     <SelectItem key={item.id} value={item.id}>{item.title}</SelectItem>
                   ))}
-                  <SelectItem value="__rename__">重命名当前项目…</SelectItem>
                 </SelectContent>
               </Select>
               <span className="tag project-context-tag">{project.ratio} · {project.style}</span>
@@ -1261,21 +1297,6 @@ function Workbench({accessState}:{accessState:AccessState}) {
                 </span>
                 <div>
                   <b>{s === '剪辑' ? '成品导出' : s}</b>
-                  {creativeMode && (
-                    <small>
-                      {
-                        (
-                          {
-                            创意: '灵感与主题',
-                            故事: '故事结构与方案',
-                            剧本: '撰写与优化',
-                            分镜: '镜头、资产与生成',
-                            剪辑: '预览与导出',
-                          } as Record<string, string>
-                        )[s]
-                      }
-                    </small>
-                  )}
                 </div>
                 {i < workflowStages.length - 1 && (
                   <ChevronRight size={14} className="step-arrow" />
@@ -1318,7 +1339,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
             stage={step}
             shotId={shot?.id}
             disabled={!!busy || loading}
-            onApply={(next, message) => {
+            onApply={(next, message, importedStage) => {
               setUndo(structuredClone(project));
               setProject({
                 ...next,
@@ -1327,6 +1348,11 @@ function Workbench({accessState}:{accessState:AccessState}) {
               setDirty(true);
               setNotice(message);
               setError('');
+              if (importedStage) {
+                setStep(importedStage);
+                setSkillLaunch(undefined);
+                if (importedStage === '分镜') setSelected(next.shots[0]?.id || '');
+              }
             }}
           />}
           {creativeMode && step === '分镜' && (
@@ -1382,7 +1408,7 @@ function Workbench({accessState}:{accessState:AccessState}) {
               />
               {menu === '项目中心' ? (
                 <ProjectCenter projects={projects} trashed={trashedProjects} disabled={loading || !!busy || !!aiGenerating || imageBatches.active}
-                  onOpen={choose} onDelete={deleteProject} onRestore={restoreProject} onClearTrash={clearProjectTrash}
+                  onOpen={choose} onRename={renameProject} onDelete={deleteProject} onRestore={restoreProject} onClearTrash={clearProjectTrash}
                   onNew={() => {
                     setNewName(''); setNewVideoType('剧情短片'); setNewStyle('电影质感'); setNewRatio('16:9');
                     setNewCustomType(''); setNewCustomStyle(''); setDialog('project');
@@ -2312,7 +2338,6 @@ function Workbench({accessState}:{accessState:AccessState}) {
                 (
                   {
                     project: '新建短片项目',
-                    rename: '重命名项目',
                     asset: '新增创作资产',
                     export: '导出项目',
                     ai: '审阅 AI 结果',
@@ -2366,18 +2391,6 @@ function Workbench({accessState}:{accessState:AccessState}) {
               >
                 创建项目
               </Button>
-            </>
-          )}
-          {dialog === 'rename' && (
-            <>
-              <Field label="项目名称" value={newName} onChange={setNewName} />
-              <Button
-                disabled={!!busy || !newName.trim()}
-                onClick={() => {
-                  edit({ title: newName.trim() });
-                  setDialog('');
-                }}
-              >确认改名</Button>
             </>
           )}
           {dialog === 'asset' && (

@@ -1,7 +1,7 @@
 'use client';
 import { useState, type ReactNode } from 'react';
 import Image from 'next/image';
-import { Clapperboard, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Clapperboard, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import type { Project } from '@/lib/studio';
 import { projectOverview, projectStatusLabels, type ProjectCover } from '@/lib/project-overview';
@@ -29,7 +29,7 @@ function ProjectCoverPreview({ covers }: { covers: ProjectCover[] }) {
   />;
 }
 
-export function ProjectCard({ project, onOpen, onDelete, disabled, footer, className = '' }: { project: Project; onOpen?: () => void; onDelete?: () => void; disabled?: boolean; footer?: ReactNode; className?: string }) {
+export function ProjectCard({ project, onOpen, onRename, onDelete, disabled, footer, className = '' }: { project: Project; onOpen?: () => void; onRename?: () => void; onDelete?: () => void; disabled?: boolean; footer?: ReactNode; className?: string }) {
   const {status, covers} = projectOverview(project);
   const content = <>
     <div className="project-card-cover">
@@ -48,6 +48,9 @@ export function ProjectCard({ project, onOpen, onDelete, disabled, footer, class
   return <article className={`project-card-shell ${className}`}>
     {onOpen ? <button className="project-card project-card-with-cover" disabled={disabled} onClick={onOpen}>{content}</button> : <div className="project-card project-card-with-cover">{content}</div>}
     {footer && <div className="project-card-footer">{footer}</div>}
-    {onDelete && <DropdownMenu><DropdownMenuTrigger className="project-card-menu" disabled={disabled} aria-label={`${project.title}项目操作`}><MoreHorizontal /></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem variant="destructive" onClick={onDelete}><Trash2 />删除</DropdownMenuItem></DropdownMenuContent></DropdownMenu>}
+    {(onRename || onDelete) && <DropdownMenu><DropdownMenuTrigger className="project-card-menu" disabled={disabled} aria-label={`${project.title}项目操作`}><MoreHorizontal /></DropdownMenuTrigger><DropdownMenuContent align="end">
+      {onRename && <DropdownMenuItem onClick={onRename}><Pencil />重命名</DropdownMenuItem>}
+      {onDelete && <DropdownMenuItem variant="destructive" onClick={onDelete}><Trash2 />删除</DropdownMenuItem>}
+    </DropdownMenuContent></DropdownMenu>}
   </article>;
 }

@@ -8,6 +8,7 @@ import { json, sameOrigin } from '@/lib/server';
 import { withProgress } from '@/lib/api-response';
 import { videoDurationOptions, videoDurationError } from '@/lib/video-duration';
 import { storyboardRules } from '@/lib/storyboard-contract';
+import { explicitAssets } from '@/lib/assets';
 import { prepareStoryboard } from '@/lib/storyboard-conversion-server';
 import { splitStoryboardScript, storyboardPart, type StoryboardGenerationInput } from '@/lib/storyboard-generation-input';
 
@@ -22,6 +23,16 @@ async function generateStoryboard(content: string, prompt: string, accepted: (bo
   const timingInstruction = `单条视频最多15秒；当前默认视频渠道允许时长：${durations.join('、')}秒。每个视频段的total_duration（兼容格式duration）必须取允许的值。长场次、动作或对白按可表演时间拆成更多视频段，每段时间轴从0开始；完整保留剧情、关键对白与先后顺序，不能缩短数字却保留原来的长段内容，不能加速台词或删剧情来凑时长。剧本场次时长不是单条视频时长；Skill的时长要求也必须满足渠道限制。`;
   prompt = prompt.replace('0.1至120的秒数', '2至15的整数秒数') + '\n' + timingInstruction;
   const chunks = splitStoryboardScript(input.script);
+  // Later chunks still need declarations from the script's character list.
+  // Confirmed project settings take precedence over source supplementation.
+  const knownAssets = new Map<string, {kind: string; name: string; description: string}>();
+  for (const asset of [...(input.assets || []), ...explicitAssets(input.script)]) {
+    const key = `${asset.kind}:${asset.name}`;
+    const previous = knownAssets.get(key);
+    if (!previous || (!previous.description.trim() && asset.description.trim()))
+      knownAssets.set(key, asset);
+  }
+  input = {...input, assets: [...knownAssets.values()]};
   const shots: unknown[] = [];
   let subshots = 0;
   const assets = new Map<string, {kind: string; name: string; description: string}>();
@@ -73,6 +84,11 @@ async function generateStoryboard(content: string, prompt: string, accepted: (bo
   }
   try {
     for (const [index, chunk] of chunks.entries()) await generatePart(chunk, index);
+    for (const [key, asset] of assets) {
+      const known = knownAssets.get(key);
+      if (!asset.description.trim() && known?.description.trim())
+        asset.description = known.description;
+    }
     const merged = JSON.stringify({shots, assets: [...assets.values()]});
     const prepared = await prepareStoryboard(merged);
     return json({

@@ -94,7 +94,7 @@ export function DirectorTools({
   stage: Stage;
   shotId?: string;
   disabled: boolean;
-  onApply: (p: Project, message: string) => void;
+  onApply: (p: Project, message: string, importedStage?: Stage) => void;
   hideToolbar?: boolean;
   onCloseLaunch?: () => void;
   onAssistant?: () => void;
@@ -209,7 +209,10 @@ export function DirectorTools({
           `导入${fieldNames[key]}`,
         );
       }
-      onApply(next, '导入已应用，可撤销；请保存项目');
+      const importedStage: Record<string, Stage> = {
+        brief: '创意', story: '故事', script: '剧本', scenes: '分场', shots: '分镜',
+      };
+      onApply(next, '导入已应用，可撤销；请保存项目', importedStage[importKind]);
       setDialog('');
     } catch (e) {
       setError(e instanceof Error ? e.message : '导入失败');

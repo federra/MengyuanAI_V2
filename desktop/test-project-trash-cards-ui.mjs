@@ -26,7 +26,7 @@ void app.whenReady().then(async()=>{
   const click=async text=>{assert(await js(`(()=>{const button=[...document.querySelectorAll('button,[role=menuitem]')].find(b=>b.textContent.trim()===${JSON.stringify(text)});if(!button)return false;button.click();return true})()`),'Missing button '+text);await delay(150);};
   await wait('.access-submit:not(:disabled)');
   await js(`(()=>{for(const [id,value] of [['access-account','test-member'],['access-key','test-key']]){const input=document.getElementById(id);Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,value);input.dispatchEvent(new Event('input',{bubbles:true}));}})()`);
-  await delay(100);await js("document.querySelector('.access-card form').requestSubmit()");await wait('.storyboard-row');await delay(400);
+  await delay(100);await js("document.querySelector('.access-card form').requestSubmit()");await wait('.topbar');await delay(400);
   const {exampleProject}=await import('../work/test/studio.mjs');
   const fixture=exampleProject();fixture.id=crypto.randomUUID();fixture.title='必须保留的正常项目';fixture.shots=fixture.shots.slice(0,1);
   const active=await js(`fetch('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(${JSON.stringify(fixture)})}).then(r=>r.json())`);assert.equal(active.revision,1);

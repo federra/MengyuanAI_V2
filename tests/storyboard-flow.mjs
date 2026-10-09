@@ -22,6 +22,7 @@ for (const [file, name] of [
       },
     })
     .outputText.replaceAll("'@/lib/video-duration'", "'./video-duration.mjs'")
+    .replaceAll("'@/lib/assets'", "'../test/assets.mjs'")
     .replaceAll("'@/lib/creative'", "'../test/creative.mjs'")
     .replaceAll("'@/lib/storyboard-conversion-server'", "'./storyboard-conversion-server.mjs'")
     .replaceAll("'@/lib/storyboard-generation-input'", "'./storyboard-generation-input.mjs'")

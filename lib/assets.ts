@@ -118,7 +118,13 @@ export function reviewAssetDrafts(value: unknown, script: string) {
   // Explicit script labels are grounded in the original text, even if the model omitted them.
   for (const item of explicitAssets(script)) {
     const key = item.kind + ':' + item.name;
-    if (!names.has(key)) {
+    if (names.has(key)) {
+      const previous = assets.find(a => a.kind === item.kind && a.name === item.name)!;
+      if (!previous.description.trim() && item.description.trim()) {
+        previous.description = item.description;
+        previous.evidence = item.evidence;
+      }
+    } else {
       names.add(key);
       assets.push(item);
     }
@@ -134,26 +140,71 @@ export function reviewAssetDrafts(value: unknown, script: string) {
   return { assets, warnings };
 }
 
-// Without a model only explicit labels and dialogue speakers are extracted.
+// Read only explicit declarations; narrative sentences require model review.
 export function explicitAssets(script: string): AssetDraft[] {
   const result = new Map<string, AssetDraft>();
-  const add = (kind: string, name: string, evidence: string) => {
+  const add = (kind: string, name: string, evidence: string, description = '') => {
     name = name.trim();
     if (!name || name.length > 150 || /^(无|暂无|无对白|待定)$/.test(name))
       return;
-    result.set(kind + ':' + name, {
+    // Do not truncate away the name or the description from its evidence.
+    if (evidence.length > 2000 || description.length > 10000) return;
+    const key = kind + ':' + name;
+    const previous = result.get(key);
+    if (previous && (previous.description.trim() || !description.trim())) return;
+    result.set(key, {
       kind,
       name,
-      description: '',
-      evidence: evidence.slice(0, 2000),
+      description,
+      evidence,
     });
   };
+  const propertyLabel = /^(身份|性别|年龄|职业|外貌|外观|长相|形象|造型|发型|发色|头发|脸型|五官|眼睛|肤色|身材|体型|服装|服饰|衣着|穿着|气质|性格|背景|视觉风格|画质|描述|设定|特征)(描述|设定|特征)?$/;
+  const splitOutside = (value: string, separator: RegExp, described = false) => {
+    const parts: string[] = [];
+    let depth = 0, start = 0, hasDescription = false;
+    for (let i = 0; i < value.length; i++) {
+      if ('（('.includes(value[i])) depth++;
+      else if ('）)'.includes(value[i])) depth = Math.max(0, depth - 1);
+      else if (!depth && described && /[：:]/.test(value[i])) hasDescription = true;
+      else if (!depth && !hasDescription && separator.test(value[i])) {
+        parts.push(value.slice(start, i));
+        start = i + 1;
+      }
+    }
+    parts.push(value.slice(start));
+    return parts;
+  };
+  let roleTable: { name: number; description: number } | undefined;
   for (const raw of script.split('\n')) {
     const line = raw.replace(/\*\*/g, '').trim();
-    for (const match of line.matchAll(
-      /(?:^|[；;｜|])\s*(人物|道具|场景|服饰|声音)[：:]\s*([^；;｜|\n]+)/g,
-    )) {
-      for (const name of match[2].split(/[、，,]/)) add(match[1], name, raw);
+    if (line.startsWith('|') && line.endsWith('|')) {
+      const cells = line.slice(1, -1).split('|').map(cell => cell.trim());
+      const name = cells.findIndex(cell => /^(人物|角色|姓名|角色名|人物名|人物名称)$/.test(cell));
+      const description = cells.findIndex(cell => /^(描述|人物描述|角色描述|外貌|外貌描述|外观|外观描述|形象|造型|视觉设定|人物设定|角色设定)$/.test(cell));
+      if (name >= 0 || description >= 0)
+        roleTable = name >= 0 && description >= 0 ? { name, description } : undefined;
+      else if (roleTable && !cells.every(cell => /^:?-+:?$/.test(cell))) {
+        if (cells[roleTable.name] && cells[roleTable.description])
+          add('人物', cells[roleTable.name], raw, cells[roleTable.description]);
+      }
+    } else roleTable = undefined;
+    for (const field of splitOutside(line, /[；;｜|]/)) {
+      const match = field.match(/^\s*(人物|道具|场景|服饰|声音)[：:]\s*(.+)$/);
+      if (!match) continue;
+      for (const value of splitOutside(match[2], /[、，,]/, match[1] === '人物')) {
+        const annotated = match[1] === '人物'
+          ? value.trim().match(/^([^（(：:]+?)(?:[（(]([\s\S]+)[）)]|[：:]\s*([\s\S]+))$/)
+          : null;
+        if (match[1] === '人物' && !annotated && /[（(：:]/.test(value)) continue;
+        let description = annotated ? (annotated[2] ?? annotated[3]).trim() : '';
+        // A comma followed by another colon/bracket label can be a new person
+        // or an appearance property. Never guess names or attach those facts
+        // to the first character. Only known properties are unambiguous here.
+        if (annotated?.[3] && [...description.matchAll(/[、，,]\s*([^（(：:、，,；;｜|]{1,150}?)[：:（(]/g)]
+          .some(next => !propertyLabel.test(next[1].trim()))) description = '';
+        add(match[1], annotated ? annotated[1] : value, raw, description);
+      }
     }
     const speaker = line.match(
       /^([\p{Script=Han}A-Za-z][\p{Script=Han}A-Za-z0-9· ]{0,19})[：:]\s*[“「"']/u,

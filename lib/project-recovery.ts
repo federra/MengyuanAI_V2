@@ -11,6 +11,9 @@ function content(project: Project) {
 
 export function recoverProject(draft: Project, saved: Project[]) {
   const latest = saved.find(p => p.id === draft.id);
+  // A formerly saved project that disappeared may have been deleted or purged.
+  // Only unsaved new projects can recover without an active storage record.
+  if (!latest && draft.revision > 0) return null;
   if (latest && content(latest) === content(draft))
     return { project: latest, dirty: false, copied: false };
   if ((!latest && draft.revision === 0) || latest?.revision === draft.revision)

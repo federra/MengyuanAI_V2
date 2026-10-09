@@ -14,6 +14,6 @@ assert.equal(result.project.brief,'draft');assert.equal(saved.brief,'saved');ass
 const same=recoverProject({...saved,revision:1,updatedAt:'old'},[saved]);
 assert.equal(same.project,saved);assert.equal(same.dirty,false);
 const normal=recoverProject(draft,[{...saved,revision:1}]);assert.equal(normal.project,draft);assert(normal.dirty);
-assert.equal(recoverProject(draft,[]).project.revision,0);
+assert.equal(recoverProject(draft,[]),null,'deleted or purged saved projects must not recover as new copies');
 assert.equal(recoverProject({...draft,revision:0},[]).copied,false);
-console.log('PASS stale drafts kept as separate copies; equal content uses saved revision; current drafts retained; missing saved projects recover safely');
+console.log('PASS conflicting active drafts kept as copies; equal content uses saved revision; new drafts recover; missing saved projects stay removed');
